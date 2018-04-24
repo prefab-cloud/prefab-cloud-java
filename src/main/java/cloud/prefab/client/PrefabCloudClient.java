@@ -4,10 +4,14 @@ import cloud.prefab.client.util.Cache;
 import com.codahale.metrics.MetricRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 public class PrefabCloudClient {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PrefabCloudClient.class);
 
   private final Builder builder;
   private final long accountId;
@@ -21,10 +25,13 @@ public class PrefabCloudClient {
     this.accountId = Long.parseLong(builder.getApikey().split("|")[0]);
   }
 
-  public FeatureFlagClient getFeatureFlagClient() {
-    return new FeatureFlagClient(this);
+  public RateLimitClient newRateLimitClient() {
+    return new RateLimitClient(this);
   }
 
+  public ConfigClient newConfigClient(String namespace) {
+    return new ConfigClient(namespace, this);
+  }
 
   public ManagedChannel getChannel() {
     ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder
@@ -41,6 +48,10 @@ public class PrefabCloudClient {
 
   public long getAccountId() {
     return accountId;
+  }
+
+  public void logInternal(String message) {
+    LOG.info(message);
   }
 
   public static class Builder {
