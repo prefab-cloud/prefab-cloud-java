@@ -46,14 +46,22 @@ public class ConfigResolver implements Resolver {
     });
   }
 
-
-  @Override
-  public Optional<String> get(String s) {
-    final Prefab.ConfigDelta configDelta = map.get(s);
+  public Optional<Prefab.ConfigValue> getConfigValue(String key) {
+    final Prefab.ConfigDelta configDelta = map.get(key);
     if (configDelta != null) {
-      return Optional.of(configDelta.getValue().toString());
+      return Optional.of(configDelta.getValue());
     }
     return Optional.absent();
+  }
+
+  @Override
+  public Optional<String> get(String key) {
+    final Optional<Prefab.ConfigValue> configValue = getConfigValue(key);
+    if (configValue.isPresent()) {
+      return Optional.of(configValue.get().toString());
+    } else {
+      return Optional.absent();
+    }
   }
 
   @Override

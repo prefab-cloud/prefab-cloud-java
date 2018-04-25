@@ -29,8 +29,12 @@ public class PrefabCloudClient {
     return new RateLimitClient(this);
   }
 
-  public ConfigClient newConfigClient(String namespace) {
-    return new ConfigClient(namespace, this);
+  public ConfigClient newConfigClient() {
+    return new ConfigClient(builder.getNamespace(), this);
+  }
+
+  public FeatureFlagClient newFeatureFlagClient() {
+    return new FeatureFlagClient(this);
   }
 
   public ManagedChannel getChannel() {
@@ -64,6 +68,9 @@ public class PrefabCloudClient {
 
     private String configClasspathDir;
     private String configOverrideDir;
+
+    private String namespace;
+
 
     public Builder() {
       this.apikey = System.getenv("PREFAB_API_KEY");
@@ -140,6 +147,15 @@ public class PrefabCloudClient {
 
     public Builder setLocal(boolean local) {
       this.local = local;
+      return this;
+    }
+
+    public String getNamespace() {
+      return namespace;
+    }
+
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
       return this;
     }
   }

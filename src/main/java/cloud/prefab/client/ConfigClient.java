@@ -12,15 +12,17 @@ public class ConfigClient {
   private final PrefabCloudClient baseClient;
   private final String namespace;
   private final LiveConfig liveConfig;
+  private final ConfigResolver resolver;
 
   public ConfigClient(String namespace, PrefabCloudClient baseClient) {
     this.baseClient = baseClient;
     this.namespace = namespace;
 
+    resolver = new ConfigResolver(baseClient);
     liveConfig = LiveConfig.builder()
         .usingEnvironmentVariables()
         .usingSystemProperties()
-        .usingResolver(new ConfigResolver(baseClient))
+        .usingResolver(resolver)
         .build();
   }
 
@@ -28,6 +30,10 @@ public class ConfigClient {
     return liveConfig;
   }
 
+
+  public Optional<Prefab.ConfigValue> get(String key) {
+    return resolver.getConfigValue(key).transform(java.util.Optional::of).or(java.util.Optional.empty());
+  }
 
   public void upsert(Prefab.UpsertRequest upsertRequest) {
     configServiceStub().upsert(upsertRequest);
@@ -37,4 +43,5 @@ public class ConfigClient {
   private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceStub() {
     return ConfigServiceGrpc.newBlockingStub(baseClient.getChannel());
   }
+
 }
