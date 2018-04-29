@@ -1,75 +1,73 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.PrefabCloudClient;
-import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
-import com.google.common.base.Optional;
-import com.hubspot.liveconfig.resolver.Resolver;
-import io.grpc.stub.StreamObserver;
 
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class ConfigResolver implements Resolver {
+public class ConfigResolver {
 
   private final PrefabCloudClient baseClient;
+  private final ConfigLoader configLoader;
+  private AtomicReference<Map<String, ResolverElement>> localMap = new AtomicReference<>(new HashMap<>());
 
-  private ConcurrentMap<String, Prefab.ConfigDelta> map = new ConcurrentHashMap<>();
-
-  public ConfigResolver(PrefabCloudClient baseClient) {
+  public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
     this.baseClient = baseClient;
-
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(0)
-        .setAccountId(baseClient.getAccountId())
-        .build();
-
-    configServiceStub().getConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
-      @Override
-      public void onNext(Prefab.ConfigDeltas configDeltas) {
-        for (Prefab.ConfigDelta configDelta : configDeltas.getDeltasList()) {
-          final Prefab.ConfigDelta currentVal = map.get(configDelta.getKey());
-          if (currentVal == null || currentVal.getId() < configDelta.getId()) {
-            map.put(configDelta.getKey(), configDelta);
-          }
-        }
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        throwable.printStackTrace();
-      }
-
-      @Override
-      public void onCompleted() {
-      }
-    });
+    this.configLoader = configLoader;
+    makeLocal();
   }
+
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
-    final Prefab.ConfigDelta configDelta = map.get(key);
-    if (configDelta != null) {
-      return Optional.of(configDelta.getValue());
+    final ResolverElement resolverElement = localMap.get().get(key);
+    if (resolverElement != null) {
+      return Optional.of(resolverElement.getConfigDelta().getValue());
     }
-    return Optional.absent();
+    return Optional.empty();
   }
 
-  @Override
-  public Optional<String> get(String key) {
-    final Optional<Prefab.ConfigValue> configValue = getConfigValue(key);
-    if (configValue.isPresent()) {
-      return Optional.of(configValue.get().toString());
-    } else {
-      return Optional.absent();
-    }
+  public void update() {
+    makeLocal();
   }
 
-  @Override
-  public Set<String> keySet() {
-    return map.keySet();
+  private void makeLocal() {
+
+    Map<String, ResolverElement> map = new HashMap<>();
+
+    String baseNamespace = baseClient.getNamespace();
+
+    configLoader.calcConfig().forEach((key, value) -> {
+      String property = key;
+      String propertyNamespace = "";
+      final String[] split = key.split(":");
+      if (split.length > 1) {
+        propertyNamespace = split[0];
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i < split.length; i++) {
+          sb.append(split[i]);
+        }
+        property = sb.toString();
+      }
+
+      if (propertyNamespace.equals("") || baseNamespace.startsWith(propertyNamespace)) {
+        final ResolverElement existing = map.get(property);
+        if (existing == null) {
+          map.put(property, new ResolverElement(value, propertyNamespace));
+        } else if (existing.getNamespace().split("\\.").length < propertyNamespace.split("\\.").length) {
+          map.put(property, new ResolverElement(value, propertyNamespace));
+        }
+      }
+    });
+
+    localMap.set(map);
   }
 
-  private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
-    return ConfigServiceGrpc.newStub(baseClient.getChannel());
-  }
+//  def export_api_deltas
+//  @config_loader.get_api_deltas
+//  end
+//
+
 }

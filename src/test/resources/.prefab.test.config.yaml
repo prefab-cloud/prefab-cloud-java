@@ -1,0 +1,6 @@
+sample: OneTwoThree
+sample_int: 123
+sample_double: 12.12
+sample_bool: true
+sample_to_override: Foo
+prefab.log_level: debug

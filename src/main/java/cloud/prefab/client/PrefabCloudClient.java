@@ -50,6 +50,10 @@ public class PrefabCloudClient {
         .build();
   }
 
+  public String getNamespace() {
+    return builder.getNamespace();
+  }
+
   public long getAccountId() {
     return accountId;
   }
@@ -69,7 +73,7 @@ public class PrefabCloudClient {
     private String configClasspathDir;
     private String configOverrideDir;
 
-    private String namespace;
+    private String namespace = "";
 
 
     public Builder() {
