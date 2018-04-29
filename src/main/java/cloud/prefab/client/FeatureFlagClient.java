@@ -39,7 +39,7 @@ public class FeatureFlagClient {
     }
   }
 
-  private boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> key, List<String> attributes) {
+  protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> key, List<String> attributes) {
     if (key.isPresent()) {
       attributes.add(key.get());
     }
