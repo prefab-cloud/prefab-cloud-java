@@ -32,6 +32,7 @@ public class ConfigResolverTest {
     when(mockLoader.calcConfig()).thenReturn(data);
 
     final PrefabCloudClient mockBaseClient = mock(PrefabCloudClient.class);
+    when(mockBaseClient.getNamespace()).thenReturn("");
     ConfigResolver resolver = new ConfigResolver(mockBaseClient, mockLoader);
 
 
