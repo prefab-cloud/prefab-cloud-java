@@ -6,7 +6,7 @@
 
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
 
     <packaging>jar</packaging>
 
@@ -98,6 +98,11 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
             <version>5.0.5.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.11.328</version>
         </dependency>
         <!-- test deps -->
         <dependency>

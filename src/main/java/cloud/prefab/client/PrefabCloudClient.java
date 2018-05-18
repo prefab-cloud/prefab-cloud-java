@@ -15,6 +15,10 @@ public class PrefabCloudClient {
 
   private final Builder builder;
   private final long accountId;
+  private ManagedChannel channel;
+  private RateLimitClient rateLimitClient;
+  private ConfigClient configClient;
+  private FeatureFlagClient featureFlagClient;
 
   public PrefabCloudClient(Builder builder) {
     this.builder = builder;
@@ -25,24 +29,41 @@ public class PrefabCloudClient {
     this.accountId = Long.parseLong(builder.getApikey().split("|")[0]);
   }
 
-  public RateLimitClient newRateLimitClient() {
-    return new RateLimitClient(this);
+  public RateLimitClient rateLimitClient() {
+    if (rateLimitClient == null) {
+      rateLimitClient = new RateLimitClient(this);
+    }
+    return rateLimitClient;
   }
 
-  public ConfigClient newConfigClient() {
-    return new ConfigClient(builder.getNamespace(), this);
+  public ConfigClient configClient() {
+    if (configClient == null) {
+      configClient = new ConfigClient(this);
+    }
+    return configClient;
   }
 
-  public FeatureFlagClient newFeatureFlagClient() {
-    return new FeatureFlagClient(this);
+  public FeatureFlagClient featureFlagClient() {
+    if (featureFlagClient == null) {
+      featureFlagClient = new FeatureFlagClient(this);
+    }
+    return featureFlagClient;
   }
 
   public ManagedChannel getChannel() {
+    if (channel == null) {
+      channel = createChannel();
+    }
+    return channel;
+  }
+
+  private ManagedChannel createChannel() {
     ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder
         .forAddress(builder.getHost(), builder.getPort());
+
     if (builder.isLocal()) {
       managedChannelBuilder = ManagedChannelBuilder.forAddress("localhost", 8443);
-      managedChannelBuilder.usePlaintext(true);
+      managedChannelBuilder.usePlaintext();
     }
 
     return managedChannelBuilder
@@ -54,12 +75,12 @@ public class PrefabCloudClient {
     return builder.getNamespace();
   }
 
-  public long getAccountId() {
-    return accountId;
+  public String getApiKey() {
+    return builder.getApikey();
   }
 
-  public void logInternal(String message) {
-    LOG.info(message);
+  public long getAccountId() {
+    return accountId;
   }
 
   public static class Builder {

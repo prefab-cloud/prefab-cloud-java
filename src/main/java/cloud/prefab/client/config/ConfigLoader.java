@@ -56,7 +56,8 @@ public class ConfigLoader {
 
     if (existing == null || existing.getId() <= delta.getId()) {
 
-      if (delta.getValue() == null) {
+
+      if (delta.getValue().getTypeCase() == Prefab.ConfigValue.TypeCase.TYPE_NOT_SET) {
         apiConfig.remove(delta.getKey());
       } else {
         apiConfig.put(delta.getKey(), delta);
@@ -136,6 +137,10 @@ public class ConfigLoader {
 
       e.printStackTrace();
     }
+  }
+
+  public long getHighwaterMark() {
+    return highwaterMark;
   }
 
 //

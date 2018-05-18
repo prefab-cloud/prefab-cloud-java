@@ -1,8 +1,6 @@
 # prefab-cloud-java
 Java Client for Prefab RateLimits, FeatureFlags, Config as a Service: https://www.prefab.cloud
 
-## ALPHA CODE
-Caveat Emptor. This code is not production ready.
 
 ### Rate Limit
 ```java
@@ -24,7 +22,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
 </dependency>
 ```
 

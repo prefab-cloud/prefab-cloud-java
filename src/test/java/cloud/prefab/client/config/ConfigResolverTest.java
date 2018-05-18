@@ -38,7 +38,6 @@ public class ConfigResolverTest {
     when(mockBaseClient.getNamespace()).thenReturn("");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key"), "value_none");
-    System.out.println("---------");
     when(mockBaseClient.getNamespace()).thenReturn("projectA");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key"), "valueA");

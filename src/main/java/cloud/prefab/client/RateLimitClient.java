@@ -2,8 +2,12 @@ package cloud.prefab.client;
 
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.RateLimitServiceGrpc;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RateLimitClient {
+  private static final Logger LOG = LoggerFactory.getLogger(RateLimitClient.class);
+
   private Prefab.OnFailure defaultOnFailure = Prefab.OnFailure.LOG_AND_PASS;
 
   private final PrefabCloudClient baseClient;
@@ -31,13 +35,13 @@ public class RateLimitClient {
         case THROW:
           throw e;
         case LOG_AND_FAIL:
-          baseClient.logInternal(message);
+          LOG.warn(message);
           return Prefab.LimitResponse.newBuilder()
               .setAmount(0)
               .setPassed(false)
               .build();
         default:
-          baseClient.logInternal(message);
+          LOG.info(message);
           return Prefab.LimitResponse.newBuilder()
               .setAmount(limitRequest.getAcquireAmount())
               .setPassed(true)

@@ -29,7 +29,7 @@ public class FeatureFlagClient {
 
   public boolean featureIsOnFor(String feature, Optional<String> key, List<String> attributes) {
 
-    final ConfigClient configClient = baseClient.newConfigClient();
+    final ConfigClient configClient = baseClient.configClient();
     final Optional<Prefab.ConfigValue> configValue = configClient.get(feature);
 
     if (configValue.isPresent() && configValue.get().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
