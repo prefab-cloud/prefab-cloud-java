@@ -39,6 +39,15 @@ public class FeatureFlagClient {
     }
   }
 
+  public void upsert(String key, Prefab.FeatureFlag featureFlag) {
+    baseClient.configClient().upsert(Prefab.UpsertRequest.newBuilder()
+        .setConfigDelta(Prefab.ConfigDelta.newBuilder()
+            .setKey(key)
+            .setValue(Prefab.ConfigValue.newBuilder()
+                .setFeatureFlag(featureFlag)))
+        .build());
+  }
+
   protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> key, List<String> attributes) {
     if (key.isPresent()) {
       attributes.add(key.get());
