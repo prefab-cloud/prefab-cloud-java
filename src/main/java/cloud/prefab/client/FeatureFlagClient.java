@@ -40,11 +40,8 @@ public class FeatureFlagClient {
   }
 
   public void upsert(String key, Prefab.FeatureFlag featureFlag) {
-    baseClient.configClient().upsert(Prefab.UpsertRequest.newBuilder()
-        .setConfigDelta(Prefab.ConfigDelta.newBuilder()
-            .setKey(key)
-            .setValue(Prefab.ConfigValue.newBuilder()
-                .setFeatureFlag(featureFlag)))
+    baseClient.configClient().upsert(key, Prefab.ConfigValue.newBuilder()
+                .setFeatureFlag(featureFlag)
         .build());
   }
 

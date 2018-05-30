@@ -60,7 +60,15 @@ public class ConfigClient {
     }
   }
 
-  public void upsert(Prefab.UpsertRequest upsertRequest) {
+  public void upsert(String key, Prefab.ConfigValue configValue) {
+    Prefab.UpsertRequest upsertRequest = Prefab.UpsertRequest.newBuilder()
+        .setAccountId(baseClient.getAccountId())
+        .setConfigDelta(Prefab.ConfigDelta.newBuilder()
+            .setKey(key)
+            .setValue(configValue)
+            .build())
+        .build();
+
     configServiceBlockingStub().upsert(upsertRequest);
   }
 

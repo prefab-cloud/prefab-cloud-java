@@ -4,7 +4,8 @@ Java Client for Prefab RateLimits, FeatureFlags, Config as a Service: https://ww
 
 ### Rate Limit
 ```java
-PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder());
+PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
+                                          .setDistributedCache(new MemcachedCache(memcachedClient)));
 RateLimitClient rateLimitClient = prefabCloudClient.newRateLimitClient();
 
 boolean result = rateLimitClient.isPass(Prefab.LimitRequest.newBuilder()
@@ -22,7 +23,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.5</version>
 </dependency>
 ```
 
