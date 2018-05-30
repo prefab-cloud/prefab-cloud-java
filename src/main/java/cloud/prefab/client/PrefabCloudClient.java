@@ -1,6 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.util.Cache;
+import cloud.prefab.client.util.NoopCache;
 import com.codahale.metrics.MetricRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -19,6 +20,7 @@ public class PrefabCloudClient {
   private RateLimitClient rateLimitClient;
   private ConfigClient configClient;
   private FeatureFlagClient featureFlagClient;
+  private Cache noopCache;
 
   public PrefabCloudClient(Builder builder) {
     this.builder = builder;
@@ -55,6 +57,18 @@ public class PrefabCloudClient {
       channel = createChannel();
     }
     return channel;
+  }
+
+  public Cache getDistributedCache(){
+
+    if(builder.getDistributedCache().isPresent()){
+      return builder.getDistributedCache().get();
+    }else{
+      if(noopCache == null){
+        noopCache = new NoopCache();
+      }
+      return noopCache;
+    }
   }
 
   private ManagedChannel createChannel() {
@@ -134,8 +148,8 @@ public class PrefabCloudClient {
       return distributedCache;
     }
 
-    public Builder setDistributedCache(Optional<Cache> distributedCache) {
-      this.distributedCache = distributedCache;
+    public Builder setDistributedCache(Cache distributedCache) {
+      this.distributedCache = Optional.of(distributedCache);
       return this;
     }
 

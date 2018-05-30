@@ -6,7 +6,7 @@
 
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.4</version>
 
     <packaging>jar</packaging>
 
@@ -122,6 +122,11 @@
             <artifactId>assertj-core</artifactId>
             <version>3.0.0</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.spy</groupId>
+            <artifactId>spymemcached</artifactId>
+            <version>2.12.3</version>
         </dependency>
     </dependencies>
 
