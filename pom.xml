@@ -162,7 +162,7 @@
                 <version>0.5.1</version>
                 <configuration>
                     <!--<protocExecutable>/usr/local/bin/protoc</protocExecutable>-->
-                    <protocArtifact>com.google.protobuf:protoc:3.4.0:exe:${os.detected.classifier}</protocArtifact>
+                    <protocArtifact>com.google.protobuf:protoc:3.6.1:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.15.0:exe:${os.detected.classifier}</pluginArtifact>
                     <protoSourceRoot>${basedir}/../prefab-cloud/</protoSourceRoot>
