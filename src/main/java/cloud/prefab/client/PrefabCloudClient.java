@@ -28,7 +28,7 @@ public class PrefabCloudClient {
       throw new RuntimeException("PREFAB_API_KEY not set");
     }
 
-    this.accountId = Long.parseLong(builder.getApikey().split("|")[0]);
+    this.accountId = Long.parseLong(builder.getApikey().split("\\|")[0]);
   }
 
   public RateLimitClient rateLimitClient() {
