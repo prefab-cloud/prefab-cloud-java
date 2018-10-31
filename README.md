@@ -16,7 +16,7 @@ System.out.println("acquire? " + result);
 ```
 
 
-See full documentation https://www.prefab.cloud/documentation/installation
+See full documentation https://www.prefab.cloud/documentation/getting_started
 
 Maven
 ```xml
