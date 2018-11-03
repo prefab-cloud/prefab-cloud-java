@@ -6,7 +6,7 @@
 
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.7</version>
+    <version>0.0.8</version>
 
     <packaging>jar</packaging>
 
@@ -37,7 +37,9 @@
         </license>
     </licenses>
 
-
+    <properties>
+        <grpc.version>[1.13,)</grpc.version>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -46,18 +48,23 @@
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
+            <artifactId>grpc-core</artifactId>
+           <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
             <artifactId>grpc-netty</artifactId>
-            <version>1.15.0</version>
+           <version>${grpc.version}</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
-            <version>1.15.0</version>
+           <version>${grpc.version}</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
-            <version>1.15.0</version>
+           <version>${grpc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
