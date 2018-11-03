@@ -101,7 +101,7 @@ public class ConfigClient {
 
       @Override
       public void onError(Throwable throwable) {
-        LOG.warn("Error from API");
+        LOG.warn("Error from API: ", throwable);
         try {
           Thread.sleep(BACKOFF_MILLIS);
         } catch (InterruptedException e) {
@@ -112,7 +112,7 @@ public class ConfigClient {
 
       @Override
       public void onCompleted() {
-        LOG.warn("Unexpected stream completions");
+        LOG.warn("Unexpected stream completion");
         startAPI();
       }
     });
