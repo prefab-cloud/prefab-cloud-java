@@ -17,9 +17,4 @@ public class InternalRateLimitClient {
 
     return rateLimitServiceBlockingStub.limitCheck(limitRequest);
   }
-
-  public Prefab.BasicResponse upsert(Prefab.LimitDefinition ld) {
-    final RateLimitServiceGrpc.RateLimitServiceBlockingStub rateLimitServiceBlockingStub = RateLimitServiceGrpc.newBlockingStub(baseClient.getChannel());
-    return rateLimitServiceBlockingStub.upsertLimitDefinition(ld);
-  }
 }

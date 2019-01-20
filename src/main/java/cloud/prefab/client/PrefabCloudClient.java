@@ -99,8 +99,8 @@ public class PrefabCloudClient {
 
   public static class Builder {
     private boolean local = false;
-    private String host = "api.prefab.cloud";
-    private int port = 8443;
+    private String host;
+    private int port = 443;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
     private Optional<MetricRegistry> metricRegistry = Optional.empty();
@@ -113,6 +113,7 @@ public class PrefabCloudClient {
 
     public Builder() {
       this.apikey = System.getenv("PREFAB_API_KEY");
+      this.host = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("api.prefab.cloud");
       configClasspathDir = "";
       configOverrideDir = "";
     }

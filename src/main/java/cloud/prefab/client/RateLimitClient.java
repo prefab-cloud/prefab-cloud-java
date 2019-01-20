@@ -92,11 +92,6 @@ public class RateLimitClient {
     return false;
   }
 
-  public void upsert(Prefab.LimitDefinition limitDefinition) {
-    final Prefab.LimitDefinition ld = limitDefinition.toBuilder().setAccountId(baseClient.getAccountId()).build();
-    internalRateLimitClient.upsert(ld);
-  }
-
   @VisibleForTesting
   public RateLimitClient setInternalRateLimitClient(InternalRateLimitClient internalRateLimitClient) {
     this.internalRateLimitClient = internalRateLimitClient;
