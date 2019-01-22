@@ -59,12 +59,12 @@ public class PrefabCloudClient {
     return channel;
   }
 
-  public Cache getDistributedCache(){
+  public Cache getDistributedCache() {
 
-    if(builder.getDistributedCache().isPresent()){
+    if (builder.getDistributedCache().isPresent()) {
       return builder.getDistributedCache().get();
-    }else{
-      if(noopCache == null){
+    } else {
+      if (noopCache == null) {
         noopCache = new NoopCache();
       }
       return noopCache;
@@ -73,10 +73,9 @@ public class PrefabCloudClient {
 
   private ManagedChannel createChannel() {
     ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder
-        .forAddress(builder.getHost(), builder.getPort());
+        .forTarget(builder.getTarget());
 
-    if (builder.isLocal()) {
-      managedChannelBuilder = ManagedChannelBuilder.forAddress("localhost", 8443);
+    if (System.getenv("PREFAB_CLOUD_HTTP") == "true") {
       managedChannelBuilder.usePlaintext();
     }
 
@@ -99,8 +98,7 @@ public class PrefabCloudClient {
 
   public static class Builder {
     private boolean local = false;
-    private String host;
-    private int port = 443;
+    private String target;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
     private Optional<MetricRegistry> metricRegistry = Optional.empty();
@@ -113,27 +111,9 @@ public class PrefabCloudClient {
 
     public Builder() {
       this.apikey = System.getenv("PREFAB_API_KEY");
-      this.host = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("api.prefab.cloud");
+      this.target = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("config.prefab.cloud:443");
       configClasspathDir = "";
       configOverrideDir = "";
-    }
-
-    public String getHost() {
-      return host;
-    }
-
-    public Builder setHost(String host) {
-      this.host = host;
-      return this;
-    }
-
-    public int getPort() {
-      return port;
-    }
-
-    public Builder setPort(int port) {
-      this.port = port;
-      return this;
     }
 
     public String getApikey() {
@@ -196,6 +176,15 @@ public class PrefabCloudClient {
 
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
+      return this;
+    }
+
+    public String getTarget() {
+      return target;
+    }
+
+    public Builder setTarget(String target) {
+      this.target = target;
       return this;
     }
   }
