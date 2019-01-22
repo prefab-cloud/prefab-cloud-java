@@ -75,7 +75,7 @@ public class PrefabCloudClient {
     ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder
         .forTarget(builder.getTarget());
 
-    if (System.getenv("PREFAB_CLOUD_HTTP") == "true") {
+    if (!builder.isSsl()) {
       managedChannelBuilder.usePlaintext();
     }
 
@@ -99,6 +99,7 @@ public class PrefabCloudClient {
   public static class Builder {
     private boolean local = false;
     private String target;
+    private boolean ssl = true;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
     private Optional<MetricRegistry> metricRegistry = Optional.empty();
@@ -185,6 +186,15 @@ public class PrefabCloudClient {
 
     public Builder setTarget(String target) {
       this.target = target;
+      return this;
+    }
+
+    public boolean isSsl() {
+      return ssl;
+    }
+
+    public Builder setSsl(boolean ssl) {
+      this.ssl = ssl;
       return this;
     }
   }
