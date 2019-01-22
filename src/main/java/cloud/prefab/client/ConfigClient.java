@@ -9,6 +9,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +46,11 @@ public class ConfigClient {
     ExecutorService executorService =
         MoreExecutors.getExitingExecutorService(executor,
             100, TimeUnit.MILLISECONDS);
-    executorService.execute(() -> startAPI());
+    executorService.execute(() -> startStreaming());
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
-    scheduledExecutorService.scheduleAtFixedRate(() -> loadCheckpoint(), 0, checkpointFreq(), TimeUnit.SECONDS);
+    scheduledExecutorService.scheduleAtFixedRate(() -> loadCheckpoint(), 0, DEFAULT_CHECKPOINT_SEC, TimeUnit.SECONDS);
   }
 
   public Optional<Prefab.ConfigValue> get(String key) {
@@ -72,8 +74,32 @@ public class ConfigClient {
     configServiceBlockingStub().upsert(upsertRequest);
   }
 
-
   private void loadCheckpoint() {
+    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(configLoader.getHighwaterMark())
+        .setAccountId(baseClient.getAccountId())
+        .build();
+
+    configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
+      @Override
+      public void onNext(Prefab.ConfigDeltas configDeltas) {
+        loadDeltas(configDeltas);
+      }
+
+      @Override
+      public void onError(Throwable throwable) {
+        LOG.warn("Issue getting checkpoint config, falling back to S3");
+        loadCheckpointFromS3();
+      }
+
+      @Override
+      public void onCompleted() {
+      }
+    });
+  }
+
+  private void loadCheckpointFromS3() {
+    System.out.println("Loading s3");
+
     String key = baseClient.getApiKey().replace("|", "/");
     final S3Object object = s3Client.getObject(bucket, key);
     try {
@@ -84,11 +110,11 @@ public class ConfigClient {
     }
   }
 
-  private void startAPI() {
-    startAPI(configLoader.getHighwaterMark());
+  private void startStreaming() {
+    startStreaming(configLoader.getHighwaterMark());
   }
 
-  private void startAPI(long highwaterMark) {
+  private void startStreaming(long highwaterMark) {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(highwaterMark)
         .setAccountId(baseClient.getAccountId())
         .build();
@@ -96,24 +122,29 @@ public class ConfigClient {
     configServiceStub().getConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
       @Override
       public void onNext(Prefab.ConfigDeltas configDeltas) {
+        System.out.println("stream coming in");
         loadDeltas(configDeltas);
       }
 
       @Override
       public void onError(Throwable throwable) {
-        LOG.warn("Error from API: ", throwable);
-        try {
-          Thread.sleep(BACKOFF_MILLIS);
-        } catch (InterruptedException e) {
-          LOG.warn("Interruption Backing Off");
+        if (throwable instanceof StatusRuntimeException && ((StatusRuntimeException) throwable).getStatus().getCode() == Status.PERMISSION_DENIED.getCode()) {
+          LOG.info("Not restarting the stream: {}", throwable.getMessage());
+        } else {
+          LOG.warn("Error from API: ", throwable);
+          try {
+            Thread.sleep(BACKOFF_MILLIS);
+          } catch (InterruptedException e) {
+            LOG.warn("Interruption Backing Off");
+          }
+          startStreaming();
         }
-        startAPI();
       }
 
       @Override
       public void onCompleted() {
         LOG.warn("Unexpected stream completion");
-        startAPI();
+        startStreaming();
       }
     });
   }
@@ -133,18 +164,6 @@ public class ConfigClient {
 
   private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
     return ConfigServiceGrpc.newStub(baseClient.getChannel());
-  }
-
-  private long checkpointFreq() {
-    try {
-      String checkpointFrequency = System.getenv("PREFAB_CHECKPOINT_FREQ_SEC");
-      if (!checkpointFrequency.isEmpty()) {
-        return Long.parseLong(checkpointFrequency);
-      }
-    } catch (Exception e) {
-      LOG.error(e.getMessage());
-    }
-    return DEFAULT_CHECKPOINT_SEC;
   }
 
 }
