@@ -53,7 +53,8 @@ public class ConfigClient {
     scheduledExecutorService.scheduleAtFixedRate(() -> loadCheckpoint(), 0, DEFAULT_CHECKPOINT_SEC, TimeUnit.SECONDS);
 
     String key = baseClient.getApiKey().replace("|", "/");
-    this.cfS3Url = String.format("%s/%s", DEFAULT_S3CF_BUCKET, key);
+    final String s3Cloudfront = Optional.ofNullable(System.getenv("PREFAB_S3CF_BUCKET")).orElse(DEFAULT_S3CF_BUCKET);
+    this.cfS3Url = String.format("%s/%s", s3Cloudfront, key);
   }
 
   public Optional<Prefab.ConfigValue> get(String key) {
