@@ -2,13 +2,17 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
+import com.google.common.base.MoreObjects;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+
 public class ConfigResolver {
+  private final String NAMESPACE_DELIMITER = "\\.";
 
   private final PrefabCloudClient baseClient;
   private final ConfigLoader configLoader;
@@ -20,11 +24,10 @@ public class ConfigResolver {
     makeLocal();
   }
 
-
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
     final ResolverElement resolverElement = localMap.get().get(key);
     if (resolverElement != null) {
-      return Optional.of(resolverElement.getConfigDelta().getDefault());
+      return Optional.of(resolverElement.getConfigValue());
     }
     return Optional.empty();
   }
@@ -33,41 +36,98 @@ public class ConfigResolver {
     makeLocal();
   }
 
+  /**
+   * pre-evaluate all config values for our env_key and namespace so that lookups are simple
+   */
   private void makeLocal() {
-
     Map<String, ResolverElement> map = new HashMap<>();
 
     String baseNamespace = baseClient.getNamespace();
 
     configLoader.calcConfig().forEach((key, value) -> {
       String property = key;
-      String propertyNamespace = "";
-      final String[] split = key.split(":");
-      if (split.length > 1) {
-        propertyNamespace = split[0];
-        StringBuilder sb = new StringBuilder();
-        for (int i = 1; i < split.length; i++) {
-          sb.append(split[i]);
-        }
-        property = sb.toString();
-      }
 
-      if (propertyNamespace.equals("") || baseNamespace.startsWith(propertyNamespace)) {
-        final ResolverElement existing = map.get(property);
-        if (existing == null) {
-          map.put(property, new ResolverElement(value, propertyNamespace));
-        } else if (existing.getNamespace().split("\\.").length < propertyNamespace.split("\\.").length) {
-          map.put(property, new ResolverElement(value, propertyNamespace));
+      ResolverElement bestMatch = new ResolverElement(value.getDefault(), ResolverElement.MatchType.DEFAULT, null, null, 0);
+
+      final Optional<Prefab.EnvironmentValues> matchingEnv = value.getEnvsList().stream().filter(ev -> ev.getEnvironment().equals(baseClient.getEnvironment())).findFirst();
+
+      //do we have and env_values that match our env?
+      if (matchingEnv.isPresent()) {
+        final Prefab.EnvironmentValues environmentValues = matchingEnv.get();
+        //override the top level default with env default
+        bestMatch = new ResolverElement(environmentValues.getDefault(), ResolverElement.MatchType.ENV_DEFAULT, environmentValues.getEnvironment(), null, 0);
+
+        //check all namespace_values for match
+        for (Prefab.NamespaceValue nv : environmentValues.getNamespaceValuesList()) {
+          NamespaceMatch match = evaluateMatch(nv.getNamespace(), baseNamespace);
+          if (match.isMatch()) {
+            //is this match the best match?
+            if (match.getPartCount() > bestMatch.getNamespacePartMatchCount()) {
+              bestMatch = new ResolverElement(nv.getConfigValue(), ResolverElement.MatchType.NAMESPACE_VALUE, environmentValues.getEnvironment(), baseNamespace, match.getPartCount());
+            }
+          }
         }
       }
+      map.put(key, bestMatch);
     });
 
     localMap.set(map);
   }
 
-//  def export_api_deltas
-//  @config_loader.get_api_deltas
-//  end
-//
+  NamespaceMatch evaluateMatch(String namespace, String baseNamespace) {
+    final String[] nsSplit = namespace.split(NAMESPACE_DELIMITER);
+    final String[] baseSplit = baseNamespace.split(NAMESPACE_DELIMITER);
 
+    int matchSize = 0;
+    for (int i = 0; i < baseSplit.length; i++) {
+      if (nsSplit.length <= i || nsSplit[i].equals("")) {
+        return new NamespaceMatch(true, matchSize);
+      }
+      if (baseSplit[i].equals(nsSplit[i])) {
+        matchSize += 1;
+      } else {
+        return new NamespaceMatch(false, matchSize);
+      }
+    }
+    return new NamespaceMatch(true, matchSize);
+  }
+
+  public static class NamespaceMatch {
+    private boolean match;
+    private int partCount;
+
+    public NamespaceMatch(boolean match, int partCount) {
+      this.match = match;
+      this.partCount = partCount;
+    }
+
+    public boolean isMatch() {
+      return match;
+    }
+
+    public int getPartCount() {
+      return partCount;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      NamespaceMatch that = (NamespaceMatch) o;
+      return match == that.match && partCount == that.partCount;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(match, partCount);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("match", match)
+          .add("partCount", partCount)
+          .toString();
+    }
+  }
 }

@@ -2,6 +2,8 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
+import org.assertj.core.util.Maps;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -14,56 +16,70 @@ import static org.mockito.Mockito.when;
 
 public class ConfigResolverTest {
 
-  @Test
-  public void test() {
+  private ConfigResolver resolver;
+  private PrefabCloudClient mockBaseClient;
+
+  @Before
+  public void setup() {
 
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 
     Map<String, Prefab.ConfigDelta> data = new HashMap<>();
 
-
-    put("projectA:key", "valueA", data);
-    put("key", "value_none", data);
-    put("projectB:key", "valueB", data);
-    put("projectB.subprojectX:key", "projectB.subprojectX", data);
-    put("projectB.subprojectY:key", "projectB.subprojectY", data);
-    put("projectB:key2", "valueB2", data);
-
-    when(mockLoader.calcConfig()).thenReturn(data);
-
-    final PrefabCloudClient mockBaseClient = mock(PrefabCloudClient.class);
+    when(mockLoader.calcConfig()).thenReturn(testData());
+    mockBaseClient = mock(PrefabCloudClient.class);
+    when(mockBaseClient.getEnvironment()).thenReturn("unspecified_env");
     when(mockBaseClient.getNamespace()).thenReturn("");
-    ConfigResolver resolver = new ConfigResolver(mockBaseClient, mockLoader);
+    resolver = new ConfigResolver(mockBaseClient, mockLoader);
+  }
 
 
+  @Test
+  public void testNamespaceMatch() {
+    assertThat(resolver.evaluateMatch("a.b.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 3));
+    assertThat(resolver.evaluateMatch("a.b.c.d.e", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 3));
+    assertThat(resolver.evaluateMatch("a.z.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(false, 1));
+    assertThat(resolver.evaluateMatch("", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 0));
+    assertThat(resolver.evaluateMatch("a", "a.b")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 1));
+  }
+
+  @Test
+  public void test() {
+
+
+    resolver.update();
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_no_env_default");
+
+    when(mockBaseClient.getEnvironment()).thenReturn("test");
     when(mockBaseClient.getNamespace()).thenReturn("");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "value_none");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
+
     when(mockBaseClient.getNamespace()).thenReturn("projectA");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "valueA");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "valueA");
 
     when(mockBaseClient.getNamespace()).thenReturn("projectB");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "valueB");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "valueB");
 
 
     when(mockBaseClient.getNamespace()).thenReturn("projectB.subprojectX");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "projectB.subprojectX");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "projectB.subprojectX");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectB.subprojectX:subsubQ");
+    when(mockBaseClient.getNamespace()).thenReturn("projectB.subprojectX.subsubQ");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "projectB.subprojectX");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "projectB.subprojectX");
 
     when(mockBaseClient.getNamespace()).thenReturn("projectC");
     resolver.update();
-    assertConfigValueStringIs(resolver.getConfigValue("key"), "value_none");
+    assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
 
     assertThat(resolver.getConfigValue("key_that_doesnt_exist").isPresent()).isFalse();
   }
 
-  private void assertConfigValueStringIs(Optional<Prefab.ConfigValue> key, String expectedValue){
+  private void assertConfigValueStringIs(Optional<Prefab.ConfigValue> key, String expectedValue) {
     assertThat(key.get().getString()).isEqualTo(expectedValue);
   }
 
@@ -71,5 +87,34 @@ public class ConfigResolverTest {
     data.put(key, Prefab.ConfigDelta.newBuilder()
         .setDefault(Prefab.ConfigValue.newBuilder()
             .setString(value).build()).build());
+  }
+
+
+  private Map<String, Prefab.ConfigDelta> testData() {
+    Map<String, Prefab.ConfigDelta> rtn = Maps.newHashMap();
+    rtn.put("key1", Prefab.ConfigDelta.newBuilder()
+        .setKey("key1")
+        .setDefault(Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build())
+        .addEnvs(Prefab.EnvironmentValues.newBuilder()
+            .setEnvironment("test")
+            .setDefault(Prefab.ConfigValue.newBuilder().setString("value_none").build())
+            .addNamespaceValues(getBuild("projectA", "valueA"))
+            .addNamespaceValues(getBuild("projectB", "valueB"))
+            .addNamespaceValues(getBuild("projectB.subprojectX", "projectB.subprojectX"))
+            .addNamespaceValues(getBuild("projectB.subprojectY", "projectB.subprojectY"))
+            .build())
+        .build());
+    rtn.put("key2", Prefab.ConfigDelta.newBuilder()
+        .setKey("key2")
+        .setDefault(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
+        .build());
+    return rtn;
+  }
+
+  private Prefab.NamespaceValue getBuild(String namespace, String value) {
+    return Prefab.NamespaceValue.newBuilder()
+        .setNamespace(namespace)
+        .setConfigValue(Prefab.ConfigValue.newBuilder().setString(value).build())
+        .build();
   }
 }
