@@ -13,11 +13,11 @@ public class ConfigLoaderTest {
     ConfigLoader configLoader = new ConfigLoader();
     final Map<String, Prefab.ConfigDelta> stringConfigDeltaMap = configLoader.calcConfig();
 
-    assertThat(stringConfigDeltaMap.get("sample").getValue().getString()).isEqualTo("OneTwoThree");
-    assertThat(stringConfigDeltaMap.get("sample_int").getValue().getInt()).isEqualTo(123);
-    assertThat(stringConfigDeltaMap.get("sample_double").getValue().getDouble()).isEqualTo(12.12);
-    assertThat(stringConfigDeltaMap.get("sample_bool").getValue().getBool()).isEqualTo(true);
-    assertThat(stringConfigDeltaMap.get("sample_to_override").getValue().getString()).isEqualTo("Bar");
+    assertThat(stringConfigDeltaMap.get("sample").getDefault().getString()).isEqualTo("OneTwoThree");
+    assertThat(stringConfigDeltaMap.get("sample_int").getDefault().getInt()).isEqualTo(123);
+    assertThat(stringConfigDeltaMap.get("sample_double").getDefault().getDouble()).isEqualTo(12.12);
+    assertThat(stringConfigDeltaMap.get("sample_bool").getDefault().getBool()).isEqualTo(true);
+    assertThat(stringConfigDeltaMap.get("sample_to_override").getDefault().getString()).isEqualTo("Bar");
   }
 
 
@@ -44,15 +44,15 @@ public class ConfigLoaderTest {
 
     configLoader.set(cd(1, "sample_int", 1));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(1);
-    assertThat(configLoader.calcConfig().get("sample_int").getValue().getInt()).isEqualTo(1);
+    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(1);
 
     configLoader.set(cd(4, "sample_int", 4));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(configLoader.calcConfig().get("sample_int").getValue().getInt()).isEqualTo(4);
+    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(4);
 
     configLoader.set(cd(2, "sample_int", 2));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(configLoader.calcConfig().get("sample_int").getValue().getInt()).isEqualTo(4);
+    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(4);
   }
 
 
@@ -61,9 +61,9 @@ public class ConfigLoaderTest {
     ConfigLoader configLoader = new ConfigLoader();
     configLoader.calcConfig();
 
-    assertThat(configLoader.calcConfig().get("sample_int").getValue().getInt()).isEqualTo(123);
+    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(123);
     configLoader.set(cd(2, "sample_int", 456));
-    assertThat(configLoader.calcConfig().get("sample_int").getValue().getInt()).isEqualTo(456);
+    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(456);
 
   }
 
@@ -73,7 +73,7 @@ public class ConfigLoaderTest {
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));
-    assertThat(configLoader.calcConfig().get("val_from_api").getValue().getInt()).isEqualTo(456);
+    assertThat(configLoader.calcConfig().get("val_from_api").getDefault().getInt()).isEqualTo(456);
 
     configLoader.set(Prefab.ConfigDelta.newBuilder()
         .setId(2)
@@ -85,7 +85,7 @@ public class ConfigLoaderTest {
     return Prefab.ConfigDelta.newBuilder()
         .setId(id)
         .setKey(key)
-        .setValue(Prefab.ConfigValue.newBuilder().setInt(val).build()).build();
+        .setDefault(Prefab.ConfigValue.newBuilder().setInt(val).build()).build();
   }
 
 }

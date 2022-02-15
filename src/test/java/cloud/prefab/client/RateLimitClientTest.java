@@ -31,7 +31,7 @@ public class RateLimitClientTest {
 
     when(mockBaseClient.getDistributedCache()).thenReturn(new MemcachedCache(memcachedClient));
 
-    when(mockBaseClient.getAccountId()).thenReturn(54321L);
+    when(mockBaseClient.getProjectId()).thenReturn(54321L);
 
     rateLimitClient = new RateLimitClient(mockBaseClient);
     rateLimitClient.setInternalRateLimitClient(mockInternalRateLimitClient);
@@ -41,7 +41,7 @@ public class RateLimitClientTest {
   @Test
   public void isPassAddsAccountId() {
 
-    when(mockInternalRateLimitClient.limitCheck(anyObject())).thenReturn(Prefab.LimitResponse.newBuilder()
+    when(mockInternalRateLimitClient.limitCheck(any())).thenReturn(Prefab.LimitResponse.newBuilder()
         .setPassed(true)
         .setAmount(1).build());
 
@@ -62,7 +62,7 @@ public class RateLimitClientTest {
   public void acquireCalledTwiceCaches() {
     final long fiveSecondsFromNow = System.currentTimeMillis() + 5000;
 
-    when(mockInternalRateLimitClient.limitCheck(anyObject())).thenReturn(Prefab.LimitResponse.newBuilder()
+    when(mockInternalRateLimitClient.limitCheck(any())).thenReturn(Prefab.LimitResponse.newBuilder()
         .setPassed(true)
         .setLimitResetAt(fiveSecondsFromNow)
         .setAmount(1)

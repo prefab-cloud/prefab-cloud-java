@@ -24,7 +24,7 @@ public class ConfigResolver {
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
     final ResolverElement resolverElement = localMap.get().get(key);
     if (resolverElement != null) {
-      return Optional.of(resolverElement.getConfigDelta().getValue());
+      return Optional.of(resolverElement.getConfigDelta().getDefault());
     }
     return Optional.empty();
   }

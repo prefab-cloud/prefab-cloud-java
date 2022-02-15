@@ -13,6 +13,6 @@ public class PrefabCloudClientTest {
 
 
     PrefabCloudClient client = new PrefabCloudClient(builder);
-    assertEquals(50, client.getAccountId());
+    assertEquals(50, client.getProjectId());
   }
 }

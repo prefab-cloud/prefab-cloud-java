@@ -69,7 +69,7 @@ public class ConfigResolverTest {
 
   private void put(String key, String value, Map<String, Prefab.ConfigDelta> data) {
     data.put(key, Prefab.ConfigDelta.newBuilder()
-        .setValue(Prefab.ConfigValue.newBuilder()
+        .setDefault(Prefab.ConfigValue.newBuilder()
             .setString(value).build()).build());
   }
 }

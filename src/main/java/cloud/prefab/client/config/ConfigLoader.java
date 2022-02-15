@@ -57,7 +57,7 @@ public class ConfigLoader {
     if (existing == null || existing.getId() <= delta.getId()) {
 
 
-      if (delta.getValue().getTypeCase() == Prefab.ConfigValue.TypeCase.TYPE_NOT_SET) {
+      if (delta.getDefault().getTypeCase() == Prefab.ConfigValue.TypeCase.TYPE_NOT_SET) {
         apiConfig.remove(delta.getKey());
       } else {
         apiConfig.put(delta.getKey(), delta);
@@ -107,7 +107,7 @@ public class ConfigLoader {
     } else if (obj instanceof String) {
       builder.setString((String) obj);
     }
-    return Prefab.ConfigDelta.newBuilder().setValue(builder.build()).build();
+    return Prefab.ConfigDelta.newBuilder().setDefault(builder.build()).build();
   }
 
   private Map<String, Prefab.ConfigDelta> loadOverrideConfig() {

@@ -68,10 +68,10 @@ public class ConfigClient {
 
   public void upsert(String key, Prefab.ConfigValue configValue) {
     Prefab.UpsertRequest upsertRequest = Prefab.UpsertRequest.newBuilder()
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .setConfigDelta(Prefab.ConfigDelta.newBuilder()
             .setKey(key)
-            .setValue(configValue)
+            .setDefault(configValue)
             .build())
         .build();
 
@@ -80,7 +80,7 @@ public class ConfigClient {
 
   private void loadCheckpoint() {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(configLoader.getHighwaterMark())
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .build();
 
     configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
@@ -121,7 +121,7 @@ public class ConfigClient {
 
   private void startStreaming(long highwaterMark) {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(highwaterMark)
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .build();
 
     configServiceStub().getConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {

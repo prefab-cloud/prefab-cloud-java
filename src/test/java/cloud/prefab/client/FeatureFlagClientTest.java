@@ -20,15 +20,22 @@ public class FeatureFlagClientTest {
   @Before
   public void setup() {
     mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getAccountId()).thenReturn(1L);
+    when(mockBaseClient.getProjectId()).thenReturn(1L);
     featureFlagClient = new FeatureFlagClient(mockBaseClient);
   }
 
   @Test
   public void testPct() {
-
     Prefab.FeatureFlag flag = Prefab.FeatureFlag.newBuilder()
-        .setPct(0.5)
+        .setActive(true)
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(false).build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(true).build())
+        .setInactiveVariantIdx(0)
+        .setDefault(Prefab.VariantDistribution.newBuilder()
+            .setVariantWeights(Prefab.VariantWeights.newBuilder()
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(500))
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(500))
+                .build()))
         .build();
     String feature = "FlagName";
 
@@ -40,7 +47,15 @@ public class FeatureFlagClientTest {
   @Test
   public void testOff() {
     Prefab.FeatureFlag flag = Prefab.FeatureFlag.newBuilder()
-        .setPct(0)
+        .setActive(true)
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(false).build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(true).build())
+        .setInactiveVariantIdx(0)
+        .setDefault(Prefab.VariantDistribution.newBuilder()
+            .setVariantWeights(Prefab.VariantWeights.newBuilder()
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(1000))
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(0))
+                .build()))
         .build();
     String feature = "FlagName";
 
@@ -52,7 +67,15 @@ public class FeatureFlagClientTest {
   @Test
   public void testOn() {
     Prefab.FeatureFlag flag = Prefab.FeatureFlag.newBuilder()
-        .setPct(1)
+        .setActive(true)
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(false).build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(true).build())
+        .setInactiveVariantIdx(0)
+        .setDefault(Prefab.VariantDistribution.newBuilder()
+            .setVariantWeights(Prefab.VariantWeights.newBuilder()
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(0))
+                .addWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(1000))
+                .build()))
         .build();
     String feature = "FlagName";
 
@@ -64,10 +87,15 @@ public class FeatureFlagClientTest {
   @Test
   public void testWhitelist() {
     Prefab.FeatureFlag flag = Prefab.FeatureFlag.newBuilder()
-        .setPct(0)
-        .addWhitelisted("beta")
-        .addWhitelisted("user:1")
-        .addWhitelisted("user:3")
+        .setActive(true)
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(false).build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setBool(true).build())
+        .addUserTargets(Prefab.UserTarget.newBuilder()
+            .setVariantIdx(1)
+            .addIdentifiers("beta")
+            .addIdentifiers("user:1")
+            .addIdentifiers("user:3")
+            .build())
         .build();
     String feature = "FlagName";
 

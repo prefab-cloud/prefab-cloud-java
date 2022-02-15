@@ -41,7 +41,7 @@ public class FeatureFlagClient {
 
   public void upsert(String key, Prefab.FeatureFlag featureFlag) {
     baseClient.configClient().upsert(key, Prefab.ConfigValue.newBuilder()
-                .setFeatureFlag(featureFlag)
+        .setFeatureFlag(featureFlag)
         .build());
   }
 
@@ -49,17 +49,18 @@ public class FeatureFlagClient {
     if (key.isPresent()) {
       attributes.add(key.get());
     }
-    attributes.retainAll(featureFlag.getWhitelistedList());
-    if (!attributes.isEmpty()) {
-      return true;
-    }
-
-    if (key.isPresent()) {
-      final String toHash = String.format("%d%s%s", baseClient.getAccountId(), feature, key.get());
-      return getUserPct(toHash) < featureFlag.getPct();
-    }
-
-    return featureFlag.getPct() > randomProvider.random();
+//    attributes.retainAll(featureFlag.getWhitelistedList());
+//    if (!attributes.isEmpty()) {
+//      return true;
+//    }
+//
+//    if (key.isPresent()) {
+//      final String toHash = String.format("%d%s%s", baseClient.getProjectId(), feature, key.get());
+//      return getUserPct(toHash) < featureFlag.getPct();
+//    }
+//
+//    return featureFlag.getPct() > randomProvider.random();
+    return false;
   }
 
   double getUserPct(String toHash) {

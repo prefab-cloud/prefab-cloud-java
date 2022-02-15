@@ -15,7 +15,7 @@ public class PrefabCloudClient {
   private static final Logger LOG = LoggerFactory.getLogger(PrefabCloudClient.class);
 
   private final Builder builder;
-  private final long accountId;
+  private final long projectId;
   private ManagedChannel channel;
   private RateLimitClient rateLimitClient;
   private ConfigClient configClient;
@@ -28,7 +28,7 @@ public class PrefabCloudClient {
       throw new RuntimeException("PREFAB_API_KEY not set");
     }
 
-    this.accountId = Long.parseLong(builder.getApikey().split("\\|")[0]);
+    this.projectId = Long.parseLong(builder.getApikey().split("\\|")[0]);
   }
 
   public RateLimitClient rateLimitClient() {
@@ -92,8 +92,8 @@ public class PrefabCloudClient {
     return builder.getApikey();
   }
 
-  public long getAccountId() {
-    return accountId;
+  public long getProjectId() {
+    return projectId;
   }
 
   public static class Builder {
@@ -112,7 +112,7 @@ public class PrefabCloudClient {
 
     public Builder() {
       this.apikey = System.getenv("PREFAB_API_KEY");
-      this.target = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("config.prefab.cloud:443");
+      this.target = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("grpc.prefab.cloud:443");
       configClasspathDir = "";
       configOverrideDir = "";
     }
