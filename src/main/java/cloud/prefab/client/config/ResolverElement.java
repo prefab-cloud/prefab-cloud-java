@@ -4,27 +4,54 @@ import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
 
 public class ResolverElement {
-  private Prefab.ConfigDelta configDelta;
-  private String namespace;
 
-  public ResolverElement(Prefab.ConfigDelta configDelta, String namespace) {
-    this.configDelta = configDelta;
+  public enum MatchType {
+    DEFAULT,
+    ENV_DEFAULT,
+    NAMESPACE_VALUE
+  }
+  private Prefab.ConfigValue configValue;
+  private MatchType matchType;
+  private String environment;
+  private String namespace;
+  private int namespacePartMatchCount;
+
+  public ResolverElement(Prefab.ConfigValue configValue, MatchType matchType, String environment, String namespace, int namespacePartMatchCount) {
+    this.configValue = configValue;
+    this.matchType = matchType;
+    this.environment = environment;
     this.namespace = namespace;
+    this.namespacePartMatchCount = namespacePartMatchCount;
   }
 
-  public Prefab.ConfigDelta getConfigDelta() {
-    return configDelta;
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("configValue", configValue)
+        .add("matchType", matchType)
+        .add("environment", environment)
+        .add("namespace", namespace)
+        .add("namespacePartMatchCount", namespacePartMatchCount)
+        .toString();
+  }
+
+  public Prefab.ConfigValue getConfigValue() {
+    return configValue;
+  }
+
+  public MatchType getMatchType() {
+    return matchType;
+  }
+
+  public String getEnvironment() {
+    return environment;
   }
 
   public String getNamespace() {
     return namespace;
   }
 
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("configDelta", configDelta)
-        .add("namespace", namespace)
-        .toString();
+  public int getNamespacePartMatchCount() {
+    return namespacePartMatchCount;
   }
 }

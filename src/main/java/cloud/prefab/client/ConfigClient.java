@@ -4,14 +4,14 @@ import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3Object;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,18 +27,18 @@ public class ConfigClient {
   private final PrefabCloudClient baseClient;
   private final ConfigResolver resolver;
   private final ConfigLoader configLoader;
-  private final AmazonS3 s3Client;
-  private static final String bucket = "prefab-cloud-checkpoints-prod";
+  private static final String DEFAULT_S3CF_BUCKET = "http://d2j4ed6ti5snnd.cloudfront.net";
+  private final CloseableHttpClient httpclient;
+  private final String cfS3Url;
+
   private CountDownLatch initializedLatch = new CountDownLatch(1);
+
+  private enum Source {S3, API, STREAMING}
 
   public ConfigClient(PrefabCloudClient baseClient) {
     this.baseClient = baseClient;
     configLoader = new ConfigLoader();
     resolver = new ConfigResolver(baseClient, configLoader);
-
-    s3Client = AmazonS3ClientBuilder.standard()
-        .withRegion(Regions.US_EAST_1)
-        .build();
 
     ThreadPoolExecutor executor =
         (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
@@ -47,10 +47,14 @@ public class ConfigClient {
         MoreExecutors.getExitingExecutorService(executor,
             100, TimeUnit.MILLISECONDS);
     executorService.execute(() -> startStreaming());
+    httpclient = HttpClients.createDefault();
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-
     scheduledExecutorService.scheduleAtFixedRate(() -> loadCheckpoint(), 0, DEFAULT_CHECKPOINT_SEC, TimeUnit.SECONDS);
+
+    String key = baseClient.getApiKey().replace("|", "/");
+    final String s3Cloudfront = Optional.ofNullable(System.getenv("PREFAB_S3CF_BUCKET")).orElse(DEFAULT_S3CF_BUCKET);
+    this.cfS3Url = String.format("%s/%s", s3Cloudfront, key);
   }
 
   public Optional<Prefab.ConfigValue> get(String key) {
@@ -64,10 +68,10 @@ public class ConfigClient {
 
   public void upsert(String key, Prefab.ConfigValue configValue) {
     Prefab.UpsertRequest upsertRequest = Prefab.UpsertRequest.newBuilder()
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .setConfigDelta(Prefab.ConfigDelta.newBuilder()
             .setKey(key)
-            .setValue(configValue)
+            .setDefault(configValue)
             .build())
         .build();
 
@@ -76,13 +80,13 @@ public class ConfigClient {
 
   private void loadCheckpoint() {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(configLoader.getHighwaterMark())
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .build();
 
     configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
       @Override
       public void onNext(Prefab.ConfigDeltas configDeltas) {
-        loadDeltas(configDeltas);
+        loadDeltas(configDeltas, Source.API);
       }
 
       @Override
@@ -98,15 +102,16 @@ public class ConfigClient {
   }
 
   private void loadCheckpointFromS3() {
-    System.out.println("Loading s3");
+    LOG.info("Loading from S3");
 
-    String key = baseClient.getApiKey().replace("|", "/");
-    final S3Object object = s3Client.getObject(bucket, key);
+    HttpGet httpGet = new HttpGet(cfS3Url);
+
     try {
-      final Prefab.ConfigDeltas configDeltas = Prefab.ConfigDeltas.parseFrom(object.getObjectContent());
-      loadDeltas(configDeltas);
+      CloseableHttpResponse response1 = httpclient.execute(httpGet);
+      final Prefab.ConfigDeltas configDeltas = Prefab.ConfigDeltas.parseFrom(response1.getEntity().getContent());
+      loadDeltas(configDeltas, Source.S3);
     } catch (Exception e) {
-      LOG.warn("Issue Loading Checkpoint", e);
+      LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);
     }
   }
 
@@ -116,14 +121,13 @@ public class ConfigClient {
 
   private void startStreaming(long highwaterMark) {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(highwaterMark)
-        .setAccountId(baseClient.getAccountId())
+        .setProjectId(baseClient.getProjectId())
         .build();
 
     configServiceStub().getConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
       @Override
       public void onNext(Prefab.ConfigDeltas configDeltas) {
-        System.out.println("stream coming in");
-        loadDeltas(configDeltas);
+        loadDeltas(configDeltas, Source.STREAMING);
       }
 
       @Override
@@ -149,13 +153,17 @@ public class ConfigClient {
     });
   }
 
-  private void loadDeltas(Prefab.ConfigDeltas configDeltas) {
+  private void loadDeltas(Prefab.ConfigDeltas configDeltas, Source source) {
     for (Prefab.ConfigDelta configDelta : configDeltas.getDeltasList()) {
       configLoader.set(configDelta);
     }
     resolver.update();
-    LOG.debug("Load Highwater " + configLoader.getHighwaterMark());
-    initializedLatch.countDown();
+    LOG.debug("Load {} at {} ", source, configLoader.getHighwaterMark());
+
+    if (initializedLatch.getCount() > 0) {
+      LOG.info("Initialized Prefab from {} at {}", source, configLoader.getHighwaterMark());
+      initializedLatch.countDown();
+    }
   }
 
   private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {

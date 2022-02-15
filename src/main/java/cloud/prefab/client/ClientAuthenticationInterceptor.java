@@ -22,7 +22,7 @@ public class ClientAuthenticationInterceptor implements ClientInterceptor {
     return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(channel.newCall(methodDescriptor, callOptions)) {
       @Override
       public void start(Listener<RespT> responseListener, Metadata headers) {
-        headers.put(CLIENT_HEADER_KEY, "prefab-cloud-java.0.0.9");
+        headers.put(CLIENT_HEADER_KEY, "prefab-cloud-java.0.1.0");
         headers.put(CUSTOM_HEADER_KEY, apikey);
         super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
         }, headers);

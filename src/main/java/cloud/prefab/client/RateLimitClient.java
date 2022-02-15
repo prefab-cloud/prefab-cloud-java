@@ -30,7 +30,7 @@ public class RateLimitClient {
 
   public Prefab.LimitResponse acquire(Prefab.LimitRequest limitRequest, Prefab.OnFailure onFailure) {
     limitRequest = limitRequest.toBuilder()
-        .setAccountId(baseClient.getAccountId()).build();
+        .setAccountId(baseClient.getProjectId()).build();
 
     String limitResetCacheKey = Joiner.on(":").join("prefab.java.ratelimit.limitReset:", limitRequest.getGroupsList());
 
