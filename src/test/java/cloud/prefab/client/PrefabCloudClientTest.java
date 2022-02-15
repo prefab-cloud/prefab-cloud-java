@@ -6,13 +6,15 @@ import static org.junit.Assert.assertEquals;
 
 public class PrefabCloudClientTest {
   @Test
-  public void testAccountId() {
+  public void testApiKeyParse() {
     PrefabCloudClient.Builder builder = new PrefabCloudClient.Builder()
-        .setNamespace("foo")
-        .setApikey("50|aaaaa");
+        .setNamespace("test.namespace")
+        .setApikey("50-test-test_api_key");
 
 
     PrefabCloudClient client = new PrefabCloudClient(builder);
     assertEquals(50, client.getProjectId());
+    assertEquals("test", client.getEnvironment());
+    assertEquals("test.namespace", client.getNamespace());
   }
 }
