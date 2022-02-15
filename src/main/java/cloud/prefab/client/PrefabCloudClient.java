@@ -104,7 +104,6 @@ public class PrefabCloudClient {
   }
 
   public static class Builder {
-    private boolean local = false;
     private String target;
     private boolean ssl = true;
     private String apikey;
@@ -168,14 +167,6 @@ public class PrefabCloudClient {
       return this;
     }
 
-    public boolean isLocal() {
-      return local;
-    }
-
-    public Builder setLocal(boolean local) {
-      this.local = local;
-      return this;
-    }
 
     public String getNamespace() {
       return namespace;
