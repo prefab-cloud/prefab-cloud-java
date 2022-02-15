@@ -7,9 +7,12 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import com.google.protobuf.ProtocolStringList;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class FeatureFlagClient {
   private static final int DISTRIBUTION_SPACE = 1000;
@@ -73,7 +76,23 @@ public class FeatureFlagClient {
       return getVariantObj(featureObj, featureObj.getInactiveVariantIdx());
     }
 
-    final Prefab.VariantDistribution variantDistribution = featureObj.getDefault();
+    // default
+    Prefab.VariantDistribution variantDistribution = featureObj.getDefault();
+
+
+    // if user_targets.match
+    for (Prefab.UserTarget userTarget : featureObj.getUserTargetsList()) {
+      if (lookupKey.isPresent() && userTarget.getIdentifiersList().contains(lookupKey.get())) {
+        return getVariantObj(featureObj, userTarget.getVariantIdx());
+      }
+    }
+
+    // if rules.match
+    for (Prefab.Rule rule : featureObj.getRulesList()) {
+      if (criteriaMatch(rule, lookupKey, attributes)) {
+        variantDistribution = rule.getDistribution();
+      }
+    }
 
     if (variantDistribution.getTypeCase() == Prefab.VariantDistribution.TypeCase.VARIANT_IDX) {
       return getVariantObj(featureObj, variantDistribution.getVariantIdx());
@@ -90,45 +109,10 @@ public class FeatureFlagClient {
 
   }
 
+
   Prefab.FeatureFlagVariant getVariantObj(Prefab.FeatureFlag featureObj, int variantIdx) {
     return featureObj.getVariants(variantIdx);
   }
-
-//   def get_variant(feature_name, lookup_key, attributes, feature_obj)
-//      if !feature_obj.active
-//        return get_variant_obj(feature_obj, feature_obj.inactive_variant_idx)
-//      end
-//
-//      variant_distribution = feature_obj.default
-//
-//      # if user_targets.match
-//      feature_obj.user_targets.each do |target|
-//        if (target.identifiers.include? lookup_key)
-//          return get_variant_obj(feature_obj, target.variant_idx)
-//        end
-//      end
-//
-//      # if rules.match
-//      feature_obj.rules.each do |rule|
-//        if criteria_match?(rule, lookup_key, attributes)
-//          variant_distribution = rule.distribution
-//        end
-//      end
-//
-//      if variant_distribution.type == :variant_idx
-//        variant_idx = variant_distribution.variant_idx
-//      else
-//        percent_through_distribution = rand()
-//        if lookup_key
-//          percent_through_distribution = get_user_pct(feature_name, lookup_key)
-//        end
-//        distribution_bucket = DISTRIBUTION_SPACE * percent_through_distribution
-//
-//        variant_idx = get_variant_idx_from_weights(variant_distribution.variant_weights.weights, distribution_bucket, feature_name)
-//      end
-//
-//      return get_variant_obj(feature_obj, variant_idx)
-//    end
 
 
   int getVariantIdxFromWeights(Prefab.VariantWeights variantWeights, int distributionBucket, String featureName) {
@@ -144,45 +128,50 @@ public class FeatureFlagClient {
     return variantWeights.getWeightsList().get(variantWeights.getWeightsCount() - 1).getVariantIdx();
   }
 
-//
-//    def get_user_pct(feature, lookup_key)
-//      to_hash = "#{@base_client.project_id}#{feature}#{lookup_key}"
-//      int_value = Murmur3.murmur3_32(to_hash)
-//      int_value / MAX_32_FLOAT
-//    end
-//
-//    def criteria_match?(rule, lookup_key, attributes)
-//      if rule.criteria.operator == :IN
-//        return rule.criteria.values.include?(lookup_key)
-//      elsif rule.criteria.operator == :NOT_IN
-//        return !rule.criteria.values.include?(lookup_key)
-//      elsif rule.criteria.operator == :IN_SEG
-//        return segment_matches(rule.criteria.values, lookup_key, attributes).any?
-//      elsif rule.criteria.operator == :NOT_IN_SEG
-//        return segment_matches(rule.criteria.values, lookup_key, attributes).none?
-//      end
-//      @base_client.log.info("Unknown Operator")
-//      false
-//    end
-//
-//    # evaluate each segment key and return whether each one matches
-//    # there should be an associated segment available as a standard config obj
-//    def segment_matches(segment_keys, lookup_key, attributes)
-//      segment_keys.map do |segment_key|
-//        segment = @base_client.get(segment_key)
-//        if segment.nil?
-//          @base_client.log.info("Missing Segment")
-//          false
-//        else
-//          segment_match?(segment, lookup_key, attributes)
-//        end
-//      end
-//    end
-//
-//    def segment_match?(segment, lookup_key, attributes)
-//      includes = segment.includes.include?(lookup_key)
-//      excludes = segment.excludes.include?(lookup_key)
-//      includes && !excludes
-//    end
+  private boolean criteriaMatch(Prefab.Rule rule, Optional<String> lookupKey, Map<String, String> attributes) {
+    switch (rule.getCriteria().getOperator()) {
+      case IN:
+        if (!lookupKey.isPresent()) {
+          return false;
+        }
+        return rule.getCriteria().getValuesList().contains(lookupKey.get());
+      case NOT_IN:
+        if (!lookupKey.isPresent()) {
+          return false;
+        }
+        return !rule.getCriteria().getValuesList().contains(lookupKey.get());
+      case IN_SEG:
+        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().allMatch(v -> v == true);
+      case NOT_IN_SEG:
+        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().noneMatch(v -> v == true);
+    }
+    // Unknown Operator
+    return false;
+  }
+
+  /*
+    evaluate each segment key and return whether each one matches
+    there should be an associated segment available as a standard config obj
+   */
+  private List<Boolean> segmentMatches(ProtocolStringList segmentKeys, Optional<String> lookupKey, Map<String, String> attributes) {
+    return segmentKeys.stream().map(segmentKey -> {
+      final Optional<Prefab.ConfigValue> segment = baseClient.configClient().get(segmentKey);
+      if (segment.isPresent() && segment.get().getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
+        return segmentMatch(segment.get().getSegment(), lookupKey, attributes);
+      } else {
+        // missing segment
+        return false;
+      }
+    }).collect(Collectors.toList());
+  }
+
+  private boolean segmentMatch(Prefab.Segment segment, Optional<String> lookupKey, Map<String, String> attributes) {
+    if (!lookupKey.isPresent()) {
+      return false;
+    }
+    boolean includes = segment.getIncludesList().contains(lookupKey.get());
+    boolean excludes = segment.getExcludesList().contains(lookupKey.get());
+    return includes && !excludes;
+  }
 
 }
