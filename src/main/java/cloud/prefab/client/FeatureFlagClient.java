@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class FeatureFlagClient {
+
   private static final int DISTRIBUTION_SPACE = 1000;
   private static final HashFunction hash = Hashing.murmur3_32();
   private static final long UNSIGNED_INT_MAX = Integer.MAX_VALUE + (long) Integer.MAX_VALUE;
@@ -27,17 +28,26 @@ public class FeatureFlagClient {
     this.baseClient = baseClient;
   }
 
+  /**
+   * Simplified method for boolean flags. Returns false if flag is not defined.
+   * @param feature
+   * @return
+   */
   public boolean featureIsOn(String feature) {
     return featureIsOnFor(feature, Optional.empty(), Maps.newHashMap());
   }
 
-  public boolean featureIsOnFor(String feature, Optional<String> key, Map<String, String> attributes) {
-
-    final ConfigClient configClient = baseClient.configClient();
-    final Optional<Prefab.ConfigValue> configValue = configClient.get(feature);
-
-    if (configValue.isPresent() && configValue.get().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return isOnFor(configValue.get().getFeatureFlag(), feature, key, attributes);
+  /**
+   * Simplified method for boolean flags. Returns false if flag is not defined.
+   * @param feature
+   * @param lookupKey
+   * @param attributes
+   * @return
+   */
+  public boolean featureIsOnFor(String feature, Optional<String> lookupKey, Map<String, String> attributes) {
+    final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = get(feature, lookupKey, attributes);
+    if (featureFlagVariant.isPresent()) {
+      return featureFlagVariant.get().getBool();
     } else {
       return false;
     }
@@ -47,6 +57,25 @@ public class FeatureFlagClient {
     baseClient.configClient().upsert(key, Prefab.ConfigValue.newBuilder()
         .setFeatureFlag(featureFlag)
         .build());
+  }
+
+  /**
+   * Fetch a feature flag and evaluate
+   * @param feature
+   * @param lookupKey
+   * @param attributes
+   * @return
+   */
+  public Optional<Prefab.FeatureFlagVariant> get(String feature, Optional<String> lookupKey, Map<String, String> attributes) {
+
+    final ConfigClient configClient = baseClient.configClient();
+    final Optional<Prefab.ConfigValue> configValue = configClient.get(feature);
+
+    if (configValue.isPresent() && configValue.get().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
+      return Optional.of(getVariant(feature, lookupKey, attributes, configValue.get().getFeatureFlag()));
+    } else {
+      return Optional.empty();
+    }
   }
 
   protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes) {
@@ -141,7 +170,7 @@ public class FeatureFlagClient {
         }
         return !rule.getCriteria().getValuesList().contains(lookupKey.get());
       case IN_SEG:
-        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().allMatch(v -> v == true);
+        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().anyMatch(v -> v == true);
       case NOT_IN_SEG:
         return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().noneMatch(v -> v == true);
     }

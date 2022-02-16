@@ -68,6 +68,23 @@ public class ConfigResolver {
           }
         }
       }
+
+      // feature flags are a funny case
+      // we only define the variants in the default in order to be DRY
+      // but we want to access them in environments, clone them over
+      if(bestMatch.getConfigValue().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG){
+        final Prefab.FeatureFlag.Builder bestMatchFeatureFlag = bestMatch.getConfigValue().getFeatureFlag().toBuilder();
+
+        //replace variants with variants from the default
+        bestMatchFeatureFlag.clearVariants();
+        bestMatchFeatureFlag.addAllVariants(value.getDefault().getFeatureFlag().getVariantsList());
+
+        final Prefab.ConfigValue updatedConfigValue = bestMatch.getConfigValue().toBuilder()
+            .setFeatureFlag(bestMatchFeatureFlag.build())
+            .build();
+        bestMatch.setConfigValue(updatedConfigValue);
+      }
+
       map.put(key, bestMatch);
     });
 

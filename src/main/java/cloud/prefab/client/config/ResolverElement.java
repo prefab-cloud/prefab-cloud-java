@@ -24,6 +24,10 @@ public class ResolverElement {
     this.namespacePartMatchCount = namespacePartMatchCount;
   }
 
+  public void setConfigValue(Prefab.ConfigValue configValue) {
+    this.configValue = configValue;
+  }
+
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
