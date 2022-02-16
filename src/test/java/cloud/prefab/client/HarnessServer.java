@@ -2,6 +2,7 @@ package cloud.prefab.client;
 
 
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.Maps;
 import fi.iki.elonen.NanoHTTPD;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -47,22 +48,32 @@ public class HarnessServer extends NanoHTTPD {
       e.printStackTrace();
     }
 
-    System.out.println("params "+json);
+    System.out.println("params " + json);
 
     String key = (String) json.get("key");
     String namespace = (String) json.get("namespace");
     String environment = (String) json.get("environment");
     String user_key = (String) json.get("user_key");
+    boolean featureFlag = json.get("feature_flag") != null;
 
-
-    PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
-        .setApikey("1-"+environment+"-local_development_api_key")
-        .setTarget("localhost:50051")
-        .setNamespace(namespace)
-        .setSsl(false));
-
-    final Optional<Prefab.ConfigValue> configValue = prefabCloudClient.configClient().get(key);
-    return newFixedLengthResponse(configValue.orElse(Prefab.ConfigValue.newBuilder().setString("").build()).getString());
+    try {
+      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
+          .setApikey("1-" + environment + "-local_development_api_key")
+          .setTarget("localhost:50051")
+          .setNamespace(namespace)
+          .setSsl(false));
+      if (featureFlag) {
+        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient.featureFlagClient().get(key, Optional.of(user_key), Maps.newHashMap());
+        System.out.println("return " + featureFlagVariant.get());
+        return newFixedLengthResponse(featureFlagVariant.get().getString());
+      } else {
+        final Optional<Prefab.ConfigValue> configValue = prefabCloudClient.configClient().get(key);
+        return newFixedLengthResponse(configValue.orElse(Prefab.ConfigValue.newBuilder().setString("").build()).getString());
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw e;
+    }
   }
 
 

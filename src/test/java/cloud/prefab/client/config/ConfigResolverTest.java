@@ -24,8 +24,6 @@ public class ConfigResolverTest {
 
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 
-    Map<String, Prefab.ConfigDelta> data = new HashMap<>();
-
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getEnvironment()).thenReturn("unspecified_env");
@@ -41,6 +39,50 @@ public class ConfigResolverTest {
     assertThat(resolver.evaluateMatch("a.z.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(false, 1));
     assertThat(resolver.evaluateMatch("", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 0));
     assertThat(resolver.evaluateMatch("a", "a.b")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 1));
+  }
+
+  @Test
+  public void testSpecialFeatureFlagBehavior() {
+    final ConfigLoader mockLoader = mock(ConfigLoader.class);
+
+    Map<String, Prefab.ConfigDelta> testFFData = Maps.newHashMap();
+
+    String featureName = "ff";
+    testFFData.put(featureName, Prefab.ConfigDelta.newBuilder()
+        .setDefault(Prefab.ConfigValue.newBuilder()
+            .setFeatureFlag(Prefab.FeatureFlag.newBuilder()
+                .setActive(true)
+                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v1").build())
+                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v2").build())
+                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("variantInEnv").build())
+                .setInactiveVariantIdx(0)
+                .setDefault(Prefab.VariantDistribution.newBuilder()
+                    .setVariantIdx(1))
+                .build())
+            .build())
+        .addEnvs(Prefab.EnvironmentValues.newBuilder()
+            .setEnvironment("test")
+            .setDefault(Prefab.ConfigValue.newBuilder()
+                .setFeatureFlag(Prefab.FeatureFlag.newBuilder()
+                    .setActive(true)
+                    .setInactiveVariantIdx(0)
+                    .setDefault(Prefab.VariantDistribution.newBuilder()
+                        .setVariantIdx(2))
+                    .build())
+                .build()))
+        .build());
+
+
+    when(mockLoader.calcConfig()).thenReturn(testFFData);
+    mockBaseClient = mock(PrefabCloudClient.class);
+    when(mockBaseClient.getEnvironment()).thenReturn("test");
+    when(mockBaseClient.getNamespace()).thenReturn("");
+    resolver = new ConfigResolver(mockBaseClient, mockLoader);
+
+
+    final Optional<Prefab.ConfigValue> ff = resolver.getConfigValue(featureName);
+    assertThat(ff.isPresent());
+    assertThat(ff.get().getFeatureFlag().getVariantsList()).hasSize(3);
   }
 
   @Test
