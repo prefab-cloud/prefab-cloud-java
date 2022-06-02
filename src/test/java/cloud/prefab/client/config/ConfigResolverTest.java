@@ -16,6 +16,8 @@ import static org.mockito.Mockito.when;
 
 public class ConfigResolverTest {
 
+  private final int TEST_PROJ_ENV = 2;
+
   private ConfigResolver resolver;
   private PrefabCloudClient mockBaseClient;
 
@@ -35,9 +37,9 @@ public class ConfigResolverTest {
   @Test
   public void testNamespaceMatch() {
     assertThat(resolver.evaluateMatch("a.b.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 3));
-    assertThat(resolver.evaluateMatch("a.b.c.d.e", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 3));
-    assertThat(resolver.evaluateMatch("a.z.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(false, 1));
-    assertThat(resolver.evaluateMatch("", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 0));
+    assertThat(resolver.evaluateMatch("a.b.c.d.e", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(false, 3));
+    assertThat(resolver.evaluateMatch("a.b.c", "a.b.c.d.e")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 3));
+    assertThat(resolver.evaluateMatch("a.z.c", "a.b.c")).isEqualTo(new ConfigResolver.NamespaceMatch(false, 2));
     assertThat(resolver.evaluateMatch("a", "a.b")).isEqualTo(new ConfigResolver.NamespaceMatch(true, 1));
   }
 
@@ -45,31 +47,37 @@ public class ConfigResolverTest {
   public void testSpecialFeatureFlagBehavior() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 
-    Map<String, Prefab.ConfigDelta> testFFData = Maps.newHashMap();
+    Map<String, Prefab.Config> testFFData = Maps.newHashMap();
 
     String featureName = "ff";
-    testFFData.put(featureName, Prefab.ConfigDelta.newBuilder()
-        .setDefault(Prefab.ConfigValue.newBuilder()
-            .setFeatureFlag(Prefab.FeatureFlag.newBuilder()
-                .setActive(true)
-                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v1").build())
-                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v2").build())
-                .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("variantInEnv").build())
-                .setInactiveVariantIdx(0)
-                .setDefault(Prefab.VariantDistribution.newBuilder()
-                    .setVariantIdx(1))
-                .build())
-            .build())
-        .addEnvs(Prefab.EnvironmentValues.newBuilder()
-            .setEnvironment("test")
-            .setDefault(Prefab.ConfigValue.newBuilder()
+    testFFData.put(featureName, Prefab.Config.newBuilder()
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v1").build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v2").build())
+        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("variantInEnv").build())
+        .addRows(Prefab.ConfigRow.newBuilder().setValue(Prefab.ConfigValue.newBuilder()
                 .setFeatureFlag(Prefab.FeatureFlag.newBuilder()
                     .setActive(true)
                     .setInactiveVariantIdx(0)
-                    .setDefault(Prefab.VariantDistribution.newBuilder()
-                        .setVariantIdx(2))
+                    .addRules(Prefab.Rule.newBuilder()
+                        .setCriteria(Prefab.Criteria.newBuilder().setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE).build())
+                        .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).build())
+                    )
                     .build())
-                .build()))
+                .build())
+            .build())
+        .addRows(Prefab.ConfigRow.newBuilder()
+            .setProjectEnvId(33)
+            .setValue(Prefab.ConfigValue.newBuilder()
+                .setFeatureFlag(Prefab.FeatureFlag.newBuilder()
+                    .setActive(true)
+                    .setInactiveVariantIdx(0)
+                    .addRules(Prefab.Rule.newBuilder()
+                        .setCriteria(Prefab.Criteria.newBuilder().setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE).build())
+                        .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(2).build())
+                    )
+                    .build())
+                .build())
+            .build())
         .build());
 
 
@@ -82,7 +90,7 @@ public class ConfigResolverTest {
 
     final Optional<Prefab.ConfigValue> ff = resolver.getConfigValue(featureName);
     assertThat(ff.isPresent());
-    assertThat(ff.get().getFeatureFlag().getVariantsList()).hasSize(3);
+    assertThat(resolver.getConfig(featureName).get().getVariantsList()).hasSize(3);
   }
 
   @Test
@@ -92,7 +100,8 @@ public class ConfigResolverTest {
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_no_env_default");
 
-    when(mockBaseClient.getEnvironment()).thenReturn("test");
+    resolver.setProjectEnvId(TEST_PROJ_ENV);
+
     when(mockBaseClient.getNamespace()).thenReturn("");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
@@ -125,38 +134,49 @@ public class ConfigResolverTest {
     assertThat(key.get().getString()).isEqualTo(expectedValue);
   }
 
-  private void put(String key, String value, Map<String, Prefab.ConfigDelta> data) {
-    data.put(key, Prefab.ConfigDelta.newBuilder()
-        .setDefault(Prefab.ConfigValue.newBuilder()
-            .setString(value).build()).build());
+  private void put(String key, String value, Map<String, Prefab.Config> data) {
+    data.put(key, Prefab.Config.newBuilder()
+        .setKey(key)
+        .addRows(Prefab.ConfigRow.newBuilder().setValue(Prefab.ConfigValue.newBuilder().setString(value).build())
+        ).build());
+
   }
 
 
-  private Map<String, Prefab.ConfigDelta> testData() {
-    Map<String, Prefab.ConfigDelta> rtn = Maps.newHashMap();
-    rtn.put("key1", Prefab.ConfigDelta.newBuilder()
+  private Map<String, Prefab.Config> testData() {
+    Map<String, Prefab.Config> rtn = Maps.newHashMap();
+    rtn.put("key1", Prefab.Config.newBuilder()
         .setKey("key1")
-        .setDefault(Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build())
-        .addEnvs(Prefab.EnvironmentValues.newBuilder()
-            .setEnvironment("test")
-            .setDefault(Prefab.ConfigValue.newBuilder().setString("value_none").build())
-            .addNamespaceValues(getBuild("projectA", "valueA"))
-            .addNamespaceValues(getBuild("projectB", "valueB"))
-            .addNamespaceValues(getBuild("projectB.subprojectX", "projectB.subprojectX"))
-            .addNamespaceValues(getBuild("projectB.subprojectY", "projectB.subprojectY"))
-            .build())
+        .addRows(Prefab.ConfigRow.newBuilder()
+            .setValue(Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()).build())
+        .addRows(Prefab.ConfigRow.newBuilder().setProjectEnvId(TEST_PROJ_ENV)
+            .setValue(Prefab.ConfigValue.newBuilder().setString("value_none").build()).build())
+        .addRows(Prefab.ConfigRow.newBuilder().setProjectEnvId(TEST_PROJ_ENV)
+            .setNamespace("projectA")
+            .setValue(Prefab.ConfigValue.newBuilder().setString("valueA").build()).build())
+        .addRows(Prefab.ConfigRow.newBuilder().setProjectEnvId(TEST_PROJ_ENV)
+            .setNamespace("projectB")
+            .setValue(Prefab.ConfigValue.newBuilder().setString("valueB").build()).build())
+        .addRows(Prefab.ConfigRow.newBuilder().setProjectEnvId(TEST_PROJ_ENV)
+            .setNamespace("projectB.subprojectX")
+            .setValue(Prefab.ConfigValue.newBuilder().setString("projectB.subprojectX").build()).build())
+        .addRows(Prefab.ConfigRow.newBuilder().setProjectEnvId(TEST_PROJ_ENV)
+            .setNamespace("projectB.subprojectY")
+            .setValue(Prefab.ConfigValue.newBuilder().setString("projectB.subprojectY").build()).build())
+
         .build());
-    rtn.put("key2", Prefab.ConfigDelta.newBuilder()
+    rtn.put("key2", Prefab.Config.newBuilder()
         .setKey("key2")
-        .setDefault(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
+        .addRows(Prefab.ConfigRow.newBuilder()
+            .setValue(Prefab.ConfigValue.newBuilder().setString("valueB2").build()).build())
         .build());
     return rtn;
   }
 
-  private Prefab.NamespaceValue getBuild(String namespace, String value) {
-    return Prefab.NamespaceValue.newBuilder()
-        .setNamespace(namespace)
-        .setConfigValue(Prefab.ConfigValue.newBuilder().setString(value).build())
-        .build();
-  }
+//  private Prefab.NamespaceValue getBuild(String namespace, String value) {
+//    return Prefab.NamespaceValue.newBuilder()
+//        .setNamespace(namespace)
+//        .setConfigValue(Prefab.ConfigValue.newBuilder().setString(value).build())
+//        .build();
+//  }
 }

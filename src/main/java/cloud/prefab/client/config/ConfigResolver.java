@@ -4,11 +4,9 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 
 public class ConfigResolver {
@@ -17,6 +15,9 @@ public class ConfigResolver {
   private final PrefabCloudClient baseClient;
   private final ConfigLoader configLoader;
   private AtomicReference<Map<String, ResolverElement>> localMap = new AtomicReference<>(new HashMap<>());
+
+
+  private long projectEnvId = 0;
 
   public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
     this.baseClient = baseClient;
@@ -32,90 +33,81 @@ public class ConfigResolver {
     return Optional.empty();
   }
 
+  public Optional<Prefab.Config> getConfig(String key) {
+    final ResolverElement resolverElement = localMap.get().get(key);
+    if (resolverElement != null) {
+      return Optional.of(resolverElement.getConfig());
+    }
+    return Optional.empty();
+  }
+
   public void update() {
     makeLocal();
+  }
+
+  public ConfigResolver setProjectEnvId(long projectEnvId) {
+    this.projectEnvId = projectEnvId;
+    return this;
   }
 
   /**
    * pre-evaluate all config values for our env_key and namespace so that lookups are simple
    */
   private void makeLocal() {
-    Map<String, ResolverElement> map = new HashMap<>();
+    Map<String, ResolverElement> store = new HashMap<>();
+    configLoader.calcConfig().forEach((key, config) -> {
 
-    String baseNamespace = baseClient.getNamespace();
-
-    configLoader.calcConfig().forEach((key, value) -> {
-      String property = key;
-
-      ResolverElement bestMatch = new ResolverElement(value.getDefault(), ResolverElement.MatchType.DEFAULT, null, null, 0);
-
-      final Optional<Prefab.EnvironmentValues> matchingEnv = value.getEnvsList().stream().filter(ev -> ev.getEnvironment().equals(baseClient.getEnvironment())).findFirst();
-
-      //do we have and env_values that match our env?
-      if (matchingEnv.isPresent()) {
-        final Prefab.EnvironmentValues environmentValues = matchingEnv.get();
-        //override the top level default with env default
-        bestMatch = new ResolverElement(environmentValues.getDefault(), ResolverElement.MatchType.ENV_DEFAULT, environmentValues.getEnvironment(), null, 0);
-
-        //check all namespace_values for match
-        for (Prefab.NamespaceValue nv : environmentValues.getNamespaceValuesList()) {
-          NamespaceMatch match = evaluateMatch(nv.getNamespace(), baseNamespace);
-          if (match.isMatch()) {
-            //is this match the best match?
-            if (match.getPartCount() > bestMatch.getNamespacePartMatchCount()) {
-              bestMatch = new ResolverElement(nv.getConfigValue(), ResolverElement.MatchType.NAMESPACE_VALUE, environmentValues.getEnvironment(), baseNamespace, match.getPartCount());
+      List<ResolverElement> l = config.getRowsList().stream().map((row) -> {
+        if (row.getProjectEnvId() != 0) { //protobuf is set
+          if (row.getProjectEnvId() == projectEnvId) {
+            if (!row.getNamespace().isEmpty()) {
+              NamespaceMatch match = evaluateMatch(row.getNamespace(), baseClient.getNamespace());
+              if (match.isMatch()) {
+                return new ResolverElement(2 + match.getPartCount(), config, row.getValue(), row.getNamespace());
+              } else {
+                return null;
+              }
+            } else {
+              return new ResolverElement(1, config, row.getValue(), String.format("%d", projectEnvId));
             }
+          } else {
+            return null;
           }
         }
-      }
+        return new ResolverElement(0, config, row.getValue(), "default");
 
-      // feature flags are a funny case
-      // we only define the variants in the default in order to be DRY
-      // but we want to access them in environments, clone them over
-      if(bestMatch.getConfigValue().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG){
-        final Prefab.FeatureFlag.Builder bestMatchFeatureFlag = bestMatch.getConfigValue().getFeatureFlag().toBuilder();
+      }).filter(Objects::nonNull).sorted().collect(Collectors.toList());
 
-        //replace variants with variants from the default
-        bestMatchFeatureFlag.clearVariants();
-        bestMatchFeatureFlag.addAllVariants(value.getDefault().getFeatureFlag().getVariantsList());
-
-        final Prefab.ConfigValue updatedConfigValue = bestMatch.getConfigValue().toBuilder()
-            .setFeatureFlag(bestMatchFeatureFlag.build())
-            .build();
-        bestMatch.setConfigValue(updatedConfigValue);
-      }
-
-      map.put(key, bestMatch);
+      final ResolverElement resolverElement = l.get(l.size() - 1);
+      store.put(key, resolverElement);
     });
 
-    localMap.set(map);
+    localMap.set(store);
   }
 
   NamespaceMatch evaluateMatch(String namespace, String baseNamespace) {
     final String[] nsSplit = namespace.split(NAMESPACE_DELIMITER);
     final String[] baseSplit = baseNamespace.split(NAMESPACE_DELIMITER);
 
-    int matchSize = 0;
-    for (int i = 0; i < baseSplit.length; i++) {
-      if (nsSplit.length <= i || nsSplit[i].equals("")) {
-        return new NamespaceMatch(true, matchSize);
+    List<Boolean> matches = new ArrayList<>();
+    for (int i = 0; i < nsSplit.length; i++) {
+      if(baseSplit.length <= i){
+        matches.add(false);
+        continue;
       }
-      if (baseSplit[i].equals(nsSplit[i])) {
-        matchSize += 1;
-      } else {
-        return new NamespaceMatch(false, matchSize);
-      }
+      matches.add(nsSplit[i].equals(baseSplit[i]));
     }
-    return new NamespaceMatch(true, matchSize);
+    return new NamespaceMatch(matches.stream().allMatch(b -> b),
+        matches.stream().filter(b -> b).count());
   }
 
   public static class NamespaceMatch {
     private boolean match;
     private int partCount;
 
-    public NamespaceMatch(boolean match, int partCount) {
+    public NamespaceMatch(boolean match, long partCount) {
       this.match = match;
-      this.partCount = partCount;
+      this.partCount = (int)partCount;
     }
 
     public boolean isMatch() {
@@ -147,4 +139,6 @@ public class ConfigResolver {
           .toString();
     }
   }
+
+
 }

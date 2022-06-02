@@ -9,9 +9,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ProtocolStringList;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class FeatureFlagClient {
@@ -30,6 +28,7 @@ public class FeatureFlagClient {
 
   /**
    * Simplified method for boolean flags. Returns false if flag is not defined.
+   *
    * @param feature
    * @return
    */
@@ -39,48 +38,45 @@ public class FeatureFlagClient {
 
   /**
    * Simplified method for boolean flags. Returns false if flag is not defined.
+   *
    * @param feature
    * @param lookupKey
    * @param attributes
    * @return
    */
   public boolean featureIsOnFor(String feature, Optional<String> lookupKey, Map<String, String> attributes) {
-    final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = get(feature, lookupKey, attributes);
-    if (featureFlagVariant.isPresent()) {
-      return featureFlagVariant.get().getBool();
-    } else {
-      return false;
-    }
+    return isOn(get(feature, lookupKey, attributes));
   }
 
-  public void upsert(String key, Prefab.FeatureFlag featureFlag) {
-    baseClient.configClient().upsert(key, Prefab.ConfigValue.newBuilder()
-        .setFeatureFlag(featureFlag)
-        .build());
-  }
 
   /**
    * Fetch a feature flag and evaluate
+   *
    * @param feature
    * @param lookupKey
    * @param attributes
    * @return
    */
   public Optional<Prefab.FeatureFlagVariant> get(String feature, Optional<String> lookupKey, Map<String, String> attributes) {
-
     final ConfigClient configClient = baseClient.configClient();
     final Optional<Prefab.ConfigValue> configValue = configClient.get(feature);
+    final Optional<Prefab.Config> configObj = configClient.getConfigObj(feature);
 
     if (configValue.isPresent() && configValue.get().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return Optional.of(getVariant(feature, lookupKey, attributes, configValue.get().getFeatureFlag()));
+      return Optional.of(getVariant(feature, lookupKey, attributes, configValue.get().getFeatureFlag(), configObj.get().getVariantsList()));
     } else {
       return Optional.empty();
     }
+
   }
 
-  protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes) {
-    return getVariant(feature, lookupKey, attributes, featureFlag).getBool();
+  protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes, List<Prefab.FeatureFlagVariant> variants) {
+    return getVariant(feature, lookupKey, attributes, featureFlag, variants).getBool();
   }
+
+//  Optional<Prefab.FeatureFlagVariant> evaluate(String feature, Optional<String> lookupKey, Map<String, String> attributes, List<Prefab.FeatureFlagVariant> variants) {
+//
+//  }
 
   double getUserPct(String lookupKey, long projectId, String featureName) {
     final String toHash = String.format("%d%s%s", projectId, featureName, lookupKey);
@@ -93,78 +89,87 @@ public class FeatureFlagClient {
     return y / (double) (UNSIGNED_INT_MAX);
   }
 
+  private boolean isOn(Optional<Prefab.FeatureFlagVariant> featureFlagVariant) {
+    if (featureFlagVariant.isPresent()) {
+      if (featureFlagVariant.get().hasBool()) {
+        return featureFlagVariant.get().getBool();
+      } else {
+        // TODO log
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+
   public FeatureFlagClient setRandomProvider(RandomProviderIF randomProvider) {
     this.randomProvider = randomProvider;
     return this;
   }
 
 
-  Prefab.FeatureFlagVariant getVariant(String featureName, Optional<String> lookupKey, Map<String, String> attributes, Prefab.FeatureFlag featureObj) {
+  Prefab.FeatureFlagVariant getVariant(String featureName, Optional<String> lookupKey, Map<String, String> attributes,
+                                       Prefab.FeatureFlag featureObj, List<Prefab.FeatureFlagVariant> variants) {
 
     if (!featureObj.getActive()) {
-      return getVariantObj(featureObj, featureObj.getInactiveVariantIdx());
+      return getVariantObj(variants, featureObj.getInactiveVariantIdx());
     }
 
-    // default
-    Prefab.VariantDistribution variantDistribution = featureObj.getDefault();
+    //default to inactive
+    List<Prefab.VariantWeight> variantWeights = new ArrayList<>();
+    variantWeights.add(Prefab.VariantWeight.newBuilder()
+        .setVariantIdx(featureObj.getInactiveVariantIdx())
+        .setWeight(1)
+        .build());
 
-
-    // if user_targets.match
-    for (Prefab.UserTarget userTarget : featureObj.getUserTargetsList()) {
-      if (lookupKey.isPresent() && userTarget.getIdentifiersList().contains(lookupKey.get())) {
-        return getVariantObj(featureObj, userTarget.getVariantIdx());
-      }
-    }
 
     // if rules.match
     for (Prefab.Rule rule : featureObj.getRulesList()) {
       if (criteriaMatch(rule, lookupKey, attributes)) {
-        variantDistribution = rule.getDistribution();
+        variantWeights = rule.getVariantWeightsList();
       }
     }
 
-    if (variantDistribution.getTypeCase() == Prefab.VariantDistribution.TypeCase.VARIANT_IDX) {
-      return getVariantObj(featureObj, variantDistribution.getVariantIdx());
-    } else { //Prefab.VariantDistribution.TypeCase.VARIANT_WEIGHTS
-      double pctThroughDistribution = randomProvider.random();
-      if (lookupKey.isPresent()) {
-        pctThroughDistribution = getUserPct(lookupKey.get(), baseClient.getProjectId(), featureName);
-      }
-      int distribution_bucket = (int) (DISTRIBUTION_SPACE * pctThroughDistribution);
-
-      int variantIdx = getVariantIdxFromWeights(variantDistribution.getVariantWeights(), distribution_bucket, featureName);
-      return getVariantObj(featureObj, variantIdx);
+    double pctThroughDistribution = randomProvider.random();
+    if (lookupKey.isPresent()) {
+      pctThroughDistribution = getUserPct(lookupKey.get(), baseClient.getProjectId(), featureName);
     }
 
+    int variantIdx = getVariantIdxFromWeights(variantWeights, pctThroughDistribution, featureName);
+    return getVariantObj(variants, variantIdx);
   }
 
 
-  Prefab.FeatureFlagVariant getVariantObj(Prefab.FeatureFlag featureObj, int variantIdx) {
-    return featureObj.getVariants(variantIdx);
+  Prefab.FeatureFlagVariant getVariantObj(List<Prefab.FeatureFlagVariant> variants, int variantIdx) {
+    return variants.get(variantIdx);
   }
 
 
-  int getVariantIdxFromWeights(Prefab.VariantWeights variantWeights, int distributionBucket, String featureName) {
+  int getVariantIdxFromWeights(List<Prefab.VariantWeight> variantWeights, double pctThroughDistribution, String featureName) {
+    Optional<Integer> distributionSpace = variantWeights.stream().map(Prefab.VariantWeight::getWeight).reduce(Integer::sum);
+    int bucket = (int) (distributionSpace.get() * pctThroughDistribution);
     int sum = 0;
-    for (Prefab.VariantWeight variantWeight : variantWeights.getWeightsList()) {
-      if (distributionBucket < sum + variantWeight.getWeight()) {
+    for (Prefab.VariantWeight variantWeight : variantWeights) {
+      if (bucket < sum + variantWeight.getWeight()) {
         return variantWeight.getVariantIdx();
       } else {
         sum += variantWeight.getWeight();
       }
     }
     // variants didn't add up to 100%
-    return variantWeights.getWeightsList().get(variantWeights.getWeightsCount() - 1).getVariantIdx();
+    return variantWeights.get(0).getVariantIdx();
   }
 
   private boolean criteriaMatch(Prefab.Rule rule, Optional<String> lookupKey, Map<String, String> attributes) {
     switch (rule.getCriteria().getOperator()) {
-      case IN:
+      case ALWAYS_TRUE:
+        return true;
+      case LOOKUP_KEY_IN:
         if (!lookupKey.isPresent()) {
           return false;
         }
         return rule.getCriteria().getValuesList().contains(lookupKey.get());
-      case NOT_IN:
+      case LOOKUP_KEY_NOT_IN:
         if (!lookupKey.isPresent()) {
           return false;
         }
@@ -198,9 +203,10 @@ public class FeatureFlagClient {
     if (!lookupKey.isPresent()) {
       return false;
     }
-    boolean includes = segment.getIncludesList().contains(lookupKey.get());
-    boolean excludes = segment.getExcludesList().contains(lookupKey.get());
-    return includes && !excludes;
+//    boolean includes = segment.getIncludesList().contains(lookupKey.get());
+//    boolean excludes = segment.getExcludesList().contains(lookupKey.get());
+//    return includes && !excludes;
+    return false;
   }
 
 }

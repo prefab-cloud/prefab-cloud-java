@@ -67,26 +67,38 @@ public class ConfigClient {
   }
 
   public void upsert(String key, Prefab.ConfigValue configValue) {
-    Prefab.UpsertRequest upsertRequest = Prefab.UpsertRequest.newBuilder()
+    Prefab.Config upsertRequest = Prefab.Config.newBuilder()
         .setProjectId(baseClient.getProjectId())
-        .setConfigDelta(Prefab.ConfigDelta.newBuilder()
-            .setKey(key)
-            .setDefault(configValue)
+        .setKey(key)
+        .addRows(Prefab.ConfigRow.newBuilder()
+            .setValue(configValue)
             .build())
         .build();
 
     configServiceBlockingStub().upsert(upsertRequest);
   }
 
+  public void upsert(Prefab.Config config) {
+    configServiceBlockingStub().upsert(config);
+  }
+
+  public Optional<Prefab.Config> getConfigObj(String key) {
+    try {
+      initializedLatch.await();
+      return resolver.getConfig(key);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private void loadCheckpoint() {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(configLoader.getHighwaterMark())
-        .setProjectId(baseClient.getProjectId())
         .build();
 
-    configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
+    configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.Configs>() {
       @Override
-      public void onNext(Prefab.ConfigDeltas configDeltas) {
-        loadDeltas(configDeltas, Source.API);
+      public void onNext(Prefab.Configs configs) {
+        loadConfigs(configs, Source.API);
       }
 
       @Override
@@ -108,8 +120,8 @@ public class ConfigClient {
 
     try {
       CloseableHttpResponse response1 = httpclient.execute(httpGet);
-      final Prefab.ConfigDeltas configDeltas = Prefab.ConfigDeltas.parseFrom(response1.getEntity().getContent());
-      loadDeltas(configDeltas, Source.S3);
+      final Prefab.Configs configs = Prefab.Configs.parseFrom(response1.getEntity().getContent());
+      loadConfigs(configs, Source.S3);
     } catch (Exception e) {
       LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);
     }
@@ -121,13 +133,12 @@ public class ConfigClient {
 
   private void startStreaming(long highwaterMark) {
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(highwaterMark)
-        .setProjectId(baseClient.getProjectId())
         .build();
 
-    configServiceStub().getConfig(pointer, new StreamObserver<Prefab.ConfigDeltas>() {
+    configServiceStub().getConfig(pointer, new StreamObserver<Prefab.Configs>() {
       @Override
-      public void onNext(Prefab.ConfigDeltas configDeltas) {
-        loadDeltas(configDeltas, Source.STREAMING);
+      public void onNext(Prefab.Configs configs) {
+        loadConfigs(configs, Source.STREAMING);
       }
 
       @Override
@@ -153,9 +164,11 @@ public class ConfigClient {
     });
   }
 
-  private void loadDeltas(Prefab.ConfigDeltas configDeltas, Source source) {
-    for (Prefab.ConfigDelta configDelta : configDeltas.getDeltasList()) {
-      configLoader.set(configDelta);
+  private void loadConfigs(Prefab.Configs configs, Source source) {
+    resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
+
+    for (Prefab.Config config : configs.getConfigsList()) {
+      configLoader.set(config);
     }
     resolver.update();
     LOG.debug("Load {} at {} ", source, configLoader.getHighwaterMark());

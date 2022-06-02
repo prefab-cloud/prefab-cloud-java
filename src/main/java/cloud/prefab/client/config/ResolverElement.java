@@ -3,59 +3,46 @@ package cloud.prefab.client.config;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
 
-public class ResolverElement {
+public class ResolverElement implements Comparable<ResolverElement> {
 
-  public enum MatchType {
-    DEFAULT,
-    ENV_DEFAULT,
-    NAMESPACE_VALUE
-  }
-  private Prefab.ConfigValue configValue;
-  private MatchType matchType;
-  private String environment;
-  private String namespace;
-  private int namespacePartMatchCount;
 
-  public ResolverElement(Prefab.ConfigValue configValue, MatchType matchType, String environment, String namespace, int namespacePartMatchCount) {
+  private final int matchSize;
+  private final Prefab.Config config;
+  private final Prefab.ConfigValue configValue;
+  private final String match;
+
+  public ResolverElement(int matchSize, Prefab.Config config, Prefab.ConfigValue configValue, String match) {
+    this.matchSize = matchSize;
+    this.config = config;
     this.configValue = configValue;
-    this.matchType = matchType;
-    this.environment = environment;
-    this.namespace = namespace;
-    this.namespacePartMatchCount = namespacePartMatchCount;
-  }
-
-  public void setConfigValue(Prefab.ConfigValue configValue) {
-    this.configValue = configValue;
+    this.match = match;
   }
 
   @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("configValue", configValue)
-        .add("matchType", matchType)
-        .add("environment", environment)
-        .add("namespace", namespace)
-        .add("namespacePartMatchCount", namespacePartMatchCount)
-        .toString();
+  public int compareTo(ResolverElement o) {
+    return matchSize - o.getMatchSize();
   }
 
   public Prefab.ConfigValue getConfigValue() {
     return configValue;
   }
 
-  public MatchType getMatchType() {
-    return matchType;
+
+  public Prefab.Config getConfig() {
+    return config;
   }
 
-  public String getEnvironment() {
-    return environment;
+  public int getMatchSize() {
+    return matchSize;
   }
 
-  public String getNamespace() {
-    return namespace;
-  }
-
-  public int getNamespacePartMatchCount() {
-    return namespacePartMatchCount;
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("matchSize", matchSize)
+        .add("config", config)
+        .add("configValue", configValue)
+        .add("match", match)
+        .toString();
   }
 }

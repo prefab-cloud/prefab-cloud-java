@@ -22,12 +22,12 @@ import java.util.concurrent.ConcurrentMap;
 public class ConfigLoader {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
 
-  private ConcurrentMap<String, Prefab.ConfigDelta> apiConfig = new ConcurrentHashMap<>();
+  private ConcurrentMap<String, Prefab.Config> apiConfig = new ConcurrentHashMap<>();
   private long highwaterMark = 0;
 
-  private Map<String, Prefab.ConfigDelta> classPathConfig;
+  private Map<String, Prefab.Config> classPathConfig;
 
-  private Map<String, Prefab.ConfigDelta> overrideConfig;
+  private Map<String, Prefab.Config> overrideConfig;
 
   public ConfigLoader() {
     classPathConfig = loadClasspathConfig();
@@ -39,8 +39,8 @@ public class ConfigLoader {
    * merge the live API configs on next
    * layer the overrides on last
    */
-  public Map<String, Prefab.ConfigDelta> calcConfig() {
-    Map<String, Prefab.ConfigDelta> rtn = new HashMap<>(classPathConfig);
+  public Map<String, Prefab.Config> calcConfig() {
+    Map<String, Prefab.Config> rtn = new HashMap<>(classPathConfig);
     apiConfig.forEach((k, v) -> {
       rtn.put(k, v);
     });
@@ -51,25 +51,25 @@ public class ConfigLoader {
     return rtn;
   }
 
-  public void set(Prefab.ConfigDelta delta) {
-    final Prefab.ConfigDelta existing = apiConfig.get(delta.getKey());
+  public void set(Prefab.Config config) {
+    final Prefab.Config existing = apiConfig.get(config.getKey());
 
-    if (existing == null || existing.getId() <= delta.getId()) {
+    if (existing == null || existing.getId() <= config.getId()) {
 
 
-      if (delta.getDefault().getTypeCase() == Prefab.ConfigValue.TypeCase.TYPE_NOT_SET) {
-        apiConfig.remove(delta.getKey());
+      if (config.getRowsList().isEmpty()) {
+        apiConfig.remove(config.getKey());
       } else {
-        apiConfig.put(delta.getKey(), delta);
+        apiConfig.put(config.getKey(), config);
       }
       recomputeHighWaterMark();
     }
   }
 
   private void recomputeHighWaterMark() {
-    Optional<Prefab.ConfigDelta> highwaterMarkDelta = apiConfig.values().stream().max(new Comparator<Prefab.ConfigDelta>() {
+    Optional<Prefab.Config> highwaterMarkDelta = apiConfig.values().stream().max(new Comparator<Prefab.Config>() {
       @Override
-      public int compare(Prefab.ConfigDelta o1, Prefab.ConfigDelta o2) {
+      public int compare(Prefab.Config o1, Prefab.Config o2) {
         return (int) (o1.getId() - o2.getId());
       }
     });
@@ -78,8 +78,8 @@ public class ConfigLoader {
   }
 
 
-  private Map<String, Prefab.ConfigDelta> loadClasspathConfig() {
-    Map<String, Prefab.ConfigDelta> rtn = new HashMap<>();
+  private Map<String, Prefab.Config> loadClasspathConfig() {
+    Map<String, Prefab.Config> rtn = new HashMap<>();
     try {
       ResourcePatternResolver patternResolver = new PathMatchingResourcePatternResolver();
       Resource[] mappingLocations = patternResolver.getResources("classpath*:.prefab*config.yaml");
@@ -95,7 +95,7 @@ public class ConfigLoader {
     return rtn;
   }
 
-  private Prefab.ConfigDelta toValue(Object obj) {
+  private Prefab.Config toValue(Object obj) {
 
     final Prefab.ConfigValue.Builder builder = Prefab.ConfigValue.newBuilder();
     if (obj instanceof Boolean) {
@@ -107,12 +107,12 @@ public class ConfigLoader {
     } else if (obj instanceof String) {
       builder.setString((String) obj);
     }
-    return Prefab.ConfigDelta.newBuilder().setDefault(builder.build()).build();
+    return Prefab.Config.newBuilder().addRows(Prefab.ConfigRow.newBuilder().setValue(builder.build()).build()).build();
   }
 
-  private Map<String, Prefab.ConfigDelta> loadOverrideConfig() {
+  private Map<String, Prefab.Config> loadOverrideConfig() {
 
-    Map<String, Prefab.ConfigDelta> rtn = new HashMap<>();
+    Map<String, Prefab.Config> rtn = new HashMap<>();
 
     File dir = new File(System.getProperty("user.home"));
     File[] files = dir.listFiles((dir1, name) -> name.matches("\\.prefab.*config\\.yaml"));
@@ -124,7 +124,7 @@ public class ConfigLoader {
     return rtn;
   }
 
-  private void loadFileTo(File file, Map<String, Prefab.ConfigDelta> rtn) {
+  private void loadFileTo(File file, Map<String, Prefab.Config> rtn) {
     try {
       Yaml yaml = new Yaml();
       Map<String, Object> obj = null;
@@ -142,20 +142,5 @@ public class ConfigLoader {
   public long getHighwaterMark() {
     return highwaterMark;
   }
-
-//
-//  def rm(key)
-//  @api_config.delete key
-//      end
-//
-//  def get_api_deltas
-//  deltas = Prefab::ConfigDeltas.new
-//  @api_config.each_value do |config_value|
-//  deltas.deltas << config_value
-//      end
-//  deltas
-//      end
-//
-//  private
 
 }

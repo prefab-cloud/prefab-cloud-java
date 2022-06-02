@@ -11,13 +11,13 @@ public class ConfigLoaderTest {
   @Test
   public void testLoad() {
     ConfigLoader configLoader = new ConfigLoader();
-    final Map<String, Prefab.ConfigDelta> stringConfigDeltaMap = configLoader.calcConfig();
+    final Map<String, Prefab.Config> stringConfigDeltaMap = configLoader.calcConfig();
 
-    assertThat(stringConfigDeltaMap.get("sample").getDefault().getString()).isEqualTo("OneTwoThree");
-    assertThat(stringConfigDeltaMap.get("sample_int").getDefault().getInt()).isEqualTo(123);
-    assertThat(stringConfigDeltaMap.get("sample_double").getDefault().getDouble()).isEqualTo(12.12);
-    assertThat(stringConfigDeltaMap.get("sample_bool").getDefault().getBool()).isEqualTo(true);
-    assertThat(stringConfigDeltaMap.get("sample_to_override").getDefault().getString()).isEqualTo("Bar");
+    assertThat(stringConfigDeltaMap.get("sample").getRowsList().get(0).getValue().getString()).isEqualTo("OneTwoThree");
+    assertThat(stringConfigDeltaMap.get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(123);
+    assertThat(stringConfigDeltaMap.get("sample_double").getRowsList().get(0).getValue().getDouble()).isEqualTo(12.12);
+    assertThat(stringConfigDeltaMap.get("sample_bool").getRowsList().get(0).getValue().getBool()).isEqualTo(true);
+    assertThat(stringConfigDeltaMap.get("sample_to_override").getRowsList().get(0).getValue().getString()).isEqualTo("Bar");
   }
 
 
@@ -44,15 +44,15 @@ public class ConfigLoaderTest {
 
     configLoader.set(cd(1, "sample_int", 1));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(1);
-    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(1);
+    assertThat(configLoader.calcConfig().get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(1);
 
     configLoader.set(cd(4, "sample_int", 4));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(4);
+    assertThat(configLoader.calcConfig().get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(4);
 
     configLoader.set(cd(2, "sample_int", 2));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(4);
+    assertThat(configLoader.calcConfig().get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(4);
   }
 
 
@@ -61,9 +61,9 @@ public class ConfigLoaderTest {
     ConfigLoader configLoader = new ConfigLoader();
     configLoader.calcConfig();
 
-    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(123);
+    assertThat(configLoader.calcConfig().get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(123);
     configLoader.set(cd(2, "sample_int", 456));
-    assertThat(configLoader.calcConfig().get("sample_int").getDefault().getInt()).isEqualTo(456);
+    assertThat(configLoader.calcConfig().get("sample_int").getRowsList().get(0).getValue().getInt()).isEqualTo(456);
 
   }
 
@@ -73,19 +73,20 @@ public class ConfigLoaderTest {
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));
-    assertThat(configLoader.calcConfig().get("val_from_api").getDefault().getInt()).isEqualTo(456);
+    assertThat(configLoader.calcConfig().get("val_from_api").getRowsList().get(0).getValue().getInt()).isEqualTo(456);
 
-    configLoader.set(Prefab.ConfigDelta.newBuilder()
+    configLoader.set(Prefab.Config.newBuilder()
         .setId(2)
         .setKey("val_from_api").build());
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
   }
 
-  private Prefab.ConfigDelta cd(int id, String key, int val) {
-    return Prefab.ConfigDelta.newBuilder()
+  private Prefab.Config cd(int id, String key, int val) {
+    return Prefab.Config.newBuilder()
         .setId(id)
         .setKey(key)
-        .setDefault(Prefab.ConfigValue.newBuilder().setInt(val).build()).build();
+        .addRows(Prefab.ConfigRow.newBuilder()
+            .setValue(Prefab.ConfigValue.newBuilder().setInt(val).build())).build();
   }
 
 }
