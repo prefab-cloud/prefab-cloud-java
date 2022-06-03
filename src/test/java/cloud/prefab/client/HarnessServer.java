@@ -7,20 +7,25 @@ import fi.iki.elonen.NanoHTTPD;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 public class HarnessServer extends NanoHTTPD {
+  private static final Logger LOG = LoggerFactory.getLogger(HarnessServer.class);
 
 
   public HarnessServer() throws IOException {
     super(8080);
     start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
     System.out.println("\nRunning! Point your browsers to http://localhost:8080/ \n");
+    LOG.info("Running! Point your browsers to http://localhost:8080/");
   }
 
   public static void main(String[] args) {
@@ -52,23 +57,36 @@ public class HarnessServer extends NanoHTTPD {
 
     String key = (String) json.get("key");
     String namespace = (String) json.get("namespace");
-    String environment = (String) json.get("environment");
+    String apiKey = (String) json.get("api_key");
     String user_key = (String) json.get("user_key");
+    Object attributesObj = json.get("attributes");
+    Map<String, String> attributes = new HashMap<>();
+    if(attributesObj != null) {
+      JSONObject jsonAttributes = (JSONObject) attributesObj;
+      attributes.putAll(jsonAttributes);
+    }
     boolean featureFlag = json.get("feature_flag") != null;
 
     try {
       PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
-          .setApikey("1-" + environment + "-local_development_api_key")
+          .setApikey(apiKey)
           .setTarget("localhost:50051")
           .setNamespace(namespace)
           .setSsl(false));
       if (featureFlag) {
-        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient.featureFlagClient().get(key, Optional.of(user_key), Maps.newHashMap());
-        System.out.println("return " + featureFlagVariant.get());
-        return newFixedLengthResponse(featureFlagVariant.get().getString());
+        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient.featureFlagClient().get(key, Optional.of(user_key), attributes);
+        if (featureFlagVariant.isPresent()) {
+          LOG.info("return {}", featureFlagVariant.get());
+          return newFixedLengthResponse(featureFlagVariant.get().getString());
+        } else {
+          LOG.info("No ff found {}", key);
+          return newFixedLengthResponse("No FF Found");
+        }
       } else {
         final Optional<Prefab.ConfigValue> configValue = prefabCloudClient.configClient().get(key);
-        return newFixedLengthResponse(configValue.orElse(Prefab.ConfigValue.newBuilder().setString("").build()).getString());
+        final String result = configValue.orElse(Prefab.ConfigValue.newBuilder().setString("").build()).getString();
+        LOG.info("Return {} for {}", result, key);
+        return newFixedLengthResponse(result);
       }
     } catch (Exception e) {
       e.printStackTrace();

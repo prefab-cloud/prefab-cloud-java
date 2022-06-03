@@ -125,8 +125,9 @@ public class FeatureFlagClient {
 
     // if rules.match
     for (Prefab.Rule rule : featureObj.getRulesList()) {
-      if (criteriaMatch(rule, lookupKey, attributes)) {
+      if (criteriaMatch(rule.getCriteria(), lookupKey, attributes)) {
         variantWeights = rule.getVariantWeightsList();
+        break;
       }
     }
 
@@ -141,7 +142,7 @@ public class FeatureFlagClient {
 
 
   Prefab.FeatureFlagVariant getVariantObj(List<Prefab.FeatureFlagVariant> variants, int variantIdx) {
-    return variants.get(variantIdx);
+    return variants.get(variantIdx - 1);//1 based
   }
 
 
@@ -160,24 +161,28 @@ public class FeatureFlagClient {
     return variantWeights.get(0).getVariantIdx();
   }
 
-  private boolean criteriaMatch(Prefab.Rule rule, Optional<String> lookupKey, Map<String, String> attributes) {
-    switch (rule.getCriteria().getOperator()) {
+  private boolean criteriaMatch(Prefab.Criteria criteria, Optional<String> lookupKey, Map<String, String> attributes) {
+    switch (criteria.getOperator()) {
       case ALWAYS_TRUE:
         return true;
       case LOOKUP_KEY_IN:
         if (!lookupKey.isPresent()) {
           return false;
         }
-        return rule.getCriteria().getValuesList().contains(lookupKey.get());
+        return criteria.getValuesList().contains(lookupKey.get());
       case LOOKUP_KEY_NOT_IN:
         if (!lookupKey.isPresent()) {
           return false;
         }
-        return !rule.getCriteria().getValuesList().contains(lookupKey.get());
+        return !criteria.getValuesList().contains(lookupKey.get());
       case IN_SEG:
-        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().anyMatch(v -> v == true);
+        return segmentMatches(criteria.getValuesList(), lookupKey, attributes).stream().anyMatch(v -> v);
       case NOT_IN_SEG:
-        return segmentMatches(rule.getCriteria().getValuesList(), lookupKey, attributes).stream().noneMatch(v -> v == true);
+        return segmentMatches(criteria.getValuesList(), lookupKey, attributes).stream().noneMatch(v -> v);
+      case PROP_IS_ONE_OF:
+        return criteria.getValuesList().contains(attributes.get(criteria.getProperty()));
+      case PROP_IS_NOT_ONE_OF:
+        return !criteria.getValuesList().contains(attributes.get(criteria.getProperty()));
     }
     // Unknown Operator
     return false;
@@ -200,13 +205,8 @@ public class FeatureFlagClient {
   }
 
   private boolean segmentMatch(Prefab.Segment segment, Optional<String> lookupKey, Map<String, String> attributes) {
-    if (!lookupKey.isPresent()) {
-      return false;
-    }
-//    boolean includes = segment.getIncludesList().contains(lookupKey.get());
-//    boolean excludes = segment.getExcludesList().contains(lookupKey.get());
-//    return includes && !excludes;
-    return false;
+    final boolean anyMatch = segment.getCriterionList().stream().map(c -> criteriaMatch(c, lookupKey, attributes)).anyMatch(b -> b);
+    return anyMatch;
   }
 
 }

@@ -3,6 +3,8 @@ package cloud.prefab.client.config;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -10,6 +12,8 @@ import java.util.stream.Collectors;
 
 
 public class ConfigResolver {
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
+
   private final String NAMESPACE_DELIMITER = "\\.";
 
   private final PrefabCloudClient baseClient;
@@ -58,6 +62,8 @@ public class ConfigResolver {
     configLoader.calcConfig().forEach((key, config) -> {
 
       List<ResolverElement> l = config.getRowsList().stream().map((row) -> {
+//        LOG.info("eval {}", row);
+//        LOG.info("row projectID {}", row.getProjectEnvId());
         if (row.getProjectEnvId() != 0) { //protobuf is set
           if (row.getProjectEnvId() == projectEnvId) {
             if (!row.getNamespace().isEmpty()) {
@@ -78,9 +84,12 @@ public class ConfigResolver {
 
       }).filter(Objects::nonNull).sorted().collect(Collectors.toList());
 
-      final ResolverElement resolverElement = l.get(l.size() - 1);
-      store.put(key, resolverElement);
+      if (!l.isEmpty()) {
+        final ResolverElement resolverElement = l.get(l.size() - 1);
+        store.put(key, resolverElement);
+      }
     });
+
 
     localMap.set(store);
   }
@@ -91,7 +100,7 @@ public class ConfigResolver {
 
     List<Boolean> matches = new ArrayList<>();
     for (int i = 0; i < nsSplit.length; i++) {
-      if(baseSplit.length <= i){
+      if (baseSplit.length <= i) {
         matches.add(false);
         continue;
       }
@@ -107,7 +116,7 @@ public class ConfigResolver {
 
     public NamespaceMatch(boolean match, long partCount) {
       this.match = match;
-      this.partCount = (int)partCount;
+      this.partCount = (int) partCount;
     }
 
     public boolean isMatch() {

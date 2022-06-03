@@ -103,6 +103,7 @@ public class ConfigClient {
 
       @Override
       public void onError(Throwable throwable) {
+        LOG.warn(throwable.getMessage());
         LOG.warn("Issue getting checkpoint config, falling back to S3");
         loadCheckpointFromS3();
       }
@@ -159,22 +160,28 @@ public class ConfigClient {
       @Override
       public void onCompleted() {
         LOG.warn("Unexpected stream completion");
+        try {
+          Thread.sleep(10000);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
         startStreaming();
       }
     });
   }
 
   private void loadConfigs(Prefab.Configs configs, Source source) {
+    LOG.info("Load {} configs from {} in env {}", configs.getConfigsCount(), source, configs.getConfigServicePointer().getProjectEnvId());
     resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
 
     for (Prefab.Config config : configs.getConfigsList()) {
       configLoader.set(config);
     }
     resolver.update();
-    LOG.debug("Load {} at {} ", source, configLoader.getHighwaterMark());
+    LOG.info("Loaded {} at highwater {} ", source, configLoader.getHighwaterMark());
 
     if (initializedLatch.getCount() > 0) {
-      LOG.info("Initialized Prefab from {} at {}", source, configLoader.getHighwaterMark());
+      LOG.info("Initialized Prefab from {} at highwater {}", source, configLoader.getHighwaterMark());
       initializedLatch.countDown();
     }
   }

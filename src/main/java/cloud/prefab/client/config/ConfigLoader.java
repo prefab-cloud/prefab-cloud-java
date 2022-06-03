@@ -56,7 +56,6 @@ public class ConfigLoader {
 
     if (existing == null || existing.getId() <= config.getId()) {
 
-
       if (config.getRowsList().isEmpty()) {
         apiConfig.remove(config.getKey());
       } else {
