@@ -34,8 +34,8 @@ public class FeatureFlagClientTest {
         .setInactiveVariantIdx(0)
         .addRules(Prefab.Rule.newBuilder()
             .setCriteria(Prefab.Criteria.newBuilder().setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE).build())
+            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(2).setWeight(500))
             .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(500))
-            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(500))
             .build()
         )
         .build();
@@ -56,8 +56,8 @@ public class FeatureFlagClientTest {
         .setInactiveVariantIdx(0)
         .addRules(Prefab.Rule.newBuilder()
             .setCriteria(Prefab.Criteria.newBuilder().setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE).build())
-            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(1000))
-            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(0))
+            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(1000))
+            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(2).setWeight(0))
             .build()
         )
         .build();
@@ -78,8 +78,8 @@ public class FeatureFlagClientTest {
         .setInactiveVariantIdx(0)
         .addRules(Prefab.Rule.newBuilder()
             .setCriteria(Prefab.Criteria.newBuilder().setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE).build())
-            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(0).setWeight(0))
-            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(1000))
+            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(1).setWeight(0))
+            .addVariantWeights(Prefab.VariantWeight.newBuilder().setVariantIdx(2).setWeight(1000))
             .build()
         )
         .build();
