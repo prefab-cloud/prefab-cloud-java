@@ -57,12 +57,11 @@ public class FeatureFlagClient {
    * @return
    */
   public Optional<Prefab.FeatureFlagVariant> get(String feature, Optional<String> lookupKey, Map<String, String> attributes) {
-    final ConfigClient configClient = baseClient.configClient();
-    final Optional<Prefab.ConfigValue> configValue = configClient.get(feature);
-    final Optional<Prefab.Config> configObj = configClient.getConfigObj(feature);
+    final Optional<Prefab.ConfigValue> configValue = configStore.get(feature);
+    final Optional<Prefab.Config> configObj = configStore.getConfigObj(feature);
 
     if (configValue.isPresent() && configValue.get().getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return Optional.of(getVariant(feature, lookupKey, attributes, configValue.get().getFeatureFlag(), configObj.get().getVariantsList()));
+      return getVariant(feature, lookupKey, attributes, configValue.get().getFeatureFlag(), configObj.get().getVariantsList());
     } else {
       return Optional.empty();
     }
@@ -70,12 +69,8 @@ public class FeatureFlagClient {
   }
 
   protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes, List<Prefab.FeatureFlagVariant> variants) {
-    return getVariant(feature, lookupKey, attributes, featureFlag, variants).getBool();
+    return isOn(getVariant(feature, lookupKey, attributes, featureFlag, variants));
   }
-
-//  Optional<Prefab.FeatureFlagVariant> evaluate(String feature, Optional<String> lookupKey, Map<String, String> attributes, List<Prefab.FeatureFlagVariant> variants) {
-//
-//  }
 
   double getUserPct(String lookupKey, long projectId, String featureName) {
     final String toHash = String.format("%d%s%s", projectId, featureName, lookupKey);
@@ -107,7 +102,7 @@ public class FeatureFlagClient {
   }
 
 
-  Prefab.FeatureFlagVariant getVariant(String featureName, Optional<String> lookupKey, Map<String, String> attributes,
+  Optional<Prefab.FeatureFlagVariant> getVariant(String featureName, Optional<String> lookupKey, Map<String, String> attributes,
                                        Prefab.FeatureFlag featureObj, List<Prefab.FeatureFlagVariant> variants) {
 
     if (!featureObj.getActive()) {
@@ -140,8 +135,12 @@ public class FeatureFlagClient {
   }
 
 
-  Prefab.FeatureFlagVariant getVariantObj(List<Prefab.FeatureFlagVariant> variants, int variantIdx) {
-    return variants.get(variantIdx - 1);//1 based
+  Optional<Prefab.FeatureFlagVariant> getVariantObj(List<Prefab.FeatureFlagVariant> variants, int variantIdx) {
+    if(variantIdx > 0 && variantIdx <= variants.size()){
+      return Optional.of(variants.get(variantIdx - 1));//1 based
+    }else{
+      return Optional.empty();
+    }
   }
 
 
