@@ -14,14 +14,14 @@ import static org.mockito.Mockito.when;
 
 public class FeatureFlagClientTest {
 
-  private PrefabCloudClient mockBaseClient;
+  private ConfigClient mockConfigClient;
   private FeatureFlagClient featureFlagClient;
 
   @Before
   public void setup() {
-    mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getProjectId()).thenReturn(1L);
-    featureFlagClient = new FeatureFlagClient(mockBaseClient);
+    mockConfigClient = mock(ConfigClient.class);
+    when(mockConfigClient.getProjectId()).thenReturn(1L);
+    featureFlagClient = new FeatureFlagClient(mockConfigClient);
   }
 
   @Test

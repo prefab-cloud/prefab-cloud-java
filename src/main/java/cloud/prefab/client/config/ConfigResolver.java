@@ -110,6 +110,10 @@ public class ConfigResolver {
         matches.stream().filter(b -> b).count());
   }
 
+  public Collection<String> getKeys() {
+    return localMap.get().keySet();
+  }
+
   public static class NamespaceMatch {
     private boolean match;
     private int partCount;

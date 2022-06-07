@@ -14,16 +14,15 @@ import java.util.stream.Collectors;
 
 public class FeatureFlagClient {
 
-  private static final int DISTRIBUTION_SPACE = 1000;
   private static final HashFunction hash = Hashing.murmur3_32();
   private static final long UNSIGNED_INT_MAX = Integer.MAX_VALUE + (long) Integer.MAX_VALUE;
 
-  private final PrefabCloudClient baseClient;
+  private final ConfigStore configStore;
 
   private RandomProviderIF randomProvider = new RandomProvider();
 
-  public FeatureFlagClient(PrefabCloudClient baseClient) {
-    this.baseClient = baseClient;
+  public FeatureFlagClient(ConfigStore configStore) {
+    this.configStore = configStore;
   }
 
   /**
@@ -133,7 +132,7 @@ public class FeatureFlagClient {
 
     double pctThroughDistribution = randomProvider.random();
     if (lookupKey.isPresent()) {
-      pctThroughDistribution = getUserPct(lookupKey.get(), baseClient.getProjectId(), featureName);
+      pctThroughDistribution = getUserPct(lookupKey.get(), configStore.getProjectId(), featureName);
     }
 
     int variantIdx = getVariantIdxFromWeights(variantWeights, pctThroughDistribution, featureName);
@@ -194,7 +193,7 @@ public class FeatureFlagClient {
    */
   private List<Boolean> segmentMatches(ProtocolStringList segmentKeys, Optional<String> lookupKey, Map<String, String> attributes) {
     return segmentKeys.stream().map(segmentKey -> {
-      final Optional<Prefab.ConfigValue> segment = baseClient.configClient().get(segmentKey);
+      final Optional<Prefab.ConfigValue> segment = configStore.get(segmentKey);
       if (segment.isPresent() && segment.get().getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
         return segmentMatch(segment.get().getSegment(), lookupKey, attributes);
       } else {

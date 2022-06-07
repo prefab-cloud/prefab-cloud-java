@@ -15,10 +15,11 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.*;
 
-public class ConfigClient {
+public class ConfigClient implements ConfigStore {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
 
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
@@ -57,6 +58,7 @@ public class ConfigClient {
     this.cfS3Url = String.format("%s/%s", s3Cloudfront, key);
   }
 
+  @Override
   public Optional<Prefab.ConfigValue> get(String key) {
     try {
       initializedLatch.await();
@@ -82,10 +84,26 @@ public class ConfigClient {
     configServiceBlockingStub().upsert(config);
   }
 
+  @Override
   public Optional<Prefab.Config> getConfigObj(String key) {
     try {
       initializedLatch.await();
       return resolver.getConfig(key);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public long getProjectId() {
+    return baseClient.getProjectId();
+  }
+
+  @Override
+  public Collection<String> getKeys() {
+    try {
+      initializedLatch.await();
+      return resolver.getKeys();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }

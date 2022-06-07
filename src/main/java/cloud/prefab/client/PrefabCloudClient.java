@@ -50,7 +50,7 @@ public class PrefabCloudClient {
 
   public FeatureFlagClient featureFlagClient() {
     if (featureFlagClient == null) {
-      featureFlagClient = new FeatureFlagClient(this);
+      featureFlagClient = new FeatureFlagClient(configClient());
     }
     return featureFlagClient;
   }
