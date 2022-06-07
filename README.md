@@ -23,7 +23,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.0.8</version>
+    <version>0.1.2</version>
 </dependency>
 ```
 

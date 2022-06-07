@@ -6,7 +6,7 @@
 
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.1.1</version><!--Sync with ClientAuthInterceptor Header-->
+    <version>0.1.2</version><!--Sync with ClientAuthInterceptor Header-->
 
     <packaging>jar</packaging>
 
