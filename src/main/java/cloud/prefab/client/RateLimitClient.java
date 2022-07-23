@@ -5,13 +5,13 @@ import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.primitives.Longs;
+import java.util.concurrent.ExecutionException;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
-
 public class RateLimitClient {
+
   private static final Logger LOG = LoggerFactory.getLogger(RateLimitClient.class);
 
   private Prefab.OnFailure defaultOnFailure = Prefab.OnFailure.LOG_AND_PASS;
@@ -28,52 +28,61 @@ public class RateLimitClient {
     return acquire(limitRequest, defaultOnFailure).getPassed();
   }
 
-  public Prefab.LimitResponse acquire(Prefab.LimitRequest limitRequest, Prefab.OnFailure onFailure) {
-    limitRequest = limitRequest.toBuilder()
-        .setAccountId(baseClient.getProjectId()).build();
+  public Prefab.LimitResponse acquire(
+    Prefab.LimitRequest limitRequest,
+    Prefab.OnFailure onFailure
+  ) {
+    limitRequest =
+      limitRequest.toBuilder().setAccountId(baseClient.getProjectId()).build();
 
-    String limitResetCacheKey = Joiner.on(":").join("prefab.java.ratelimit.limitReset:", limitRequest.getGroupsList());
+    String limitResetCacheKey = Joiner
+      .on(":")
+      .join("prefab.java.ratelimit.limitReset:", limitRequest.getGroupsList());
 
     if (checkCache(limitResetCacheKey)) {
-      return Prefab.LimitResponse.newBuilder()
-          .setPassed(false)
-          .setAmount(0)
-          .build();
+      return Prefab.LimitResponse.newBuilder().setPassed(false).setAmount(0).build();
     }
 
     try {
-      Prefab.LimitResponse limitResponse = internalRateLimitClient.limitCheck(limitRequest);
+      Prefab.LimitResponse limitResponse = internalRateLimitClient.limitCheck(
+        limitRequest
+      );
 
       saveLimitResetToCache(limitResetCacheKey, limitResponse);
 
       return limitResponse;
-
     } catch (Exception e) {
-      String message = String.format("ratelimit for %s error: %s", limitRequest.getGroupsList(), e.getMessage());
+      String message = String.format(
+        "ratelimit for %s error: %s",
+        limitRequest.getGroupsList(),
+        e.getMessage()
+      );
 
       switch (onFailure) {
         case THROW:
           throw e;
         case LOG_AND_FAIL:
           LOG.warn(message);
-          return Prefab.LimitResponse.newBuilder()
-              .setAmount(0)
-              .setPassed(false)
-              .build();
+          return Prefab.LimitResponse.newBuilder().setAmount(0).setPassed(false).build();
         default:
           LOG.info(message);
-          return Prefab.LimitResponse.newBuilder()
-              .setAmount(limitRequest.getAcquireAmount())
-              .setPassed(true)
-              .build();
-
+          return Prefab.LimitResponse
+            .newBuilder()
+            .setAmount(limitRequest.getAcquireAmount())
+            .setPassed(true)
+            .build();
       }
     }
   }
 
-  private void saveLimitResetToCache(String limitResetCacheKey, Prefab.LimitResponse limitResponse) {
+  private void saveLimitResetToCache(
+    String limitResetCacheKey,
+    Prefab.LimitResponse limitResponse
+  ) {
     if (limitResponse.getLimitResetAt() > 0) { // protobuf default is 0
-      baseClient.getDistributedCache().set(limitResetCacheKey, 0, Longs.toByteArray(limitResponse.getLimitResetAt()));
+      baseClient
+        .getDistributedCache()
+        .set(limitResetCacheKey, 0, Longs.toByteArray(limitResponse.getLimitResetAt()));
     }
   }
 
@@ -93,7 +102,9 @@ public class RateLimitClient {
   }
 
   @VisibleForTesting
-  public RateLimitClient setInternalRateLimitClient(InternalRateLimitClient internalRateLimitClient) {
+  public RateLimitClient setInternalRateLimitClient(
+    InternalRateLimitClient internalRateLimitClient
+  ) {
     this.internalRateLimitClient = internalRateLimitClient;
     return this;
   }

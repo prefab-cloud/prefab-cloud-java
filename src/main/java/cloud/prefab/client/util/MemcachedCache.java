@@ -3,6 +3,7 @@ package cloud.prefab.client.util;
 import net.spy.memcached.MemcachedClientIF;
 
 public class MemcachedCache implements Cache {
+
   private final MemcachedClientIF memcachedClientIF;
 
   public MemcachedCache(MemcachedClientIF memcachedClient) {

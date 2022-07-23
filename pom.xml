@@ -251,6 +251,19 @@
             <nrOfIndentSpace>2</nrOfIndentSpace>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>com.hubspot.maven.plugins</groupId>
+          <artifactId>prettier-maven-plugin</artifactId>
+          <version>0.18</version>
+          <configuration>
+            <generateDiff>true</generateDiff>
+            <nodeVersion>18.6.0</nodeVersion>
+            <prettierJavaVersion>1.6.2</prettierJavaVersion>
+            <printWidth>90</printWidth>
+            <ignoreConfigFile>true</ignoreConfigFile>
+            <ignoreEditorConfig>true</ignoreEditorConfig>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -262,6 +275,19 @@
           <execution>
             <goals>
               <goal>verify</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.hubspot.maven.plugins</groupId>
+        <artifactId>prettier-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>check</id>
+            <goals>
+              <goal>check</goal>
             </goals>
             <phase>validate</phase>
           </execution>

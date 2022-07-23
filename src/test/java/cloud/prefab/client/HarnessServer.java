@@ -1,25 +1,23 @@
 package cloud.prefab.client;
 
-
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Maps;
 import fi.iki.elonen.NanoHTTPD;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HarnessServer extends NanoHTTPD {
-  private static final Logger LOG = LoggerFactory.getLogger(HarnessServer.class);
 
+  private static final Logger LOG = LoggerFactory.getLogger(HarnessServer.class);
 
   public HarnessServer() throws IOException {
     super(8080);
@@ -61,20 +59,24 @@ public class HarnessServer extends NanoHTTPD {
     String user_key = (String) json.get("user_key");
     Object attributesObj = json.get("attributes");
     Map<String, String> attributes = new HashMap<>();
-    if(attributesObj != null) {
+    if (attributesObj != null) {
       JSONObject jsonAttributes = (JSONObject) attributesObj;
       attributes.putAll(jsonAttributes);
     }
     boolean featureFlag = json.get("feature_flag") != null;
 
     try {
-      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
+      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(
+        new PrefabCloudClient.Builder()
           .setApikey(apiKey)
           .setTarget("localhost:50051")
           .setNamespace(namespace)
-          .setSsl(false));
+          .setSsl(false)
+      );
       if (featureFlag) {
-        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient.featureFlagClient().get(key, Optional.of(user_key), attributes);
+        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient
+          .featureFlagClient()
+          .get(key, Optional.of(user_key), attributes);
         if (featureFlagVariant.isPresent()) {
           LOG.info("return {}", featureFlagVariant.get());
           return newFixedLengthResponse(featureFlagVariant.get().getString());
@@ -83,8 +85,12 @@ public class HarnessServer extends NanoHTTPD {
           return newFixedLengthResponse("No FF Found");
         }
       } else {
-        final Optional<Prefab.ConfigValue> configValue = prefabCloudClient.configClient().get(key);
-        final String result = configValue.orElse(Prefab.ConfigValue.newBuilder().setString("").build()).getString();
+        final Optional<Prefab.ConfigValue> configValue = prefabCloudClient
+          .configClient()
+          .get(key);
+        final String result = configValue
+          .orElse(Prefab.ConfigValue.newBuilder().setString("").build())
+          .getString();
         LOG.info("Return {} for {}", result, key);
         return newFixedLengthResponse(result);
       }
@@ -93,6 +99,4 @@ public class HarnessServer extends NanoHTTPD {
       throw e;
     }
   }
-
-
 }
