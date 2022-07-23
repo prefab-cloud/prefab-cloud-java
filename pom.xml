@@ -244,9 +244,11 @@
             <predefinedSortOrder>custom_1</predefinedSortOrder>
             <verifyFail>STOP</verifyFail>
             <sortDependencies>scope,groupId,artifactId</sortDependencies>
+            <sortDependencyExclusions>groupId,artifactId</sortDependencyExclusions>
+            <sortDependencyManagement>groupId,artifactId</sortDependencyManagement>
             <sortExecutions>true</sortExecutions>
             <sortModules>true</sortModules>
-            <sortPlugins>scope,groupId,artifactId</sortPlugins>
+            <sortPlugins>groupId,artifactId</sortPlugins>
             <sortProperties>true</sortProperties>
             <nrOfIndentSpace>2</nrOfIndentSpace>
           </configuration>
