@@ -10,39 +10,16 @@
 
   <groupId>cloud.prefab</groupId>
   <artifactId>prefab-cloud-java</artifactId>
-  <version>0.1.2</version><!--Sync with ClientAuthInterceptor Header-->
+  <version>0.1.2</version>
+  <!--Sync with ClientAuthInterceptor Header-->
 
   <name>Prefab.cloud API Client</name>
   <description>API Client for https://prefab.cloud: rate limits, feature flags and semaphores as a service</description>
-  <url>https://www.prefab.cloud</url>
-
-  <scm>
-    <connection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</connection>
-    <developerConnection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</developerConnection>
-    <url>https://github.com/prefab-cloud/prefab-cloud-java</url>
-  </scm>
-
-  <developers>
-    <developer>
-      <name>Jeff Dwyer</name>
-      <email>jeff.dwyer@gmail.com</email>
-      <organization>Prefab.cloud</organization>
-      <organizationUrl>https://www.prefab.cloud</organizationUrl>
-    </developer>
-  </developers>
-
-  <licenses>
-    <license>
-      <name>Apache License, Version 2.0</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <comments>A business-friendly OSS license</comments>
-    </license>
-  </licenses>
 
   <properties>
+    <basepom.check.skip-license>true</basepom.check.skip-license>
     <!-- TODO get this working -->
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
-    <basepom.check.skip-license>true</basepom.check.skip-license>
 
     <dep.grpc.version>1.48.0</dep.grpc.version>
     <dep.protobuf.version>3.21.3</dep.protobuf.version>
@@ -52,11 +29,6 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>io.github.classgraph</groupId>
-        <artifactId>classgraph</artifactId>
-        <version>4.8.149</version>
-      </dependency>
-      <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>31.1-jre</version>
@@ -65,6 +37,26 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
         <version>${dep.protobuf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.googlecode.json-simple</groupId>
+        <artifactId>json-simple</artifactId>
+        <version>1.1.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.hubspot.liveconfig</groupId>
+        <artifactId>live-config</artifactId>
+        <version>1.1.0</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>3.1.2</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.classgraph</groupId>
+        <artifactId>classgraph</artifactId>
+        <version>4.8.149</version>
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
@@ -82,39 +74,9 @@
         <version>${dep.grpc.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>1.7.22</version>
-      </dependency>
-      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-tcnative-boringssl-static</artifactId>
         <version>2.0.20.Final</version>
-      </dependency>
-      <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-core</artifactId>
-        <version>3.1.2</version>
-      </dependency>
-      <dependency>
-        <groupId>com.hubspot.liveconfig</groupId>
-        <artifactId>live-config</artifactId>
-        <version>1.1.0</version>
-      </dependency>
-      <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>1.26</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>4.5.13</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpcore</artifactId>
-        <version>4.4.15</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>
@@ -127,14 +89,24 @@
         <version>2.10.1</version>
       </dependency>
       <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>4.3.1</version>
-      </dependency>
-      <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.13.2</version>
+      </dependency>
+      <dependency>
+        <groupId>net.spy</groupId>
+        <artifactId>spymemcached</artifactId>
+        <version>2.12.3</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.13</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>4.4.15</version>
       </dependency>
       <dependency>
         <groupId>org.assertj</groupId>
@@ -142,28 +114,29 @@
         <version>3.0.0</version>
       </dependency>
       <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>4.3.1</version>
+      </dependency>
+      <dependency>
         <groupId>org.nanohttpd</groupId>
         <artifactId>nanohttpd</artifactId>
         <version>2.2.0</version>
       </dependency>
       <dependency>
-        <groupId>com.googlecode.json-simple</groupId>
-        <artifactId>json-simple</artifactId>
-        <version>1.1.1</version>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.22</version>
       </dependency>
       <dependency>
-        <groupId>net.spy</groupId>
-        <artifactId>spymemcached</artifactId>
-        <version>2.12.3</version>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>1.26</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
-    <dependency>
-      <groupId>io.github.classgraph</groupId>
-      <artifactId>classgraph</artifactId>
-    </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -171,6 +144,18 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.hubspot.liveconfig</groupId>
+      <artifactId>live-config</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.classgraph</groupId>
+      <artifactId>classgraph</artifactId>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
@@ -185,25 +170,12 @@
       <artifactId>grpc-stub</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-tcnative-boringssl-static</artifactId>
-      <scope>runtime</scope> <!-- TODO is this needed? -->
-    </dependency>
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.hubspot.liveconfig</groupId>
-      <artifactId>live-config</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.yaml</groupId>
-      <artifactId>snakeyaml</artifactId>
+      <groupId>net.spy</groupId>
+      <artifactId>spymemcached</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -214,17 +186,27 @@
       <artifactId>httpcore</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+    </dependency>
+    <dependency>
       <groupId>javax.annotation</groupId>
       <artifactId>javax.annotation-api</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
+      <!-- TODO is this needed? -->
+      <groupId>io.netty</groupId>
+      <artifactId>netty-tcnative-boringssl-static</artifactId>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
+      <groupId>com.googlecode.json-simple</groupId>
+      <artifactId>json-simple</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -238,31 +220,64 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.nanohttpd</groupId>
       <artifactId>nanohttpd</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>com.googlecode.json-simple</groupId>
-      <artifactId>json-simple</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.spy</groupId>
-      <artifactId>spymemcached</artifactId>
-    </dependency>
   </dependencies>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.5.0.Final</version>
-      </extension>
-    </extensions>
+
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>com.github.ekryd.sortpom</groupId>
+          <artifactId>sortpom-maven-plugin</artifactId>
+          <version>3.2.0</version>
+          <configuration>
+            <keepBlankLines>true</keepBlankLines>
+            <predefinedSortOrder>custom_1</predefinedSortOrder>
+            <verifyFail>STOP</verifyFail>
+            <sortDependencies>scope,groupId,artifactId</sortDependencies>
+            <sortExecutions>true</sortExecutions>
+            <sortModules>true</sortModules>
+            <sortPlugins>scope,groupId,artifactId</sortPlugins>
+            <sortProperties>true</sortProperties>
+            <nrOfIndentSpace>2</nrOfIndentSpace>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>com.github.ekryd.sortpom</groupId>
+        <artifactId>sortpom-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>verify</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.7</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>sonatype-nexus-staging</serverId>
+          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>false</autoReleaseAfterClose>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
@@ -283,17 +298,37 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.7</version>
-        <extensions>true</extensions>
-        <configuration>
-          <serverId>sonatype-nexus-staging</serverId>
-          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-          <autoReleaseAfterClose>false</autoReleaseAfterClose>
-        </configuration>
-      </plugin>
     </plugins>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.5.0.Final</version>
+      </extension>
+    </extensions>
   </build>
+  <url>https://www.prefab.cloud</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <comments>A business-friendly OSS license</comments>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Jeff Dwyer</name>
+      <email>jeff.dwyer@gmail.com</email>
+      <organization>Prefab.cloud</organization>
+      <organizationUrl>https://www.prefab.cloud</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</connection>
+    <developerConnection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</developerConnection>
+    <url>https://github.com/prefab-cloud/prefab-cloud-java</url>
+  </scm>
 </project>
