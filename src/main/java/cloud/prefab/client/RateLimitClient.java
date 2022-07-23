@@ -6,7 +6,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.primitives.Longs;
 import java.util.concurrent.ExecutionException;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +90,7 @@ public class RateLimitClient {
       final byte[] bytes = baseClient.getDistributedCache().get(limitResetCacheKey);
       if (bytes != null) {
         final long expiry = Longs.fromByteArray(bytes);
-        if (expiry > DateTime.now().getMillis()) {
+        if (expiry > System.currentTimeMillis()) {
           return true;
         }
       }

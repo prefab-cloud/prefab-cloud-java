@@ -4,10 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import cloud.prefab.client.cloud.prefab.client.ratelimit.InternalRateLimitClient;
-import cloud.prefab.client.util.MemcachedCache;
+import cloud.prefab.client.util.Cache;
 import cloud.prefab.domain.Prefab;
 import java.io.IOException;
-import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -22,12 +23,23 @@ public class RateLimitClientTest {
     mockBaseClient = mock(PrefabCloudClient.class);
 
     mockInternalRateLimitClient = mock(InternalRateLimitClient.class);
-    net.spy.memcached.MemcachedClient memcachedClient = new net.spy.memcached.MemcachedClient(
-      new InetSocketAddress("localhost", 11211)
-    );
 
     when(mockBaseClient.getDistributedCache())
-      .thenReturn(new MemcachedCache(memcachedClient));
+      .thenReturn(
+        new Cache() {
+          private final Map<String, byte[]> cache = new ConcurrentHashMap<>();
+
+          @Override
+          public byte[] get(String s) {
+            return cache.get(s);
+          }
+
+          @Override
+          public void set(String key, int expiryInSeconds, byte[] bytes) {
+            cache.put(key, bytes);
+          }
+        }
+      );
 
     when(mockBaseClient.getProjectId()).thenReturn(54321L);
 

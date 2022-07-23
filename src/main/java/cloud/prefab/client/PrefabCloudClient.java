@@ -2,7 +2,6 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.client.util.NoopCache;
-import com.codahale.metrics.MetricRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.util.Optional;
@@ -108,7 +107,6 @@ public class PrefabCloudClient {
     private boolean ssl = true;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
-    private Optional<MetricRegistry> metricRegistry = Optional.empty();
 
     private String configClasspathDir;
     private String configOverrideDir;
@@ -140,15 +138,6 @@ public class PrefabCloudClient {
 
     public Builder setDistributedCache(Cache distributedCache) {
       this.distributedCache = Optional.of(distributedCache);
-      return this;
-    }
-
-    public Optional<MetricRegistry> getMetricRegistry() {
-      return metricRegistry;
-    }
-
-    public Builder setMetricRegistry(Optional<MetricRegistry> metricRegistry) {
-      this.metricRegistry = metricRegistry;
       return this;
     }
 
