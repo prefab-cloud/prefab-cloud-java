@@ -1,23 +1,23 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.domain.Prefab;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.core.io.support.ResourcePatternResolver;
-import org.yaml.snakeyaml.Yaml;
-
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
+
+import cloud.prefab.domain.Prefab;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 
 public class ConfigLoader {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
@@ -79,13 +79,11 @@ public class ConfigLoader {
 
   private Map<String, Prefab.Config> loadClasspathConfig() {
     Map<String, Prefab.Config> rtn = new HashMap<>();
-    try {
-      ResourcePatternResolver patternResolver = new PathMatchingResourcePatternResolver();
-      Resource[] mappingLocations = patternResolver.getResources("classpath*:.prefab*config.yaml");
 
-      for (Resource mappingLocation : mappingLocations) {
-        loadFileTo(mappingLocation.getFile(), rtn);
-      }
+    try (ScanResult scanResult = new ClassGraph().removeTemporaryFilesAfterScan().scan()) {
+      scanResult
+          .getResourcesMatchingWildcard(".prefab*config.yaml")
+          .forEachInputStreamThrowingIOException((resource, inputStream) -> loadFileTo(inputStream, rtn));
     } catch (IOException e) {
       LOG.error(e.getMessage());
       e.printStackTrace();
@@ -117,25 +115,22 @@ public class ConfigLoader {
     File[] files = dir.listFiles((dir1, name) -> name.matches("\\.prefab.*config\\.yaml"));
 
     for (File file : files) {
-      loadFileTo(file, rtn);
+      try (InputStream inputStream = new FileInputStream(file)) {
+        loadFileTo(inputStream, rtn);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     return rtn;
   }
 
-  private void loadFileTo(File file, Map<String, Prefab.Config> rtn) {
-    try {
-      Yaml yaml = new Yaml();
-      Map<String, Object> obj = null;
-      obj = yaml.load(new FileInputStream(file));
-      obj.forEach((k, v) -> {
-        rtn.put(k, toValue(v));
-      });
-    } catch (FileNotFoundException e) {
-      LOG.error(e.getMessage());
-
-      e.printStackTrace();
-    }
+  private void loadFileTo(InputStream inputStream, Map<String, Prefab.Config> rtn) {
+    Yaml yaml = new Yaml();
+    Map<String, Object> obj = yaml.load(inputStream);
+    obj.forEach((k, v) -> {
+      rtn.put(k, toValue(v));
+    });
   }
 
   public long getHighwaterMark() {

@@ -1,14 +1,22 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.PrefabCloudClient;
-import cloud.prefab.domain.Prefab;
-import com.google.common.base.MoreObjects;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
+import com.google.common.base.MoreObjects;
+
+import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.domain.Prefab;
 
 
 public class ConfigResolver {
@@ -133,8 +141,12 @@ public class ConfigResolver {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       NamespaceMatch that = (NamespaceMatch) o;
       return match == that.match && partCount == that.partCount;
     }

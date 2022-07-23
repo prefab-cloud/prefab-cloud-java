@@ -1,13 +1,14 @@
 package cloud.prefab.client;
 
-import cloud.prefab.client.config.ConfigLoader;
-import cloud.prefab.client.config.ConfigResolver;
-import cloud.prefab.domain.ConfigServiceGrpc;
-import cloud.prefab.domain.Prefab;
-import com.google.common.util.concurrent.MoreExecutors;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -15,9 +16,15 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Optional;
-import java.util.concurrent.*;
+import com.google.common.util.concurrent.MoreExecutors;
+
+import cloud.prefab.client.config.ConfigLoader;
+import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.domain.ConfigServiceGrpc;
+import cloud.prefab.domain.Prefab;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 
 public class ConfigClient implements ConfigStore {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);

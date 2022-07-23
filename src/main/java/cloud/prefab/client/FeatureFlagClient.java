@@ -1,16 +1,21 @@
 package cloud.prefab.client;
 
-import cloud.prefab.client.util.RandomProvider;
-import cloud.prefab.client.util.RandomProviderIF;
-import cloud.prefab.domain.Prefab;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ProtocolStringList;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import cloud.prefab.client.util.RandomProvider;
+import cloud.prefab.client.util.RandomProviderIF;
+import cloud.prefab.domain.Prefab;
+import cloud.prefab.domain.Prefab.FeatureFlagVariant;
 
 public class FeatureFlagClient {
 
@@ -68,7 +73,7 @@ public class FeatureFlagClient {
 
   }
 
-  protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes, List<Prefab.FeatureFlagVariant> variants) {
+  protected boolean isOnFor(Prefab.FeatureFlag featureFlag, String feature, Optional<String> lookupKey, Map<String, String> attributes, List<FeatureFlagVariant> variants) {
     return isOn(getVariant(feature, lookupKey, attributes, featureFlag, variants));
   }
 
