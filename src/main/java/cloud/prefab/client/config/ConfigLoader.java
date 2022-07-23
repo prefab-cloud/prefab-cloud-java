@@ -82,9 +82,7 @@ public class ConfigLoader {
   private Map<String, Prefab.Config> loadClasspathConfig() {
     Map<String, Prefab.Config> rtn = new HashMap<>();
 
-    try (
-      ScanResult scanResult = new ClassGraph().scan()
-    ) {
+    try (ScanResult scanResult = new ClassGraph().scan()) {
       scanResult
         .getResourcesMatchingWildcard(".prefab*config.yaml")
         .forEachInputStreamThrowingIOException((resource, inputStream) ->
