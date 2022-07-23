@@ -284,7 +284,7 @@
             <protocArtifact>com.google.protobuf:protoc:${dep.protoc.version}:exe:${os.detected.classifier}</protocArtifact>
             <pluginId>grpc-java</pluginId>
             <pluginArtifact>io.grpc:protoc-gen-grpc-java:${dep.grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-            <protoSourceRoot>${basedir}/../prefab-cloud/</protoSourceRoot>
+            <protoSourceRoot>prefab-cloud/</protoSourceRoot>
           </configuration>
         </plugin>
       </plugins>
