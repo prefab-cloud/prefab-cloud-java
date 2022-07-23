@@ -44,11 +44,6 @@
         <version>1.1.1</version>
       </dependency>
       <dependency>
-        <groupId>com.hubspot.liveconfig</groupId>
-        <artifactId>live-config</artifactId>
-        <version>1.1.0</version>
-      </dependency>
-      <dependency>
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-core</artifactId>
         <version>3.1.2</version>
@@ -144,10 +139,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.hubspot.liveconfig</groupId>
-      <artifactId>live-config</artifactId>
     </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
