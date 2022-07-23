@@ -6,12 +6,11 @@ import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.assertj.core.util.Maps;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ConfigResolverTest {
 
@@ -20,7 +19,7 @@ public class ConfigResolverTest {
   private ConfigResolver resolver;
   private PrefabCloudClient mockBaseClient;
 
-  @Before
+  @BeforeEach
   public void setup() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 

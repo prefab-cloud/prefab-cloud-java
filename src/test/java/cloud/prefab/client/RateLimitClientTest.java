@@ -10,11 +10,10 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.cloud.prefab.client.ratelimit.InternalRateLimitClient;
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.domain.Prefab;
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class RateLimitClientTest {
 
@@ -22,8 +21,8 @@ public class RateLimitClientTest {
   private PrefabCloudClient mockBaseClient;
   private InternalRateLimitClient mockInternalRateLimitClient;
 
-  @Before
-  public void setup() throws IOException {
+  @BeforeEach
+  public void setup() {
     mockBaseClient = mock(PrefabCloudClient.class);
 
     mockInternalRateLimitClient = mock(InternalRateLimitClient.class);

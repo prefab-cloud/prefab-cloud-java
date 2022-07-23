@@ -1,8 +1,8 @@
 package cloud.prefab.client;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class PrefabCloudClientTest {
 
@@ -13,8 +13,8 @@ public class PrefabCloudClientTest {
       .setApikey("50-test-test_api_key");
 
     PrefabCloudClient client = new PrefabCloudClient(builder);
-    assertEquals(50, client.getProjectId());
-    assertEquals("test", client.getEnvironment());
-    assertEquals("test.namespace", client.getNamespace());
+    assertThat(client.getProjectId()).isEqualTo(50);
+    assertThat(client.getEnvironment()).isEqualTo("test");
+    assertThat(client.getNamespace()).isEqualTo("test.namespace");
   }
 }

@@ -9,15 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.assertj.core.util.Maps;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class FeatureFlagClientTest {
 
   private ConfigClient mockConfigClient;
   private FeatureFlagClient featureFlagClient;
 
-  @Before
+  @BeforeEach
   public void setup() {
     mockConfigClient = mock(ConfigClient.class);
     when(mockConfigClient.getProjectId()).thenReturn(1L);
