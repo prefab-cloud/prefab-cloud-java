@@ -83,7 +83,7 @@ public class ConfigLoader {
     Map<String, Prefab.Config> rtn = new HashMap<>();
 
     try (
-      ScanResult scanResult = new ClassGraph().removeTemporaryFilesAfterScan().scan()
+      ScanResult scanResult = new ClassGraph().scan()
     ) {
       scanResult
         .getResourcesMatchingWildcard(".prefab*config.yaml")
