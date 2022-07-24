@@ -2,13 +2,11 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.client.util.NoopCache;
-import com.codahale.metrics.MetricRegistry;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Optional;
 
 public class PrefabCloudClient {
 
@@ -63,7 +61,6 @@ public class PrefabCloudClient {
   }
 
   public Cache getDistributedCache() {
-
     if (builder.getDistributedCache().isPresent()) {
       return builder.getDistributedCache().get();
     } else {
@@ -75,16 +72,17 @@ public class PrefabCloudClient {
   }
 
   private ManagedChannel createChannel() {
-    ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder
-        .forTarget(builder.getTarget());
+    ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder.forTarget(
+      builder.getTarget()
+    );
 
     if (!builder.isSsl()) {
       managedChannelBuilder.usePlaintext();
     }
 
     return managedChannelBuilder
-        .intercept(new ClientAuthenticationInterceptor(builder.getApikey()))
-        .build();
+      .intercept(new ClientAuthenticationInterceptor(builder.getApikey()))
+      .build();
   }
 
   public String getNamespace() {
@@ -104,11 +102,11 @@ public class PrefabCloudClient {
   }
 
   public static class Builder {
+
     private String target;
     private boolean ssl = true;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
-    private Optional<MetricRegistry> metricRegistry = Optional.empty();
 
     private String configClasspathDir;
     private String configOverrideDir;
@@ -117,7 +115,10 @@ public class PrefabCloudClient {
 
     public Builder() {
       this.apikey = System.getenv("PREFAB_API_KEY");
-      this.target = Optional.ofNullable(System.getenv("PREFAB_API_URL")).orElse("grpc.prefab.cloud:443");
+      this.target =
+        Optional
+          .ofNullable(System.getenv("PREFAB_API_URL"))
+          .orElse("grpc.prefab.cloud:443");
       configClasspathDir = "";
       configOverrideDir = "";
     }
@@ -140,15 +141,6 @@ public class PrefabCloudClient {
       return this;
     }
 
-    public Optional<MetricRegistry> getMetricRegistry() {
-      return metricRegistry;
-    }
-
-    public Builder setMetricRegistry(Optional<MetricRegistry> metricRegistry) {
-      this.metricRegistry = metricRegistry;
-      return this;
-    }
-
     public String getConfigClasspathDir() {
       return configClasspathDir;
     }
@@ -166,7 +158,6 @@ public class PrefabCloudClient {
       this.configOverrideDir = configOverrideDir;
       return this;
     }
-
 
     public String getNamespace() {
       return namespace;

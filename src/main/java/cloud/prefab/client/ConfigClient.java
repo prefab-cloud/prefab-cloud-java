@@ -8,6 +8,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -15,11 +23,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Optional;
-import java.util.concurrent.*;
-
 public class ConfigClient implements ConfigStore {
+
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
 
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
@@ -28,33 +33,48 @@ public class ConfigClient implements ConfigStore {
   private final PrefabCloudClient baseClient;
   private final ConfigResolver resolver;
   private final ConfigLoader configLoader;
-  private static final String DEFAULT_S3CF_BUCKET = "http://d2j4ed6ti5snnd.cloudfront.net";
+  private static final String DEFAULT_S3CF_BUCKET =
+    "http://d2j4ed6ti5snnd.cloudfront.net";
   private final CloseableHttpClient httpclient;
   private final String cfS3Url;
 
   private CountDownLatch initializedLatch = new CountDownLatch(1);
 
-  private enum Source {S3, API, STREAMING}
+  private enum Source {
+    S3,
+    API,
+    STREAMING,
+  }
 
   public ConfigClient(PrefabCloudClient baseClient) {
     this.baseClient = baseClient;
     configLoader = new ConfigLoader();
     resolver = new ConfigResolver(baseClient, configLoader);
 
-    ThreadPoolExecutor executor =
-        (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
 
-    ExecutorService executorService =
-        MoreExecutors.getExitingExecutorService(executor,
-            100, TimeUnit.MILLISECONDS);
+    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
+      executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
     executorService.execute(() -> startStreaming());
     httpclient = HttpClients.createDefault();
 
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-    scheduledExecutorService.scheduleAtFixedRate(() -> loadCheckpoint(), 0, DEFAULT_CHECKPOINT_SEC, TimeUnit.SECONDS);
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
+      1
+    );
+    scheduledExecutorService.scheduleAtFixedRate(
+      () -> loadCheckpoint(),
+      0,
+      DEFAULT_CHECKPOINT_SEC,
+      TimeUnit.SECONDS
+    );
 
     String key = baseClient.getApiKey().replace("|", "/");
-    final String s3Cloudfront = Optional.ofNullable(System.getenv("PREFAB_S3CF_BUCKET")).orElse(DEFAULT_S3CF_BUCKET);
+    final String s3Cloudfront = Optional
+      .ofNullable(System.getenv("PREFAB_S3CF_BUCKET"))
+      .orElse(DEFAULT_S3CF_BUCKET);
     this.cfS3Url = String.format("%s/%s", s3Cloudfront, key);
   }
 
@@ -69,13 +89,12 @@ public class ConfigClient implements ConfigStore {
   }
 
   public void upsert(String key, Prefab.ConfigValue configValue) {
-    Prefab.Config upsertRequest = Prefab.Config.newBuilder()
-        .setProjectId(baseClient.getProjectId())
-        .setKey(key)
-        .addRows(Prefab.ConfigRow.newBuilder()
-            .setValue(configValue)
-            .build())
-        .build();
+    Prefab.Config upsertRequest = Prefab.Config
+      .newBuilder()
+      .setProjectId(baseClient.getProjectId())
+      .setKey(key)
+      .addRows(Prefab.ConfigRow.newBuilder().setValue(configValue).build())
+      .build();
 
     configServiceBlockingStub().upsert(upsertRequest);
   }
@@ -110,26 +129,31 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void loadCheckpoint() {
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(configLoader.getHighwaterMark())
-        .build();
+    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
+      .newBuilder()
+      .setStartAtId(configLoader.getHighwaterMark())
+      .build();
 
-    configServiceStub().getAllConfig(pointer, new StreamObserver<Prefab.Configs>() {
-      @Override
-      public void onNext(Prefab.Configs configs) {
-        loadConfigs(configs, Source.API);
-      }
+    configServiceStub()
+      .getAllConfig(
+        pointer,
+        new StreamObserver<Prefab.Configs>() {
+          @Override
+          public void onNext(Prefab.Configs configs) {
+            loadConfigs(configs, Source.API);
+          }
 
-      @Override
-      public void onError(Throwable throwable) {
-        LOG.warn(throwable.getMessage());
-        LOG.warn("Issue getting checkpoint config, falling back to S3");
-        loadCheckpointFromS3();
-      }
+          @Override
+          public void onError(Throwable throwable) {
+            LOG.warn(throwable.getMessage());
+            LOG.warn("Issue getting checkpoint config, falling back to S3");
+            loadCheckpointFromS3();
+          }
 
-      @Override
-      public void onCompleted() {
-      }
-    });
+          @Override
+          public void onCompleted() {}
+        }
+      );
   }
 
   private void loadCheckpointFromS3() {
@@ -139,7 +163,9 @@ public class ConfigClient implements ConfigStore {
 
     try {
       CloseableHttpResponse response1 = httpclient.execute(httpGet);
-      final Prefab.Configs configs = Prefab.Configs.parseFrom(response1.getEntity().getContent());
+      final Prefab.Configs configs = Prefab.Configs.parseFrom(
+        response1.getEntity().getContent()
+      );
       loadConfigs(configs, Source.S3);
     } catch (Exception e) {
       LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);
@@ -151,45 +177,60 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void startStreaming(long highwaterMark) {
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer.newBuilder().setStartAtId(highwaterMark)
-        .build();
+    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
+      .newBuilder()
+      .setStartAtId(highwaterMark)
+      .build();
 
-    configServiceStub().getConfig(pointer, new StreamObserver<Prefab.Configs>() {
-      @Override
-      public void onNext(Prefab.Configs configs) {
-        loadConfigs(configs, Source.STREAMING);
-      }
-
-      @Override
-      public void onError(Throwable throwable) {
-        if (throwable instanceof StatusRuntimeException && ((StatusRuntimeException) throwable).getStatus().getCode() == Status.PERMISSION_DENIED.getCode()) {
-          LOG.info("Not restarting the stream: {}", throwable.getMessage());
-        } else {
-          LOG.warn("Error from API: ", throwable);
-          try {
-            Thread.sleep(BACKOFF_MILLIS);
-          } catch (InterruptedException e) {
-            LOG.warn("Interruption Backing Off");
+    configServiceStub()
+      .getConfig(
+        pointer,
+        new StreamObserver<Prefab.Configs>() {
+          @Override
+          public void onNext(Prefab.Configs configs) {
+            loadConfigs(configs, Source.STREAMING);
           }
-          startStreaming();
-        }
-      }
 
-      @Override
-      public void onCompleted() {
-        LOG.warn("Unexpected stream completion");
-        try {
-          Thread.sleep(10000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
+          @Override
+          public void onError(Throwable throwable) {
+            if (
+              throwable instanceof StatusRuntimeException &&
+              ((StatusRuntimeException) throwable).getStatus().getCode() ==
+              Status.PERMISSION_DENIED.getCode()
+            ) {
+              LOG.info("Not restarting the stream: {}", throwable.getMessage());
+            } else {
+              LOG.warn("Error from API: ", throwable);
+              try {
+                Thread.sleep(BACKOFF_MILLIS);
+              } catch (InterruptedException e) {
+                LOG.warn("Interruption Backing Off");
+              }
+              startStreaming();
+            }
+          }
+
+          @Override
+          public void onCompleted() {
+            LOG.warn("Unexpected stream completion");
+            try {
+              Thread.sleep(10000);
+            } catch (InterruptedException e) {
+              e.printStackTrace();
+            }
+            startStreaming();
+          }
         }
-        startStreaming();
-      }
-    });
+      );
   }
 
   private void loadConfigs(Prefab.Configs configs, Source source) {
-    LOG.info("Load {} configs from {} in env {}", configs.getConfigsCount(), source, configs.getConfigServicePointer().getProjectEnvId());
+    LOG.info(
+      "Load {} configs from {} in env {}",
+      configs.getConfigsCount(),
+      source,
+      configs.getConfigServicePointer().getProjectEnvId()
+    );
     resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
 
     for (Prefab.Config config : configs.getConfigsList()) {
@@ -199,7 +240,11 @@ public class ConfigClient implements ConfigStore {
     LOG.info("Loaded {} at highwater {} ", source, configLoader.getHighwaterMark());
 
     if (initializedLatch.getCount() > 0) {
-      LOG.info("Initialized Prefab from {} at highwater {}", source, configLoader.getHighwaterMark());
+      LOG.info(
+        "Initialized Prefab from {} at highwater {}",
+        source,
+        configLoader.getHighwaterMark()
+      );
       initializedLatch.countDown();
     }
   }
@@ -211,5 +256,4 @@ public class ConfigClient implements ConfigStore {
   private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
     return ConfigServiceGrpc.newStub(baseClient.getChannel());
   }
-
 }
