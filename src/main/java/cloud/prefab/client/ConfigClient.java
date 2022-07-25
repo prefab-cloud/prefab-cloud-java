@@ -4,11 +4,15 @@ import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
+import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -17,9 +21,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,10 +36,9 @@ public class ConfigClient implements ConfigStore {
   private final ConfigLoader configLoader;
   private static final String DEFAULT_S3CF_BUCKET =
     "http://d2j4ed6ti5snnd.cloudfront.net";
-  private final OkHttpClient httpclient;
   private final String cfS3Url;
 
-  private CountDownLatch initializedLatch = new CountDownLatch(1);
+  private final CountDownLatch initializedLatch = new CountDownLatch(1);
 
   private enum Source {
     S3,
@@ -59,7 +59,6 @@ public class ConfigClient implements ConfigStore {
       TimeUnit.MILLISECONDS
     );
     executorService.execute(() -> startStreaming());
-    httpclient = new OkHttpClient();
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
       1
@@ -137,7 +136,7 @@ public class ConfigClient implements ConfigStore {
     configServiceStub()
       .getAllConfig(
         pointer,
-        new StreamObserver<Prefab.Configs>() {
+        new StreamObserver<>() {
           @Override
           public void onNext(Prefab.Configs configs) {
             loadConfigs(configs, Source.API);
@@ -145,8 +144,7 @@ public class ConfigClient implements ConfigStore {
 
           @Override
           public void onError(Throwable throwable) {
-            LOG.warn(throwable.getMessage());
-            LOG.warn("Issue getting checkpoint config, falling back to S3");
+            LOG.warn("Issue getting checkpoint config, falling back to S3", throwable);
             loadCheckpointFromS3();
           }
 
@@ -159,17 +157,26 @@ public class ConfigClient implements ConfigStore {
   private void loadCheckpointFromS3() {
     LOG.info("Loading from S3");
 
-    Request request = new Request.Builder().url(cfS3Url).build();
+    try {
+      HttpURLConnection urlConnection = (HttpURLConnection) new URL(cfS3Url)
+        .openConnection();
+      urlConnection.setConnectTimeout(5000);
+      urlConnection.setReadTimeout(30000);
 
-    try (Response response = httpclient.newCall(request).execute()) {
-      if (response.isSuccessful()) {
-        Prefab.Configs configs = Prefab.Configs.parseFrom(response.body().byteStream());
-        loadConfigs(configs, Source.S3);
-      } else {
-        LOG.warn(
-          "Issue Loading Checkpoint. This may not be available for your plan. Status code {}",
-          response.code()
-        );
+      int responseCode = urlConnection.getResponseCode();
+      InputStream inputStream = urlConnection.getInputStream();
+      try {
+        if (responseCode == 200) {
+          Prefab.Configs configs = Prefab.Configs.parseFrom(inputStream);
+          loadConfigs(configs, Source.S3);
+        } else {
+          LOG.warn(
+            "Issue Loading Checkpoint. This may not be available for your plan. Status code {}",
+            responseCode
+          );
+        }
+      } finally {
+        Closeables.closeQuietly(inputStream);
       }
     } catch (IOException e) {
       LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);

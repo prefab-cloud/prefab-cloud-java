@@ -43,13 +43,6 @@
         <version>${dep.protobuf.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.squareup.okhttp3</groupId>
-        <artifactId>okhttp-bom</artifactId>
-        <version>4.10.0</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
         <groupId>io.github.classgraph</groupId>
         <artifactId>classgraph</artifactId>
         <version>4.8.149</version>
@@ -122,10 +115,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okhttp3</groupId>
-      <artifactId>okhttp</artifactId>
     </dependency>
     <dependency>
       <groupId>io.github.classgraph</groupId>
