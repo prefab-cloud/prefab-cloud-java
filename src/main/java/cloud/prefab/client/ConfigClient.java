@@ -8,6 +8,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -16,10 +17,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,7 @@ public class ConfigClient implements ConfigStore {
   private final ConfigLoader configLoader;
   private static final String DEFAULT_S3CF_BUCKET =
     "http://d2j4ed6ti5snnd.cloudfront.net";
-  private final CloseableHttpClient httpclient;
+  private final OkHttpClient httpclient;
   private final String cfS3Url;
 
   private CountDownLatch initializedLatch = new CountDownLatch(1);
@@ -59,7 +59,7 @@ public class ConfigClient implements ConfigStore {
       TimeUnit.MILLISECONDS
     );
     executorService.execute(() -> startStreaming());
-    httpclient = HttpClients.createDefault();
+    httpclient = new OkHttpClient();
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
       1
@@ -159,15 +159,19 @@ public class ConfigClient implements ConfigStore {
   private void loadCheckpointFromS3() {
     LOG.info("Loading from S3");
 
-    HttpGet httpGet = new HttpGet(cfS3Url);
+    Request request = new Request.Builder().url(cfS3Url).build();
 
-    try {
-      CloseableHttpResponse response1 = httpclient.execute(httpGet);
-      final Prefab.Configs configs = Prefab.Configs.parseFrom(
-        response1.getEntity().getContent()
-      );
-      loadConfigs(configs, Source.S3);
-    } catch (Exception e) {
+    try (Response response = httpclient.newCall(request).execute()) {
+      if (response.isSuccessful()) {
+        Prefab.Configs configs = Prefab.Configs.parseFrom(response.body().byteStream());
+        loadConfigs(configs, Source.S3);
+      } else {
+        LOG.warn(
+          "Issue Loading Checkpoint. This may not be available for your plan. Status code {}",
+          response.code()
+        );
+      }
+    } catch (IOException e) {
       LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);
     }
   }
