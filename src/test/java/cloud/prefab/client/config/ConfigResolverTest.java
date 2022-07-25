@@ -6,9 +6,9 @@ import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.assertj.core.util.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +48,7 @@ public class ConfigResolverTest {
   public void testSpecialFeatureFlagBehavior() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 
-    Map<String, Prefab.Config> testFFData = Maps.newHashMap();
+    Map<String, Prefab.Config> testFFData = new HashMap<>();
 
     String featureName = "ff";
     testFFData.put(
@@ -192,7 +192,7 @@ public class ConfigResolverTest {
   }
 
   private Map<String, Prefab.Config> testData() {
-    Map<String, Prefab.Config> rtn = Maps.newHashMap();
+    Map<String, Prefab.Config> rtn = new HashMap<>();
     rtn.put(
       "key1",
       Prefab.Config
