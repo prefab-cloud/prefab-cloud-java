@@ -1,16 +1,15 @@
 package cloud.prefab.client;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class FeatureFlagClientTest {
 
@@ -178,6 +177,35 @@ public class FeatureFlagClientTest {
     )
       .isTrue();
   }
+
+  @Test
+  public void testEndsWith() {
+    final Prefab.Criteria socialEmailCritieria = Prefab.Criteria.newBuilder()
+      .setProperty("email")
+      .addValues("gmail.com")
+      .addValues("yahoo.com")
+      .setOperator(Prefab.Criteria.CriteriaOperator.PROP_ENDS_WITH_ONE_OF)
+      .build();
+
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "bob@example.com"))).isFalse();
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "alice@yahoo.com"))).isTrue();
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "alice@gmail.com"))).isTrue();
+  }
+
+  @Test
+  public void testDoesNotEndsWith() {
+    final Prefab.Criteria socialEmailCritieria = Prefab.Criteria.newBuilder()
+      .setProperty("email")
+      .addValues("gmail.com")
+      .addValues("yahoo.com")
+      .setOperator(Prefab.Criteria.CriteriaOperator.PROP_DOES_NOT_END_WITH_ONE_OF)
+      .build();
+
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "bob@example.com"))).isTrue();
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "alice@yahoo.com"))).isFalse();
+    assertThat(featureFlagClient.criteriaMatch(socialEmailCritieria, Optional.empty(), ImmutableMap.of("email", "alice@gmail.com"))).isFalse();
+  }
+
   //
   //  @Test
   //  public void testTargeting() {
