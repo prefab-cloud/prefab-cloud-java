@@ -4,7 +4,7 @@ import cloud.prefab.client.util.RandomProvider;
 import cloud.prefab.client.util.RandomProviderIF;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.FeatureFlagVariant;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -36,7 +36,7 @@ public class FeatureFlagClient {
    * @return
    */
   public boolean featureIsOn(String feature) {
-    return featureIsOnFor(feature, Optional.empty(), Maps.newHashMap());
+    return featureIsOnFor(feature, Optional.empty(), ImmutableMap.of());
   }
 
   /**
@@ -268,11 +268,9 @@ public class FeatureFlagClient {
     Optional<String> lookupKey,
     Map<String, String> attributes
   ) {
-    final boolean anyMatch = segment
+    return segment
       .getCriterionList()
       .stream()
-      .map(c -> criteriaMatch(c, lookupKey, attributes))
-      .anyMatch(b -> b);
-    return anyMatch;
+      .anyMatch(c -> criteriaMatch(c, lookupKey, attributes));
   }
 }

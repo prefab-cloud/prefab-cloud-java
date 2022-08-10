@@ -5,10 +5,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.assertj.core.util.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,7 +58,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes high"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
@@ -68,7 +68,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes low"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
@@ -110,7 +110,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes high"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
@@ -120,7 +120,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes low"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
@@ -162,7 +162,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes high"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
@@ -172,7 +172,7 @@ public class FeatureFlagClientTest {
         flag,
         feature,
         Optional.of("hashes low"),
-        Maps.newHashMap(),
+        ImmutableMap.of(),
         variants
       )
     )
