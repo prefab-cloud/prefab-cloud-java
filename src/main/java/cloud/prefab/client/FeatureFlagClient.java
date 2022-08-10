@@ -233,9 +233,15 @@ public class FeatureFlagClient {
       case PROP_IS_NOT_ONE_OF:
         return !criteria.getValuesList().contains(attributes.get(criteria.getProperty()));
       case PROP_ENDS_WITH_ONE_OF:
-        return criteria.getValuesList().stream().anyMatch(value -> attributes.get(criteria.getProperty()).endsWith(value));
+        return criteria
+          .getValuesList()
+          .stream()
+          .anyMatch(value -> attributes.get(criteria.getProperty()).endsWith(value));
       case PROP_DOES_NOT_END_WITH_ONE_OF:
-        return !criteria.getValuesList().stream().anyMatch(value -> attributes.get(criteria.getProperty()).endsWith(value));
+        return !criteria
+          .getValuesList()
+          .stream()
+          .anyMatch(value -> attributes.get(criteria.getProperty()).endsWith(value));
     }
     // Unknown Operator
     return false;
