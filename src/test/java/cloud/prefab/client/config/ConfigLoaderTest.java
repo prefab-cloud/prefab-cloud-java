@@ -42,7 +42,7 @@ public class ConfigLoaderTest {
         .getValue()
         .getString()
     )
-      .isEqualTo("Bar");
+      .isEqualTo("value from override in default");
   }
 
   @Test
