@@ -10,11 +10,10 @@
 
   <groupId>cloud.prefab</groupId>
   <artifactId>prefab-cloud-java</artifactId>
-  <version>0.1.2</version>
+  <version>0.1.3</version>
 
   <name>Prefab.cloud API Client</name>
   <description>API Client for https://prefab.cloud: rate limits, feature flags and semaphores as a service</description>
-
   <properties>
     <basepom.check.skip-license>true</basepom.check.skip-license>
     <!-- TODO get this working -->
@@ -190,7 +189,6 @@
         <directory>src/main/resources</directory>
       </resource>
     </resources>
-
     <pluginManagement>
       <plugins>
         <plugin>
@@ -275,6 +273,36 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>3.0.1</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <skip>false</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
         <extensions>true</extensions>
@@ -327,4 +355,14 @@
     <developerConnection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</developerConnection>
     <url>https://github.com/prefab-cloud/prefab-cloud-java</url>
   </scm>
+  <distributionManagement>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
 </project>
