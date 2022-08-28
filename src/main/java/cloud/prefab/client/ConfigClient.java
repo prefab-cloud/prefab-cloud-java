@@ -34,14 +34,10 @@ public class ConfigClient implements ConfigStore {
   private final PrefabCloudClient baseClient;
   private final ConfigResolver resolver;
   private final ConfigLoader configLoader;
-  private static final String DEFAULT_S3CF_BUCKET =
-    "http://d2j4ed6ti5snnd.cloudfront.net";
-  private final String cfS3Url;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
 
   private enum Source {
-    S3,
     API,
     STREAMING,
   }
@@ -69,12 +65,6 @@ public class ConfigClient implements ConfigStore {
       DEFAULT_CHECKPOINT_SEC,
       TimeUnit.SECONDS
     );
-
-    String key = baseClient.getApiKey().replace("|", "/");
-    final String s3Cloudfront = Optional
-      .ofNullable(System.getenv("PREFAB_S3CF_BUCKET"))
-      .orElse(DEFAULT_S3CF_BUCKET);
-    this.cfS3Url = String.format("%s/%s", s3Cloudfront, key);
   }
 
   @Override
@@ -138,8 +128,7 @@ public class ConfigClient implements ConfigStore {
 
           @Override
           public void onError(Throwable throwable) {
-            LOG.warn("Issue getting checkpoint config, falling back to S3", throwable);
-            loadCheckpointFromS3();
+            LOG.warn("Issue getting checkpoint config", throwable);
           }
 
           @Override
@@ -148,11 +137,11 @@ public class ConfigClient implements ConfigStore {
       );
   }
 
-  private void loadCheckpointFromS3() {
-    LOG.info("Loading from S3");
+  private void loadCheckpointFromUrl(String url, Source source) {
+    LOG.info("Loading from {}", source);
 
     try {
-      HttpURLConnection urlConnection = (HttpURLConnection) new URL(cfS3Url)
+      HttpURLConnection urlConnection = (HttpURLConnection) new URL(url)
         .openConnection();
       urlConnection.setConnectTimeout(5000);
       urlConnection.setReadTimeout(30000);
@@ -162,7 +151,7 @@ public class ConfigClient implements ConfigStore {
       try {
         if (responseCode == 200) {
           Prefab.Configs configs = Prefab.Configs.parseFrom(inputStream);
-          loadConfigs(configs, Source.S3);
+          loadConfigs(configs, source);
         } else {
           LOG.warn(
             "Issue Loading Checkpoint. This may not be available for your plan. Status code {}",
