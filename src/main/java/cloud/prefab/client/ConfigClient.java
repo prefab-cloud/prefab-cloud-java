@@ -6,24 +6,19 @@ import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +27,7 @@ public class ConfigClient implements ConfigStore {
   private static final HashFunction hash = Hashing.murmur3_32();
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
-
+  private static final String AUTH_USER = "authuser";
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
   private static final long BACKOFF_MILLIS = 3000;
 
@@ -118,6 +113,11 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void loadCheckpoint() {
+    boolean cdnSuccess = loadCDN();
+    if (cdnSuccess) {
+      return;
+    }
+
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
       .newBuilder()
       .setStartAtId(configLoader.getHighwaterMark())
@@ -138,8 +138,11 @@ public class ConfigClient implements ConfigStore {
 
           @Override
           public void onError(Throwable throwable) {
-            LOG.warn("Issue getting checkpoint config fallback", throwable);
-            loadCDN();
+            LOG.warn(
+              "{} Issue getting checkpoint config",
+              Source.REMOTE_API_GRPC,
+              throwable
+            );
           }
 
           @Override
@@ -148,46 +151,58 @@ public class ConfigClient implements ConfigStore {
       );
   }
 
-  void loadCDN() {
-    final String keyHash = keyHash(baseClient.getOptions().getApikey());
+  boolean loadCDN() {
+    final String keyHash = keyHash(baseClient.getOptions().getCDNUrl());
     final String url = String.format(
       "%s/api/v1/configs/0/%s/0",
       baseClient.getOptions().getCDNUrl(),
       keyHash
     );
-    loadCheckpointFromUrl(url, Source.REMOTE_CDN);
+    return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
   }
 
   private String keyHash(String apikey) {
     return Hashing.sha256().hashString(apikey, StandardCharsets.UTF_8).toString();
   }
 
-  private void loadCheckpointFromUrl(String url, Source source) {
-    LOG.info("Loading from {} {}", url, source);
+  private static final String getBasicAuthenticationHeader(
+    String username,
+    String password
+  ) {
+    String valueToEncode = username + ":" + password;
+    return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+  }
 
+  private boolean loadCheckpointFromUrl(String url, Source source) {
+    LOG.debug("Loading from {} {}", url, source);
     try {
-      HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
-      urlConnection.setConnectTimeout(5000);
-      urlConnection.setReadTimeout(30000);
+      HttpRequest request = HttpRequest
+        .newBuilder()
+        .GET()
+        .uri(new URI(url))
+        .header(
+          "Authorization",
+          getBasicAuthenticationHeader(AUTH_USER, baseClient.getOptions().getApikey())
+        )
+        .build();
 
-      int responseCode = urlConnection.getResponseCode();
-      InputStream inputStream = urlConnection.getInputStream();
-      try {
-        if (responseCode == 200) {
-          Prefab.Configs configs = Prefab.Configs.parseFrom(inputStream);
-          loadConfigs(configs, source);
-        } else {
-          LOG.warn(
-            "Issue Loading Checkpoint. This may not be available for your plan. Status code {}",
-            responseCode
-          );
-        }
-      } finally {
-        Closeables.closeQuietly(inputStream);
+      HttpClient client = HttpClient.newHttpClient();
+      HttpResponse<byte[]> response = client.send(
+        request,
+        HttpResponse.BodyHandlers.ofByteArray()
+      );
+
+      if (response.statusCode() != 200) {
+        LOG.warn("Problem loading CDN {}", response.statusCode());
+      } else {
+        Prefab.Configs configs = Prefab.Configs.parseFrom(response.body());
+        loadConfigs(configs, source);
+        return true;
       }
-    } catch (IOException e) {
-      LOG.warn("Issue Loading Checkpoint. This may not be available for your plan.", e);
+    } catch (Exception e) {
+      LOG.warn("Unexpected issue with CDN load {}", e.getMessage());
     }
+    return false;
   }
 
   private void startStreaming() {
@@ -243,19 +258,32 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void loadConfigs(Prefab.Configs configs, Source source) {
-    LOG.info(
-      "Load {} configs from {} in env {}",
-      configs.getConfigsCount(),
-      source,
-      configs.getConfigServicePointer().getProjectEnvId()
-    );
     resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
+
+    final long startingHighWaterMark = configLoader.getHighwaterMark();
 
     for (Prefab.Config config : configs.getConfigsList()) {
       configLoader.set(config);
     }
     resolver.update();
-    LOG.info("Loaded {} at highwater {} ", source, configLoader.getHighwaterMark());
+
+    if (configLoader.getHighwaterMark() > startingHighWaterMark) {
+      LOG.info(
+        "Found new checkpoint with highwater id {} from {} in project {} environment: {} and namespace: '{}' with {} configs",
+        configLoader.getHighwaterMark(),
+        source,
+        configs.getConfigServicePointer().getProjectId(),
+        configs.getConfigServicePointer().getProjectEnvId(),
+        baseClient.getOptions().getNamespace(),
+        configs.getConfigsCount()
+      );
+    } else {
+      LOG.debug(
+        "Checkpoint with highwater with highwater id {} from {}. No changes.",
+        configLoader.getHighwaterMark(),
+        source
+      );
+    }
 
     if (initializedLatch.getCount() > 0) {
       LOG.info(
