@@ -4,6 +4,8 @@ import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -13,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 public class ConfigClient implements ConfigStore {
 
+  private static final HashFunction hash = Hashing.murmur3_32();
+
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
 
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
@@ -38,8 +43,9 @@ public class ConfigClient implements ConfigStore {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
 
   private enum Source {
-    API,
+    REMOTE_API_GRPC,
     STREAMING,
+    REMOTE_CDN,
   }
 
   public ConfigClient(PrefabCloudClient baseClient) {
@@ -117,18 +123,23 @@ public class ConfigClient implements ConfigStore {
       .setStartAtId(configLoader.getHighwaterMark())
       .build();
 
+    loadGrpc(pointer);
+  }
+
+  private void loadGrpc(Prefab.ConfigServicePointer pointer) {
     configServiceStub()
       .getAllConfig(
         pointer,
         new StreamObserver<>() {
           @Override
           public void onNext(Prefab.Configs configs) {
-            loadConfigs(configs, Source.API);
+            loadConfigs(configs, Source.REMOTE_API_GRPC);
           }
 
           @Override
           public void onError(Throwable throwable) {
-            LOG.warn("Issue getting checkpoint config", throwable);
+            LOG.warn("Issue getting checkpoint config fallback", throwable);
+            loadCDN();
           }
 
           @Override
@@ -137,8 +148,22 @@ public class ConfigClient implements ConfigStore {
       );
   }
 
+  void loadCDN() {
+    final String keyHash = keyHash(baseClient.getOptions().getApikey());
+    final String url = String.format(
+      "%s/api/v1/configs/0/%s/0",
+      baseClient.getOptions().getCDNUrl(),
+      keyHash
+    );
+    loadCheckpointFromUrl(url, Source.REMOTE_CDN);
+  }
+
+  private String keyHash(String apikey) {
+    return Hashing.sha256().hashString(apikey, StandardCharsets.UTF_8).toString();
+  }
+
   private void loadCheckpointFromUrl(String url, Source source) {
-    LOG.info("Loading from {}", source);
+    LOG.info("Loading from {} {}", url, source);
 
     try {
       HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
