@@ -61,9 +61,9 @@ public class HarnessServer extends NanoHTTPD {
 
     try {
       PrefabCloudClient prefabCloudClient = new PrefabCloudClient(
-        new PrefabCloudClient.Builder()
+        new PrefabCloudClient.Options()
           .setApikey(apiKey)
-          .setTarget("localhost:50051")
+          .setPrefabGrpcUrl("localhost:50051")
           .setNamespace(namespace)
           .setSsl(false)
       );

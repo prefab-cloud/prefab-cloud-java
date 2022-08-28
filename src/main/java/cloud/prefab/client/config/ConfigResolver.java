@@ -79,7 +79,7 @@ public class ConfigResolver {
                 if (!row.getNamespace().isEmpty()) {
                   NamespaceMatch match = evaluateMatch(
                     row.getNamespace(),
-                    baseClient.getNamespace()
+                    baseClient.getOptions().getNamespace()
                   );
                   if (match.isMatch()) {
                     return new ResolverElement(

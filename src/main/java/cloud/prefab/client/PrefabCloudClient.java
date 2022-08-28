@@ -12,20 +12,20 @@ public class PrefabCloudClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrefabCloudClient.class);
 
-  private final Builder builder;
+  private final Options options;
   private ManagedChannel channel;
   private RateLimitClient rateLimitClient;
   private ConfigClient configClient;
   private FeatureFlagClient featureFlagClient;
   private Cache noopCache;
 
-  public PrefabCloudClient(Builder builder) {
-    this.builder = builder;
-    if (builder.getApikey() == null || builder.getApikey().isEmpty()) {
+  public PrefabCloudClient(Options options) {
+    this.options = options;
+    if (options.getApikey() == null || options.getApikey().isEmpty()) {
       throw new RuntimeException("PREFAB_API_KEY not set");
     }
 
-    long apiKeyId = Long.parseLong(builder.getApikey().split("\\-")[0]);
+    long apiKeyId = Long.parseLong(options.getApikey().split("\\-")[0]);
     LOG.info("Initializing Prefab for apiKeyId {}", apiKeyId);
   }
 
@@ -58,8 +58,8 @@ public class PrefabCloudClient {
   }
 
   public Cache getDistributedCache() {
-    if (builder.getDistributedCache().isPresent()) {
-      return builder.getDistributedCache().get();
+    if (options.getDistributedCache().isPresent()) {
+      return options.getDistributedCache().get();
     } else {
       if (noopCache == null) {
         noopCache = new NoopCache();
@@ -68,31 +68,29 @@ public class PrefabCloudClient {
     }
   }
 
+  public Options getOptions() {
+    return options;
+  }
+
   private ManagedChannel createChannel() {
     ManagedChannelBuilder<?> managedChannelBuilder = ManagedChannelBuilder.forTarget(
-      builder.getTarget()
+      options.getPrefabGrpcUrl()
     );
 
-    if (!builder.isSsl()) {
+    if (!options.isSsl()) {
       managedChannelBuilder.usePlaintext();
     }
 
     return managedChannelBuilder
-      .intercept(new ClientAuthenticationInterceptor(builder.getApikey()))
+      .intercept(new ClientAuthenticationInterceptor(options.getApikey()))
       .build();
   }
 
-  public String getNamespace() {
-    return builder.getNamespace();
-  }
+  public static class Options {
 
-  public String getApiKey() {
-    return builder.getApikey();
-  }
+    private String prefabGrpcUrl;
 
-  public static class Builder {
-
-    private String target;
+    private String prefabApiUrl;
     private boolean ssl = true;
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
@@ -102,12 +100,16 @@ public class PrefabCloudClient {
 
     private String namespace = "";
 
-    public Builder() {
+    public Options() {
       this.apikey = System.getenv("PREFAB_API_KEY");
-      this.target =
+      this.prefabGrpcUrl =
+        Optional
+          .ofNullable(System.getenv("PREFAB_GRPC_URL"))
+          .orElse("grpc.prefab.cloud:443");
+      this.prefabApiUrl =
         Optional
           .ofNullable(System.getenv("PREFAB_API_URL"))
-          .orElse("grpc.prefab.cloud:443");
+          .orElse("https://api.prefab.cloud");
       configClasspathDir = "";
       configOverrideDir = "";
     }
@@ -116,7 +118,7 @@ public class PrefabCloudClient {
       return apikey;
     }
 
-    public Builder setApikey(String apikey) {
+    public Options setApikey(String apikey) {
       this.apikey = apikey;
       return this;
     }
@@ -125,7 +127,7 @@ public class PrefabCloudClient {
       return distributedCache;
     }
 
-    public Builder setDistributedCache(Cache distributedCache) {
+    public Options setDistributedCache(Cache distributedCache) {
       this.distributedCache = Optional.of(distributedCache);
       return this;
     }
@@ -134,7 +136,7 @@ public class PrefabCloudClient {
       return configClasspathDir;
     }
 
-    public Builder setConfigClasspathDir(String configClasspathDir) {
+    public Options setConfigClasspathDir(String configClasspathDir) {
       this.configClasspathDir = configClasspathDir;
       return this;
     }
@@ -143,7 +145,7 @@ public class PrefabCloudClient {
       return configOverrideDir;
     }
 
-    public Builder setConfigOverrideDir(String configOverrideDir) {
+    public Options setConfigOverrideDir(String configOverrideDir) {
       this.configOverrideDir = configOverrideDir;
       return this;
     }
@@ -152,17 +154,26 @@ public class PrefabCloudClient {
       return namespace;
     }
 
-    public Builder setNamespace(String namespace) {
+    public Options setNamespace(String namespace) {
       this.namespace = namespace;
       return this;
     }
 
-    public String getTarget() {
-      return target;
+    public String getPrefabGrpcUrl() {
+      return prefabGrpcUrl;
     }
 
-    public Builder setTarget(String target) {
-      this.target = target;
+    public Options setPrefabGrpcUrl(String prefabGrpcUrl) {
+      this.prefabGrpcUrl = prefabGrpcUrl;
+      return this;
+    }
+
+    public String getPrefabApiUrl() {
+      return prefabApiUrl;
+    }
+
+    public Options setPrefabApiUrl(String prefabApiUrl) {
+      this.prefabApiUrl = prefabApiUrl;
       return this;
     }
 
@@ -170,9 +181,21 @@ public class PrefabCloudClient {
       return ssl;
     }
 
-    public Builder setSsl(boolean ssl) {
+    public Options setSsl(boolean ssl) {
       this.ssl = ssl;
       return this;
+    }
+
+    public String getCDNUrl() {
+      String envVar = System.getenv("PREFAB_CDN_URL");
+      if (envVar != null) {
+        return envVar;
+      } else {
+        return String.format(
+          "%s.global.ssl.fastly.net",
+          prefabApiUrl.replaceAll("\\.", "-")
+        );
+      }
     }
   }
 }

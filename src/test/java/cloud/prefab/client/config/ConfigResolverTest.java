@@ -18,14 +18,16 @@ public class ConfigResolverTest {
 
   private ConfigResolver resolver;
   private PrefabCloudClient mockBaseClient;
+  private PrefabCloudClient.Options mockOptions;
 
   @BeforeEach
   public void setup() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
+    mockOptions = mock(PrefabCloudClient.Options.class);
 
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getNamespace()).thenReturn("");
+    when(mockBaseClient.getOptions()).thenReturn(mockOptions);
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
   }
 
@@ -125,7 +127,7 @@ public class ConfigResolverTest {
 
     when(mockLoader.calcConfig()).thenReturn(testFFData);
     mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getNamespace()).thenReturn("");
+    when(mockOptions.getNamespace()).thenReturn("");
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
 
     final Optional<Prefab.ConfigValue> ff = resolver.getConfigValue(featureName);
@@ -140,27 +142,27 @@ public class ConfigResolverTest {
 
     resolver.setProjectEnvId(TEST_PROJ_ENV);
 
-    when(mockBaseClient.getNamespace()).thenReturn("");
+    when(mockOptions.getNamespace()).thenReturn("");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectA");
+    when(mockOptions.getNamespace()).thenReturn("projectA");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "valueA");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectB");
+    when(mockOptions.getNamespace()).thenReturn("projectB");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "valueB");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectB.subprojectX");
+    when(mockOptions.getNamespace()).thenReturn("projectB.subprojectX");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "projectB.subprojectX");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectB.subprojectX.subsubQ");
+    when(mockOptions.getNamespace()).thenReturn("projectB.subprojectX.subsubQ");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "projectB.subprojectX");
 
-    when(mockBaseClient.getNamespace()).thenReturn("projectC");
+    when(mockOptions.getNamespace()).thenReturn("projectC");
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
 

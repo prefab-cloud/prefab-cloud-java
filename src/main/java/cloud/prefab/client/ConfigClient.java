@@ -141,8 +141,7 @@ public class ConfigClient implements ConfigStore {
     LOG.info("Loading from {}", source);
 
     try {
-      HttpURLConnection urlConnection = (HttpURLConnection) new URL(url)
-        .openConnection();
+      HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
       urlConnection.setConnectTimeout(5000);
       urlConnection.setReadTimeout(30000);
 
