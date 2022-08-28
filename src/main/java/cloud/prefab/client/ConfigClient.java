@@ -90,7 +90,6 @@ public class ConfigClient implements ConfigStore {
   public void upsert(String key, Prefab.ConfigValue configValue) {
     Prefab.Config upsertRequest = Prefab.Config
       .newBuilder()
-      .setProjectId(baseClient.getProjectId())
       .setKey(key)
       .addRows(Prefab.ConfigRow.newBuilder().setValue(configValue).build())
       .build();
@@ -110,11 +109,6 @@ public class ConfigClient implements ConfigStore {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  @Override
-  public long getProjectId() {
-    return baseClient.getProjectId();
   }
 
   @Override

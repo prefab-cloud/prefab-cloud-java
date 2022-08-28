@@ -25,7 +25,6 @@ public class ConfigResolverTest {
 
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getEnvironment()).thenReturn("unspecified_env");
     when(mockBaseClient.getNamespace()).thenReturn("");
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
   }
@@ -126,7 +125,6 @@ public class ConfigResolverTest {
 
     when(mockLoader.calcConfig()).thenReturn(testFFData);
     mockBaseClient = mock(PrefabCloudClient.class);
-    when(mockBaseClient.getEnvironment()).thenReturn("test");
     when(mockBaseClient.getNamespace()).thenReturn("");
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
 

@@ -20,7 +20,6 @@ public class FeatureFlagClientTest {
   @BeforeEach
   public void setup() {
     mockConfigClient = mock(ConfigClient.class);
-    when(mockConfigClient.getProjectId()).thenReturn(1L);
     featureFlagClient = new FeatureFlagClient(mockConfigClient);
   }
 
@@ -57,7 +56,7 @@ public class FeatureFlagClientTest {
       featureFlagClient.isOnFor(
         flag,
         feature,
-        Optional.of("hashes high"),
+        Optional.of("very high hash"),
         ImmutableMap.of(),
         variants
       )

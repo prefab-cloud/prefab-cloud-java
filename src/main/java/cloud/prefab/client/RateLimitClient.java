@@ -31,8 +31,7 @@ public class RateLimitClient {
     Prefab.LimitRequest limitRequest,
     Prefab.OnFailure onFailure
   ) {
-    limitRequest =
-      limitRequest.toBuilder().setAccountId(baseClient.getProjectId()).build();
+    limitRequest = limitRequest.toBuilder().build();
 
     String limitResetCacheKey = Joiner
       .on(":")

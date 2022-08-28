@@ -44,8 +44,6 @@ public class RateLimitClientTest {
         }
       );
 
-    when(mockBaseClient.getProjectId()).thenReturn(54321L);
-
     rateLimitClient = new RateLimitClient(mockBaseClient);
     rateLimitClient.setInternalRateLimitClient(mockInternalRateLimitClient);
   }
@@ -62,7 +60,6 @@ public class RateLimitClientTest {
     Prefab.LimitRequest expectedRemoteCall = Prefab.LimitRequest
       .newBuilder()
       .setAcquireAmount(1)
-      .setAccountId(54321L)
       .addGroups("test.group")
       .build();
     verify(mockInternalRateLimitClient).limitCheck(expectedRemoteCall);
@@ -101,7 +98,6 @@ public class RateLimitClientTest {
     Prefab.LimitRequest expectedRemoteCall = Prefab.LimitRequest
       .newBuilder()
       .setAcquireAmount(1)
-      .setAccountId(54321L)
       .addGroups("test.group")
       .build();
 

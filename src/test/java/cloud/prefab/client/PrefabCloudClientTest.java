@@ -10,11 +10,9 @@ public class PrefabCloudClientTest {
   public void testApiKeyParse() {
     PrefabCloudClient.Builder builder = new PrefabCloudClient.Builder()
       .setNamespace("test.namespace")
-      .setApikey("50-test-test_api_key");
+      .setApikey("123-Development-P101-E101-SDK-23253eca-6027-46b2-9af0-2194eed793cb");
 
     PrefabCloudClient client = new PrefabCloudClient(builder);
-    assertThat(client.getProjectId()).isEqualTo(50);
-    assertThat(client.getEnvironment()).isEqualTo("test");
     assertThat(client.getNamespace()).isEqualTo("test.namespace");
   }
 }

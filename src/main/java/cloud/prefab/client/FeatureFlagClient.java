@@ -97,8 +97,8 @@ public class FeatureFlagClient {
     return isOn(getVariant(feature, lookupKey, attributes, featureFlag, variants));
   }
 
-  double getUserPct(String lookupKey, long projectId, String featureName) {
-    final String toHash = String.format("%d%s%s", projectId, featureName, lookupKey);
+  double getUserPct(String lookupKey, String featureName) {
+    final String toHash = String.format("%s%s", featureName, lookupKey);
     final HashCode hashCode = hash.hashBytes(toHash.getBytes());
     return pct(hashCode.asInt());
   }
@@ -157,8 +157,7 @@ public class FeatureFlagClient {
 
     double pctThroughDistribution = randomProvider.random();
     if (lookupKey.isPresent()) {
-      pctThroughDistribution =
-        getUserPct(lookupKey.get(), configStore.getProjectId(), featureName);
+      pctThroughDistribution = getUserPct(lookupKey.get(), featureName);
     }
 
     int variantIdx = getVariantIdxFromWeights(

@@ -13,8 +13,6 @@ public class PrefabCloudClient {
   private static final Logger LOG = LoggerFactory.getLogger(PrefabCloudClient.class);
 
   private final Builder builder;
-  private final long projectId;
-  private final String environment;
   private ManagedChannel channel;
   private RateLimitClient rateLimitClient;
   private ConfigClient configClient;
@@ -27,9 +25,8 @@ public class PrefabCloudClient {
       throw new RuntimeException("PREFAB_API_KEY not set");
     }
 
-    this.projectId = Long.parseLong(builder.getApikey().split("\\-")[0]);
-    this.environment = builder.getApikey().split("\\-")[1];
-    LOG.info("Initializing Prefab for project {} in env {}", projectId, environment);
+    long apiKeyId = Long.parseLong(builder.getApikey().split("\\-")[0]);
+    LOG.info("Initializing Prefab for apiKeyId {}", apiKeyId);
   }
 
   public RateLimitClient rateLimitClient() {
@@ -91,14 +88,6 @@ public class PrefabCloudClient {
 
   public String getApiKey() {
     return builder.getApikey();
-  }
-
-  public long getProjectId() {
-    return projectId;
-  }
-
-  public String getEnvironment() {
-    return environment;
   }
 
   public static class Builder {

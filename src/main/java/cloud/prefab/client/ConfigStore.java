@@ -9,7 +9,5 @@ public interface ConfigStore {
 
   Optional<Prefab.Config> getConfigObj(String key);
 
-  long getProjectId();
-
   Collection<String> getKeys();
 }
