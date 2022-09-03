@@ -50,7 +50,7 @@ public class ConfigClient implements ConfigStore {
 
   public ConfigClient(PrefabCloudClient baseClient) {
     this.baseClient = baseClient;
-    configLoader = new ConfigLoader();
+    configLoader = new ConfigLoader(baseClient.getOptions());
     resolver = new ConfigResolver(baseClient, configLoader);
 
     ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
