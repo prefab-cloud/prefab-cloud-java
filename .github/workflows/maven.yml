@@ -22,5 +22,7 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
         cache: maven
+    - name: GitSubmodules
+      run: git submodule init && git submodule update
     - name: Build with Maven
       run: mvn -B package --file pom.xml
