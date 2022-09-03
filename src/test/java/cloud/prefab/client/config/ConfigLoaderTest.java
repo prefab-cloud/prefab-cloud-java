@@ -2,21 +2,33 @@ package cloud.prefab.client.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
+import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class ConfigLoaderTest {
 
+  private ConfigLoader configLoader;
+  private Map<String, Prefab.Config> stringConfigDeltaMap;
+
+  @BeforeEach
+  public void setup() {
+    configLoader =
+      new ConfigLoader(
+        new PrefabCloudClient.Options()
+          .setConfigOverrideDir("src/test/resources/override_directory")
+          .setPrefabEnvs(List.of("unit_tests"))
+      );
+
+    stringConfigDeltaMap = configLoader.calcConfig();
+  }
+
   @Test
   public void testLoad() {
-    ConfigLoader configLoader = new ConfigLoader();
-    final Map<String, Prefab.Config> stringConfigDeltaMap = configLoader.calcConfig();
-
-    assertThat(
-      stringConfigDeltaMap.get("sample").getRowsList().get(0).getValue().getString()
-    )
-      .isEqualTo("OneTwoThree");
+    assertValueOfConfigIs("test sample value", "sample");
     assertThat(
       stringConfigDeltaMap.get("sample_int").getRowsList().get(0).getValue().getInt()
     )
@@ -34,20 +46,28 @@ public class ConfigLoaderTest {
       stringConfigDeltaMap.get("sample_bool").getRowsList().get(0).getValue().getBool()
     )
       .isEqualTo(true);
+
+    assertValueOfConfigIs("value from override in default", "sample_to_override");
+  }
+
+  private void assertValueOfConfigIs(String expectedValue, String configKey) {
     assertThat(
-      stringConfigDeltaMap
-        .get("sample_to_override")
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getString()
+      stringConfigDeltaMap.get(configKey).getRowsList().get(0).getValue().getString()
     )
-      .isEqualTo("value from override in default");
+      .isEqualTo(expectedValue);
+  }
+
+  @Test
+  public void test_nested() {
+    assertValueOfConfigIs("nested value", "nested.values.string");
+    assertValueOfConfigIs("top level", "nested.values");
+    assertValueOfConfigIs("error", "logging.app");
+    assertValueOfConfigIs("warn", "logging.app.controller.hello");
+    assertValueOfConfigIs("info", "logging.app.controller.hello.index");
   }
 
   @Test
   public void testHighwater() {
-    ConfigLoader configLoader = new ConfigLoader();
     assertThat(configLoader.getHighwaterMark()).isEqualTo(0);
 
     configLoader.set(cd(1, "sample_int", 456));
@@ -62,7 +82,6 @@ public class ConfigLoaderTest {
 
   @Test
   public void testKeepsMostRecent() {
-    ConfigLoader configLoader = new ConfigLoader();
     assertThat(configLoader.getHighwaterMark()).isEqualTo(0);
 
     configLoader.set(cd(1, "sample_int", 1));
@@ -89,7 +108,6 @@ public class ConfigLoaderTest {
 
   @Test
   public void testAPIPrecedence() {
-    ConfigLoader configLoader = new ConfigLoader();
     configLoader.calcConfig();
 
     assertThat(
@@ -105,7 +123,6 @@ public class ConfigLoaderTest {
 
   @Test
   public void testLoadingTombstonesRemoves() {
-    ConfigLoader configLoader = new ConfigLoader();
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));

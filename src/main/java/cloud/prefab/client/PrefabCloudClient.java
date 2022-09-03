@@ -4,6 +4,8 @@ import cloud.prefab.client.util.Cache;
 import cloud.prefab.client.util.NoopCache;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +90,7 @@ public class PrefabCloudClient {
 
   public static class Options {
 
+    private static final String DEFAULT_ENV = "default";
     private String prefabGrpcUrl;
 
     private String prefabApiUrl;
@@ -95,9 +98,8 @@ public class PrefabCloudClient {
     private String apikey;
     private Optional<Cache> distributedCache = Optional.empty();
 
-    private String configClasspathDir;
     private String configOverrideDir;
-
+    private List<String> prefabEnvs;
     private String namespace = "";
 
     public Options() {
@@ -110,8 +112,8 @@ public class PrefabCloudClient {
         Optional
           .ofNullable(System.getenv("PREFAB_API_URL"))
           .orElse("https://api.prefab.cloud");
-      configClasspathDir = "";
-      configOverrideDir = "";
+      configOverrideDir = System.getProperty("user.home");
+      prefabEnvs = new ArrayList<>();
     }
 
     public String getApikey() {
@@ -129,15 +131,6 @@ public class PrefabCloudClient {
 
     public Options setDistributedCache(Cache distributedCache) {
       this.distributedCache = Optional.of(distributedCache);
-      return this;
-    }
-
-    public String getConfigClasspathDir() {
-      return configClasspathDir;
-    }
-
-    public Options setConfigClasspathDir(String configClasspathDir) {
-      this.configClasspathDir = configClasspathDir;
       return this;
     }
 
@@ -177,6 +170,15 @@ public class PrefabCloudClient {
       return this;
     }
 
+    public List<String> getPrefabEnvs() {
+      return prefabEnvs;
+    }
+
+    public Options setPrefabEnvs(List<String> prefabEnvs) {
+      this.prefabEnvs = prefabEnvs;
+      return this;
+    }
+
     public boolean isSsl() {
       return ssl;
     }
@@ -196,6 +198,13 @@ public class PrefabCloudClient {
           prefabApiUrl.replaceAll("\\.", "-")
         );
       }
+    }
+
+    public List<String> getAllPrefabEnvs() {
+      final List<String> envs = new ArrayList<>();
+      envs.add(DEFAULT_ENV);
+      envs.addAll(prefabEnvs);
+      return envs;
     }
   }
 }

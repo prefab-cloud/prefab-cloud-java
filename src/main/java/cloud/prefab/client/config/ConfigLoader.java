@@ -1,8 +1,7 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -20,6 +19,7 @@ import org.yaml.snakeyaml.Yaml;
 public class ConfigLoader {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
+  private final PrefabCloudClient.Options options;
 
   private ConcurrentMap<String, Prefab.Config> apiConfig = new ConcurrentHashMap<>();
   private long highwaterMark = 0;
@@ -28,7 +28,8 @@ public class ConfigLoader {
 
   private Map<String, Prefab.Config> overrideConfig;
 
-  public ConfigLoader() {
+  public ConfigLoader(PrefabCloudClient.Options options) {
+    this.options = options;
     classPathConfig = loadClasspathConfig();
     overrideConfig = loadOverrideConfig();
   }
@@ -82,15 +83,11 @@ public class ConfigLoader {
   private Map<String, Prefab.Config> loadClasspathConfig() {
     Map<String, Prefab.Config> rtn = new HashMap<>();
 
-    try (ScanResult scanResult = new ClassGraph().scan()) {
-      scanResult
-        .getResourcesMatchingWildcard(".prefab*config.yaml")
-        .forEachInputStreamThrowingIOException((resource, inputStream) ->
-          loadFileTo(inputStream, rtn)
-        );
-    } catch (IOException e) {
-      LOG.error(e.getMessage());
-      e.printStackTrace();
+    for (String env : options.getAllPrefabEnvs()) {
+      final String file = String.format(".prefab.%s.config.yaml", env);
+      final InputStream resourceAsStream =
+        this.getClass().getClassLoader().getResourceAsStream(file);
+      loadFileTo(resourceAsStream, rtn, file);
     }
 
     return rtn;
@@ -116,28 +113,82 @@ public class ConfigLoader {
   private Map<String, Prefab.Config> loadOverrideConfig() {
     Map<String, Prefab.Config> rtn = new HashMap<>();
 
-    File dir = new File(System.getProperty("user.home"));
-    File[] files = dir.listFiles((dir1, name) -> name.matches("\\.prefab.*config\\.yaml")
-    );
+    File dir = new File(options.getConfigOverrideDir());
+    for (String env : options.getAllPrefabEnvs()) {
+      final String fileName = String.format(".prefab.%s.config.yaml", env);
+      File file = new File(dir, fileName);
 
-    for (File file : files) {
-      try (InputStream inputStream = new FileInputStream(file)) {
-        loadFileTo(inputStream, rtn);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+      if (file.exists()) {
+        try (InputStream inputStream = new FileInputStream(file)) {
+          loadFileTo(inputStream, rtn, fileName);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
 
     return rtn;
   }
 
-  private void loadFileTo(InputStream inputStream, Map<String, Prefab.Config> rtn) {
+  private void loadFileTo(
+    InputStream inputStream,
+    Map<String, Prefab.Config> rtn,
+    String file
+  ) {
+    LOG.info("Load Default File {}", file);
     Yaml yaml = new Yaml();
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {
+      loadKeyValue(k, v, rtn, file);
       rtn.put(k, toValue(v));
     });
   }
+
+  private void loadKeyValue(
+    String k,
+    Object v,
+    Map<String, Prefab.Config> rtn,
+    String file
+  ) {
+    if (v instanceof Map) {
+      Map<String, Object> map = (Map<String, Object>) v;
+
+      for (Map.Entry<String, Object> nest : map.entrySet()) {
+        String nestedKey = String.format("%s.%s", k, nest.getKey());
+        if (nest.getKey().equals("_")) {
+          nestedKey = k;
+        }
+        loadKeyValue(nestedKey, nest.getValue(), rtn, file);
+      }
+    } else {
+      rtn.put(k, toValue(v));
+    }
+  }
+
+  //  def load_kv(k, v, rtn, file)
+  //      if v.class == Hash
+  //        if v['feature_flag']
+  //  rtn[k] = feature_flag_config(file, k, v)
+  //        else
+  //  v.each do |nest_k, nest_v|
+  //  nested_key = "#{k}.#{nest_k}"
+  //  nested_key = k if nest_k == "_"
+  //  load_kv(nested_key, nest_v, rtn, file)
+  //  end
+  //    end
+  //      else
+  //  rtn[k] = {
+  //    source: file,
+  //      match: "default",
+  //      config: Prefab::Config.new(
+  //      key: k,
+  //      rows: [
+  //    Prefab::ConfigRow.new(value: Prefab::ConfigValue.new(value_from(v)))
+  //            ]
+  //          )
+  //  }
+  //  end
+  //    end
 
   public long getHighwaterMark() {
     return highwaterMark;
