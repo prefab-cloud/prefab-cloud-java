@@ -39,6 +39,10 @@ public class FeatureFlagClient {
     return featureIsOnFor(feature, Optional.empty(), ImmutableMap.of());
   }
 
+  public boolean featureIsOnFor(String feature, String lookupKey) {
+    return isOn(get(feature, Optional.of(lookupKey), ImmutableMap.of()));
+  }
+
   /**
    * Simplified method for boolean flags. Returns false if flag is not defined.
    *
@@ -47,6 +51,14 @@ public class FeatureFlagClient {
    * @param attributes
    * @return
    */
+  public boolean featureIsOnFor(
+    String feature,
+    String lookupKey,
+    Map<String, String> attributes
+  ) {
+    return featureIsOnFor(feature, Optional.of(lookupKey), attributes);
+  }
+
   public boolean featureIsOnFor(
     String feature,
     Optional<String> lookupKey,
