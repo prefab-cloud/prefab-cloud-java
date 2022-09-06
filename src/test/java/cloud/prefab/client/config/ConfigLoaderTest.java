@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
@@ -18,7 +19,7 @@ public class ConfigLoaderTest {
   public void setup() {
     configLoader =
       new ConfigLoader(
-        new PrefabCloudClient.Options()
+        new Options()
           .setConfigOverrideDir("src/test/resources/override_directory")
           .setPrefabEnvs(List.of("unit_tests"))
       );

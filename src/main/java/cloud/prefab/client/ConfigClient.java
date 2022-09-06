@@ -37,7 +37,7 @@ public class ConfigClient implements ConfigStore {
   private static final long BACKOFF_MILLIS = 3000;
 
   private final PrefabCloudClient baseClient;
-  private final PrefabCloudClient.Options options;
+  private final Options options;
 
   private final ConfigResolver resolver;
   private final ConfigLoader configLoader;
@@ -73,8 +73,7 @@ public class ConfigClient implements ConfigStore {
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
       ) {
         if (
-          options.getOnInitializationFailure() ==
-          PrefabCloudClient.Options.OnInitializationFailure.UNLOCK
+          options.getOnInitializationFailure() == Options.OnInitializationFailure.UNLOCK
         ) {
           finishInit(Source.INIT_TIMEOUT);
         } else {

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
@@ -18,12 +19,12 @@ public class ConfigResolverTest {
 
   private ConfigResolver resolver;
   private PrefabCloudClient mockBaseClient;
-  private PrefabCloudClient.Options mockOptions;
+  private Options mockOptions;
 
   @BeforeEach
   public void setup() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
-    mockOptions = mock(PrefabCloudClient.Options.class);
+    mockOptions = mock(Options.class);
 
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);

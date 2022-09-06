@@ -1,5 +1,6 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import java.io.File;
@@ -19,7 +20,7 @@ import org.yaml.snakeyaml.Yaml;
 public class ConfigLoader {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
-  private final PrefabCloudClient.Options options;
+  private final Options options;
 
   private ConcurrentMap<String, Prefab.Config> apiConfig = new ConcurrentHashMap<>();
   private long highwaterMark = 0;
@@ -28,7 +29,7 @@ public class ConfigLoader {
 
   private Map<String, Prefab.Config> overrideConfig;
 
-  public ConfigLoader(PrefabCloudClient.Options options) {
+  public ConfigLoader(Options options) {
     this.options = options;
     classPathConfig = loadClasspathConfig();
     overrideConfig = loadOverrideConfig();

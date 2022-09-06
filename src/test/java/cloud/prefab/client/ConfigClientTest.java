@@ -12,8 +12,7 @@ class ConfigClientTest {
   @Test
   void localModeUnlocks() {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
-      new PrefabCloudClient.Options()
-        .setPrefabDatasource(PrefabCloudClient.Options.Datasources.LOCAL_ONLY)
+      new Options().setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
     );
     ConfigClient configClient = new ConfigClient(baseClient);
 
@@ -24,12 +23,10 @@ class ConfigClientTest {
   @Test
   void initializationTimeout() {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
-      new PrefabCloudClient.Options()
+      new Options()
         .setApikey("0-P1-E1-SDK-1234-123-23")
         .setInitializationTimeoutSec(1)
-        .setOnInitializationFailure(
-          PrefabCloudClient.Options.OnInitializationFailure.RAISE
-        )
+        .setOnInitializationFailure(Options.OnInitializationFailure.RAISE)
     );
 
     ConfigClient configClient = new ConfigClient(baseClient);
@@ -42,12 +39,10 @@ class ConfigClientTest {
   @Test
   void initializationUnlock() {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
-      new PrefabCloudClient.Options()
+      new Options()
         .setApikey("0-P1-E1-SDK-1234-123-23")
         .setInitializationTimeoutSec(1)
-        .setOnInitializationFailure(
-          PrefabCloudClient.Options.OnInitializationFailure.UNLOCK
-        )
+        .setOnInitializationFailure(Options.OnInitializationFailure.UNLOCK)
     );
 
     ConfigClient configClient = new ConfigClient(baseClient);
