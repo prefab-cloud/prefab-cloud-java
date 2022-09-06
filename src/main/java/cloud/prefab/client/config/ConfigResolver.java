@@ -3,13 +3,7 @@ package cloud.prefab.client.config;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -138,6 +132,45 @@ public class ConfigResolver {
 
   public Collection<String> getKeys() {
     return localMap.get().keySet();
+  }
+
+  public String contentsString() {
+    StringBuilder sb = new StringBuilder("\n");
+
+    for (Map.Entry<String, ResolverElement> entry : localMap.get().entrySet()) {
+      sb.append(padded(entry.getKey(), 30));
+      sb.append(padded(toS(entry.getValue().getConfigValue()), 90));
+      sb.append("\n");
+    }
+    System.out.println(sb.toString());
+    return sb.toString();
+  }
+
+  private String toS(Prefab.ConfigValue configValue) {
+    if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.STRING) {
+      return configValue.getString();
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.INT) {
+      return Long.toString(configValue.getInt());
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.BOOL) {
+      return Boolean.toString(configValue.getBool());
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.BYTES) {
+      return "Bytes";
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.DOUBLE) {
+      return Double.toString(configValue.getDouble());
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
+      return "Segment";
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
+      return "FeatureFlage";
+    } else {
+      return "Unknown";
+    }
+  }
+
+  private String padded(String s, int size) {
+    return String.format(
+      "%-" + size + "s",
+      s.substring(0, Math.min(s.length(), size - 1))
+    );
   }
 
   public static class NamespaceMatch {
