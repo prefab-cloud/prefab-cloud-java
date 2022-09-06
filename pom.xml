@@ -42,11 +42,6 @@
         <version>${dep.protobuf.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.github.classgraph</groupId>
-        <artifactId>classgraph</artifactId>
-        <version>4.8.149</version>
-      </dependency>
-      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-api</artifactId>
         <version>${dep.grpc.version}</version>
@@ -120,10 +115,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.classgraph</groupId>
-      <artifactId>classgraph</artifactId>
     </dependency>
     <dependency>
       <groupId>io.grpc</groupId>
