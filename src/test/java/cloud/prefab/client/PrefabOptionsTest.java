@@ -14,8 +14,7 @@ public class PrefabOptionsTest {
     assertThat(options.getCDNUrl())
       .isEqualTo("https://api-prefab-cloud.global.ssl.fastly.net");
 
-    options =
-      new Options().setPrefabApiUrl("https://api.other-server.com");
+    options = new Options().setPrefabApiUrl("https://api.other-server.com");
 
     assertThat(options.getCDNUrl())
       .isEqualTo("https://api-other-server-com.global.ssl.fastly.net");
@@ -27,8 +26,7 @@ public class PrefabOptionsTest {
 
     assertThat(options.getAllPrefabEnvs()).isEqualTo(List.of("default"));
 
-    options =
-      new Options().setPrefabEnvs(List.of("development", "jeff"));
+    options = new Options().setPrefabEnvs(List.of("development", "jeff"));
 
     assertThat(options.getAllPrefabEnvs())
       .isEqualTo(List.of("default", "development", "jeff"));
