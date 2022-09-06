@@ -18,12 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +32,8 @@ public class ConfigClient implements ConfigStore {
   private static final long BACKOFF_MILLIS = 3000;
 
   private final PrefabCloudClient baseClient;
+  private final PrefabCloudClient.Options options;
+
   private final ConfigResolver resolver;
   private final ConfigLoader configLoader;
 
@@ -46,37 +43,41 @@ public class ConfigClient implements ConfigStore {
     REMOTE_API_GRPC,
     STREAMING,
     REMOTE_CDN,
+    LOCAL_ONLY,
+    INIT_TIMEOUT,
   }
 
   public ConfigClient(PrefabCloudClient baseClient) {
     this.baseClient = baseClient;
-    configLoader = new ConfigLoader(baseClient.getOptions());
+    this.options = baseClient.getOptions();
+    configLoader = new ConfigLoader(options);
     resolver = new ConfigResolver(baseClient, configLoader);
 
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
-
-    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
-      executor,
-      100,
-      TimeUnit.MILLISECONDS
-    );
-    executorService.execute(() -> startStreaming());
-
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
-      1
-    );
-    scheduledExecutorService.scheduleAtFixedRate(
-      () -> loadCheckpoint(),
-      0,
-      DEFAULT_CHECKPOINT_SEC,
-      TimeUnit.SECONDS
-    );
+    if (options.isLocalOnly()) {
+      finishInit(Source.LOCAL_ONLY);
+    } else {
+      startStreamingExecutor();
+      startCheckpointExecutor();
+    }
   }
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
     try {
-      initializedLatch.await();
+      if (
+        !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
+      ) {
+        if (
+          options.getOnInitializationFailure() ==
+          PrefabCloudClient.Options.OnInitializationFailure.UNLOCK
+        ) {
+          finishInit(Source.INIT_TIMEOUT);
+        } else {
+          throw new PrefabInitializationTimeoutException(
+            options.getInitializationTimeoutSec()
+          );
+        }
+      }
       return resolver.getConfigValue(key);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
@@ -157,10 +158,10 @@ public class ConfigClient implements ConfigStore {
   }
 
   boolean loadCDN() {
-    final String keyHash = keyHash(baseClient.getOptions().getCDNUrl());
+    final String keyHash = keyHash(options.getApikey());
     final String url = String.format(
       "%s/api/v1/configs/0/%s/0",
-      baseClient.getOptions().getCDNUrl(),
+      options.getCDNUrl(),
       keyHash
     );
     return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
@@ -187,7 +188,7 @@ public class ConfigClient implements ConfigStore {
         .uri(new URI(url))
         .header(
           "Authorization",
-          getBasicAuthenticationHeader(AUTH_USER, baseClient.getOptions().getApikey())
+          getBasicAuthenticationHeader(AUTH_USER, options.getApikey())
         )
         .build();
 
@@ -208,6 +209,17 @@ public class ConfigClient implements ConfigStore {
       LOG.warn("Unexpected issue with CDN load {}", e.getMessage());
     }
     return false;
+  }
+
+  private void startStreamingExecutor() {
+    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+
+    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
+      executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
+    executorService.execute(() -> startStreaming());
   }
 
   private void startStreaming() {
@@ -262,6 +274,30 @@ public class ConfigClient implements ConfigStore {
       );
   }
 
+  private void startCheckpointExecutor() {
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
+      1
+    );
+    scheduledExecutorService.scheduleAtFixedRate(
+      () -> loadCheckpoint(),
+      0,
+      DEFAULT_CHECKPOINT_SEC,
+      TimeUnit.SECONDS
+    );
+  }
+
+  private void finishInit(Source source) {
+    if (initializedLatch.getCount() > 0) {
+      LOG.info(
+        "Initialized Prefab from {} at highwater {}",
+        source,
+        configLoader.getHighwaterMark()
+      );
+      LOG.info(resolver.contentsString());
+      initializedLatch.countDown();
+    }
+  }
+
   private void loadConfigs(Prefab.Configs configs, Source source) {
     resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
 
@@ -279,7 +315,7 @@ public class ConfigClient implements ConfigStore {
         source,
         configs.getConfigServicePointer().getProjectId(),
         configs.getConfigServicePointer().getProjectEnvId(),
-        baseClient.getOptions().getNamespace(),
+        options.getNamespace(),
         configs.getConfigsCount()
       );
     } else {
@@ -290,14 +326,7 @@ public class ConfigClient implements ConfigStore {
       );
     }
 
-    if (initializedLatch.getCount() > 0) {
-      LOG.info(
-        "Initialized Prefab from {} at highwater {}",
-        source,
-        configLoader.getHighwaterMark()
-      );
-      initializedLatch.countDown();
-    }
+    finishInit(source);
   }
 
   private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {

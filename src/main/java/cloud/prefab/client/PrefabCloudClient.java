@@ -23,12 +23,17 @@ public class PrefabCloudClient {
 
   public PrefabCloudClient(Options options) {
     this.options = options;
-    if (options.getApikey() == null || options.getApikey().isEmpty()) {
-      throw new RuntimeException("PREFAB_API_KEY not set");
-    }
 
-    long apiKeyId = Long.parseLong(options.getApikey().split("\\-")[0]);
-    LOG.info("Initializing Prefab for apiKeyId {}", apiKeyId);
+    if (options.isLocalOnly()) {
+      LOG.info("Initializing Prefab LocalOnly");
+    } else {
+      if (options.getApikey() == null || options.getApikey().isEmpty()) {
+        throw new RuntimeException("PREFAB_API_KEY not set");
+      }
+
+      long apiKeyId = Long.parseLong(options.getApikey().split("\\-")[0]);
+      LOG.info("Initializing Prefab for apiKeyId {}", apiKeyId);
+    }
   }
 
   public RateLimitClient rateLimitClient() {
@@ -90,6 +95,16 @@ public class PrefabCloudClient {
 
   public static class Options {
 
+    enum Datasources {
+      ALL,
+      LOCAL_ONLY,
+    }
+
+    enum OnInitializationFailure {
+      RAISE,
+      UNLOCK,
+    }
+
     private static final String DEFAULT_ENV = "default";
     private String prefabGrpcUrl;
 
@@ -99,8 +114,13 @@ public class PrefabCloudClient {
     private Optional<Cache> distributedCache = Optional.empty();
 
     private String configOverrideDir;
-    private List<String> prefabEnvs;
+    private List<String> prefabEnvs = new ArrayList<>();
+
     private String namespace = "";
+    private Datasources prefabDatasources = Datasources.ALL;
+    private int initializationTimeoutSec = 10;
+    private OnInitializationFailure onInitializationFailure =
+      OnInitializationFailure.RAISE;
 
     public Options() {
       this.apikey = System.getenv("PREFAB_API_KEY");
@@ -113,7 +133,13 @@ public class PrefabCloudClient {
           .ofNullable(System.getenv("PREFAB_API_URL"))
           .orElse("https://api.prefab.cloud");
       configOverrideDir = System.getProperty("user.home");
-      prefabEnvs = new ArrayList<>();
+      if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
+        prefabDatasources = Datasources.LOCAL_ONLY;
+      }
+    }
+
+    public boolean isLocalOnly() {
+      return Datasources.LOCAL_ONLY == prefabDatasources;
     }
 
     public String getApikey() {
@@ -185,6 +211,35 @@ public class PrefabCloudClient {
 
     public Options setSsl(boolean ssl) {
       this.ssl = ssl;
+      return this;
+    }
+
+    public Datasources getPrefabDatasource() {
+      return prefabDatasources;
+    }
+
+    public Options setPrefabDatasource(Datasources prefabDatasources) {
+      this.prefabDatasources = prefabDatasources;
+      return this;
+    }
+
+    public int getInitializationTimeoutSec() {
+      return initializationTimeoutSec;
+    }
+
+    public Options setInitializationTimeoutSec(int initializationTimeoutSec) {
+      this.initializationTimeoutSec = initializationTimeoutSec;
+      return this;
+    }
+
+    public OnInitializationFailure getOnInitializationFailure() {
+      return onInitializationFailure;
+    }
+
+    public Options setOnInitializationFailure(
+      OnInitializationFailure onInitializationFailure
+    ) {
+      this.onInitializationFailure = onInitializationFailure;
       return this;
     }
 
