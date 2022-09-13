@@ -4,15 +4,20 @@ Java Client for Prefab RateLimits, FeatureFlags, Config as a Service: https://ww
 
 ### Rate Limit
 ```java
-PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new PrefabCloudClient.Builder()
-                                          .setDistributedCache(new MemcachedCache(memcachedClient)));
-RateLimitClient rateLimitClient = prefabCloudClient.newRateLimitClient();
+final PrefabCloudClient prefabCloudClient = new PrefabCloudClient(new Options());
 
-boolean result = rateLimitClient.isPass(Prefab.LimitRequest.newBuilder()
-                                .setAcquireAmount(1)
-                                .addGroups("hubtest.secondly")
-                                .build());
-System.out.println("acquire? " + result);
+FeatureFlagClient featureFlagClient = prefabCloudClient.featureFlagClient();
+
+featureFlagClient.featureIsOnFor(
+    "features.example-flag",
+    "123",
+    Map.of("customer-group", "beta")
+);
+
+final Optional<Prefab.ConfigValue> configValue = prefabCloudClient.configClient().get("the.key");
+if(configValue.isPresent()){
+    System.out.println(configValue.get().getString());
+}        
 ```
 
 
@@ -23,17 +28,12 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-java</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.6</version>
 </dependency>
 ```
 
 ## Supports
-
-* [RateLimits](https://www.prefab.cloud/documentation/basic_rate_limits)
-* Millions of individual limits sharing the same policies
-* WebUI for tweaking limits & feature flags
-* Infinite retention for [deduplication workflows](https://www.prefab.cloud/documentation/once_and_only_once)
-* [FeatureFlags](https://www.prefab.cloud/documentation/feature_flags) as a Service
+* [FeatureFlags](https://docs.prefab.cloud/docs/java) as a Service
 
 
 ## Contributing to prefab-cloud-java
@@ -51,5 +51,5 @@ If you get errors about the code not being formatted, run `mvn prettier:write`
 
 ## Copyright
 
-Copyright (c) 2018 Jeff Dwyer. See LICENSE.txt for
+Copyright (c) 2012 PrefabCloud LLC. See LICENSE.txt for
 further details.
