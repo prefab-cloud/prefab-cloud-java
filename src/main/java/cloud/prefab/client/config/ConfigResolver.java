@@ -6,10 +6,12 @@ import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -32,7 +34,6 @@ public class ConfigResolver {
   public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
     this.baseClient = baseClient;
     this.configLoader = configLoader;
-    makeLocal();
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
@@ -51,8 +52,40 @@ public class ConfigResolver {
     return Optional.empty();
   }
 
-  public void update() {
+  /**
+   * Return a Set of the changed keys since last update()
+   *
+   * @return
+   */
+  public Set<String> update() {
+    // store the old map
+    final Map<String, Prefab.ConfigValue> before = localMap
+      .get()
+      .entrySet()
+      .stream()
+      .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getConfigValue()));
+
+    // load the new map
     makeLocal();
+
+    final Set<String> changes = new HashSet<>();
+
+    // detect new or changed keys
+    localMap
+      .get()
+      .forEach((k, v) -> {
+        Prefab.ConfigValue beforeElement = before.get(k);
+        if (beforeElement == null || !beforeElement.equals(v.getConfigValue())) {
+          changes.add(k);
+        }
+      });
+    // detect tombstones
+    before.forEach((k, v) -> {
+      if (!localMap.get().containsKey(k)) {
+        changes.add(k);
+      }
+    });
+    return changes;
   }
 
   public ConfigResolver setProjectEnvId(long projectEnvId) {

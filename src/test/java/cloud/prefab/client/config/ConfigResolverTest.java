@@ -10,6 +10,7 @@ import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,16 +21,46 @@ public class ConfigResolverTest {
   private ConfigResolver resolver;
   private PrefabCloudClient mockBaseClient;
   private Options mockOptions;
+  private ConfigLoader mockLoader;
 
   @BeforeEach
   public void setup() {
-    final ConfigLoader mockLoader = mock(ConfigLoader.class);
+    mockLoader = mock(ConfigLoader.class);
     mockOptions = mock(Options.class);
 
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
+  }
+
+  @Test
+  public void testUpdateChangeDetection() {
+    // original testData() has 2 keys
+    assertThat(resolver.update()).isEqualTo(Set.of("key1", "key2"));
+
+    when(mockLoader.calcConfig()).thenReturn(testDataAddingKey3andTombstoningKey1());
+    assertThat(resolver.update()).isEqualTo(Set.of("key1", "key3"));
+  }
+
+  private Map<String, Prefab.Config> testDataAddingKey3andTombstoningKey1() {
+    Map<String, Prefab.Config> rtn = new HashMap<>();
+    rtn.put("key1", Prefab.Config.newBuilder().setKey("key1").build());
+    rtn.put("key2", key2());
+    rtn.put(
+      "key3",
+      Prefab.Config
+        .newBuilder()
+        .setKey("key1")
+        .addRows(
+          Prefab.ConfigRow
+            .newBuilder()
+            .setValue(Prefab.ConfigValue.newBuilder().setString("key3").build())
+            .build()
+        )
+        .build()
+    );
+    return rtn;
   }
 
   @Test
@@ -130,6 +161,7 @@ public class ConfigResolverTest {
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockOptions.getNamespace()).thenReturn("");
     resolver = new ConfigResolver(mockBaseClient, mockLoader);
+    resolver.update();
 
     final Optional<Prefab.ConfigValue> ff = resolver.getConfigValue(featureName);
     assertThat(ff.isPresent());
@@ -252,20 +284,21 @@ public class ConfigResolverTest {
         )
         .build()
     );
-    rtn.put(
-      "key2",
-      Prefab.Config
-        .newBuilder()
-        .setKey("key2")
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setValue(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
-            .build()
-        )
-        .build()
-    );
+    rtn.put("key2", key2());
     return rtn;
+  }
+
+  private static Prefab.Config key2() {
+    return Prefab.Config
+      .newBuilder()
+      .setKey("key2")
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setValue(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
+          .build()
+      )
+      .build();
   }
   //  private Prefab.NamespaceValue getBuild(String namespace, String value) {
   //    return Prefab.NamespaceValue.newBuilder()

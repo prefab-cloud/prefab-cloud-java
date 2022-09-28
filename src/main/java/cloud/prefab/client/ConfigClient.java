@@ -1,5 +1,6 @@
 package cloud.prefab.client;
 
+import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.domain.ConfigServiceGrpc;
@@ -17,7 +18,11 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,6 +48,7 @@ public class ConfigClient implements ConfigStore {
   private final ConfigLoader configLoader;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
+  private final Set<ConfigChangeListener> configChangeListeners = new HashSet<>();
 
   private enum Source {
     REMOTE_API_GRPC,
@@ -110,6 +116,10 @@ public class ConfigClient implements ConfigStore {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void addConfigChangeListener(ConfigChangeListener configChangeListener) {
+    configChangeListeners.add(configChangeListener);
   }
 
   @Override
@@ -239,7 +249,7 @@ public class ConfigClient implements ConfigStore {
     configServiceStub()
       .getConfig(
         pointer,
-        new StreamObserver<Prefab.Configs>() {
+        new StreamObserver<>() {
           @Override
           public void onNext(Prefab.Configs configs) {
             loadConfigs(configs, Source.STREAMING);
@@ -291,6 +301,8 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void finishInit(Source source) {
+    final Set<String> changes = resolver.update();
+    broadcastChanges(changes);
     if (initializedLatch.getCount() > 0) {
       LOG.info(
         "Initialized Prefab from {} at highwater {}",
@@ -310,7 +322,6 @@ public class ConfigClient implements ConfigStore {
     for (Prefab.Config config : configs.getConfigsList()) {
       configLoader.set(config);
     }
-    resolver.update();
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
       LOG.info(
@@ -331,6 +342,17 @@ public class ConfigClient implements ConfigStore {
     }
 
     finishInit(source);
+  }
+
+  private void broadcastChanges(Set<String> changes) {
+    if (!configChangeListeners.isEmpty()) {
+      Map<String, Prefab.ConfigValue> changeValues = new HashMap<>();
+      changes.forEach(k -> changeValues.put(k, get(k).get()));
+      for (ConfigChangeListener configChangeListener : configChangeListeners) {
+        LOG.debug("Broadcasting change to {}", configChangeListener);
+        configChangeListener.prefabConfigUpdateCallback(changeValues);
+      }
+    }
   }
 
   private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {

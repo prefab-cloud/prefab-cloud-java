@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
+import java.util.Objects;
 
 public class ResolverElement implements Comparable<ResolverElement> {
 
