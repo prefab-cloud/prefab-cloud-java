@@ -10,7 +10,6 @@ import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,10 +36,38 @@ public class ConfigResolverTest {
   @Test
   public void testUpdateChangeDetection() {
     // original testData() has 2 keys
-    assertThat(resolver.update()).isEqualTo(Set.of("key1", "key2"));
+    assertThat(resolver.update())
+      .containsExactlyInAnyOrder(
+        new ConfigChangeEvent(
+          "key1",
+          Optional.empty(),
+          Optional.of(
+            Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
+          )
+        ),
+        new ConfigChangeEvent(
+          "key2",
+          Optional.empty(),
+          Optional.of(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
+        )
+      );
 
     when(mockLoader.calcConfig()).thenReturn(testDataAddingKey3andTombstoningKey1());
-    assertThat(resolver.update()).isEqualTo(Set.of("key1", "key3"));
+    assertThat(resolver.update())
+      .containsExactlyInAnyOrder(
+        new ConfigChangeEvent(
+          "key1",
+          Optional.of(
+            Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
+          ),
+          Optional.empty()
+        ),
+        new ConfigChangeEvent(
+          "key3",
+          Optional.empty(),
+          Optional.of(Prefab.ConfigValue.newBuilder().setString("key3").build())
+        )
+      );
   }
 
   private Map<String, Prefab.Config> testDataAddingKey3andTombstoningKey1() {

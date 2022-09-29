@@ -1,14 +1,13 @@
 package cloud.prefab.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
+import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.domain.Prefab;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +21,7 @@ class ConfigClientTest {
     ConfigClient configClient = new ConfigClient(baseClient);
 
     final Optional<Prefab.ConfigValue> key = configClient.get("key");
-    assert (key.isEmpty());
+    assertThat(key).isNotPresent();
   }
 
   @Test
@@ -51,7 +50,7 @@ class ConfigClientTest {
     );
 
     ConfigClient configClient = new ConfigClient(baseClient);
-    assertEquals(false, configClient.get("key").isPresent());
+    assertThat(configClient.get("key")).isNotPresent();
   }
 
   @Test
@@ -65,18 +64,27 @@ class ConfigClientTest {
 
     ConfigClient configClient = new ConfigClient(baseClient);
 
-    ConfigChangeListener mockConfigChangeListener = mock(ConfigChangeListener.class);
-    configClient.addConfigChangeListener(mockConfigChangeListener);
-    assertEquals(false, configClient.get("key").isPresent());
+    List<ConfigChangeEvent> receivedEvents = new ArrayList<>();
+    ConfigChangeListener listener = receivedEvents::add;
 
-    final Map<String, Prefab.ConfigValue> expected = Map.of(
-      "sample_bool",
-      Prefab.ConfigValue.newBuilder().setBool(true).build(),
-      "sample",
-      Prefab.ConfigValue.newBuilder().setString("default sample value").build()
-    );
+    configClient.addConfigChangeListener(listener);
 
-    verify(mockConfigChangeListener).prefabConfigUpdateCallback(Map.of());
-    verify(mockConfigChangeListener).prefabConfigUpdateCallback(eq(expected));
+    assertThat(configClient.get("key")).isNotPresent();
+
+    assertThat(receivedEvents)
+      .containsExactlyInAnyOrder(
+        new ConfigChangeEvent(
+          "sample_bool",
+          Optional.empty(),
+          Optional.of(Prefab.ConfigValue.newBuilder().setBool(true).build())
+        ),
+        new ConfigChangeEvent(
+          "sample",
+          Optional.empty(),
+          Optional.of(
+            Prefab.ConfigValue.newBuilder().setString("default sample value").build()
+          )
+        )
+      );
   }
 }
