@@ -57,7 +57,7 @@ public class ConfigResolver {
   /**
    * Return the changed config values since last update()
    */
-  public List<ConfigChangeEvent> update() {
+  public synchronized List<ConfigChangeEvent> update() {
     // store the old map
     final Map<String, Prefab.ConfigValue> before = localMap
       .get()
@@ -177,7 +177,7 @@ public class ConfigResolver {
         }
       });
 
-    localMap.set(store.build());
+    localMap.set(store.buildKeepingLast());
   }
 
   NamespaceMatch evaluateMatch(String namespace, String baseNamespace) {
