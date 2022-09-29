@@ -1,6 +1,8 @@
 package cloud.prefab.client.value;
 
-public interface Value<T> {
+import java.util.function.Supplier;
+
+public interface Value<T> extends Supplier<T> {
   T get();
 
   T or(T defaultValue);
