@@ -3,11 +3,15 @@ package cloud.prefab.client.config;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,12 +23,12 @@ public class ConfigResolver {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
-  private final String NAMESPACE_DELIMITER = "\\.";
+  private static final String NAMESPACE_DELIMITER = "\\.";
 
   private final PrefabCloudClient baseClient;
   private final ConfigLoader configLoader;
-  private AtomicReference<Map<String, ResolverElement>> localMap = new AtomicReference<>(
-    new HashMap<>()
+  private final AtomicReference<ImmutableMap<String, ResolverElement>> localMap = new AtomicReference<>(
+    ImmutableMap.of()
   );
 
   private long projectEnvId = 0;
@@ -32,7 +36,6 @@ public class ConfigResolver {
   public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
     this.baseClient = baseClient;
     this.configLoader = configLoader;
-    makeLocal();
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
@@ -51,8 +54,66 @@ public class ConfigResolver {
     return Optional.empty();
   }
 
-  public void update() {
+  /**
+   * Return the changed config values since last update()
+   */
+  public synchronized List<ConfigChangeEvent> update() {
+    // store the old map
+    final Map<String, Prefab.ConfigValue> before = localMap
+      .get()
+      .entrySet()
+      .stream()
+      .collect(Collectors.toMap(Entry::getKey, e -> e.getValue().getConfigValue()));
+
+    // load the new map
     makeLocal();
+
+    // build the new map
+    final Map<String, Prefab.ConfigValue> after = localMap
+      .get()
+      .entrySet()
+      .stream()
+      .collect(Collectors.toMap(Entry::getKey, e -> e.getValue().getConfigValue()));
+
+    MapDifference<String, Prefab.ConfigValue> delta = Maps.difference(before, after);
+    if (delta.areEqual()) {
+      return ImmutableList.of();
+    } else {
+      ImmutableList.Builder<ConfigChangeEvent> changeEvents = ImmutableList.builder();
+
+      // removed config values
+      delta
+        .entriesOnlyOnLeft()
+        .forEach((key, value) ->
+          changeEvents.add(
+            new ConfigChangeEvent(key, Optional.of(value), Optional.empty())
+          )
+        );
+
+      // added config values
+      delta
+        .entriesOnlyOnRight()
+        .forEach((key, value) ->
+          changeEvents.add(
+            new ConfigChangeEvent(key, Optional.empty(), Optional.of(value))
+          )
+        );
+
+      // changed config values
+      delta
+        .entriesDiffering()
+        .forEach((key, values) ->
+          changeEvents.add(
+            new ConfigChangeEvent(
+              key,
+              Optional.of(values.leftValue()),
+              Optional.of(values.rightValue())
+            )
+          )
+        );
+
+      return changeEvents.build();
+    }
   }
 
   public ConfigResolver setProjectEnvId(long projectEnvId) {
@@ -64,7 +125,8 @@ public class ConfigResolver {
    * pre-evaluate all config values for our env_key and namespace so that lookups are simple
    */
   private void makeLocal() {
-    Map<String, ResolverElement> store = new HashMap<>();
+    ImmutableMap.Builder<String, ResolverElement> store = ImmutableMap.builder();
+
     configLoader
       .calcConfig()
       .forEach((key, config) -> {
@@ -115,7 +177,7 @@ public class ConfigResolver {
         }
       });
 
-    localMap.set(store);
+    localMap.set(store.buildKeepingLast());
   }
 
   NamespaceMatch evaluateMatch(String namespace, String baseNamespace) {

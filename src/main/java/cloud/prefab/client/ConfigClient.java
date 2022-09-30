@@ -1,5 +1,7 @@
 package cloud.prefab.client;
 
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.value.LiveBoolean;
@@ -9,7 +11,7 @@ import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
-import com.google.common.hash.HashFunction;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -20,9 +22,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,8 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConfigClient implements ConfigStore {
-
-  private static final HashFunction hash = Hashing.murmur3_32();
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
   private static final String AUTH_USER = "authuser";
@@ -48,6 +51,7 @@ public class ConfigClient implements ConfigStore {
   private final ConfigLoader configLoader;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
+  private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
   private enum Source {
     REMOTE_API_GRPC,
@@ -131,6 +135,14 @@ public class ConfigClient implements ConfigStore {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public boolean addConfigChangeListener(ConfigChangeListener configChangeListener) {
+    return configChangeListeners.add(configChangeListener);
+  }
+
+  public boolean removeConfigChangeListener(ConfigChangeListener configChangeListener) {
+    return configChangeListeners.remove(configChangeListener);
   }
 
   @Override
@@ -260,7 +272,7 @@ public class ConfigClient implements ConfigStore {
     configServiceStub()
       .getConfig(
         pointer,
-        new StreamObserver<Prefab.Configs>() {
+        new StreamObserver<>() {
           @Override
           public void onNext(Prefab.Configs configs) {
             loadConfigs(configs, Source.STREAMING);
@@ -312,6 +324,8 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void finishInit(Source source) {
+    final List<ConfigChangeEvent> changes = resolver.update();
+    broadcastChanges(changes);
     if (initializedLatch.getCount() > 0) {
       LOG.info(
         "Initialized Prefab from {} at highwater {}",
@@ -331,7 +345,6 @@ public class ConfigClient implements ConfigStore {
     for (Prefab.Config config : configs.getConfigsList()) {
       configLoader.set(config);
     }
-    resolver.update();
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
       LOG.info(
@@ -352,6 +365,17 @@ public class ConfigClient implements ConfigStore {
     }
 
     finishInit(source);
+  }
+
+  private void broadcastChanges(List<ConfigChangeEvent> changeEvents) {
+    List<ConfigChangeListener> listeners = new ArrayList<>(configChangeListeners);
+
+    for (ConfigChangeListener listener : listeners) {
+      for (ConfigChangeEvent changeEvent : changeEvents) {
+        LOG.debug("Broadcasting change {} to {}", changeEvent, listener);
+        listener.onChange(changeEvent);
+      }
+    }
   }
 
   private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {

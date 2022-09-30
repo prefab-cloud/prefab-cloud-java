@@ -1,18 +1,17 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.Options;
-import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
+import cloud.prefab.domain.Prefab.Config;
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -20,19 +19,19 @@ import org.yaml.snakeyaml.Yaml;
 public class ConfigLoader {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
+
   private final Options options;
-
-  private ConcurrentMap<String, Prefab.Config> apiConfig = new ConcurrentHashMap<>();
-  private long highwaterMark = 0;
-
-  private Map<String, Prefab.Config> classPathConfig;
-
-  private Map<String, Prefab.Config> overrideConfig;
+  private final ConcurrentMap<String, Prefab.Config> apiConfig;
+  private final AtomicLong highwaterMark;
+  private final ImmutableMap<String, Config> classPathConfig;
+  private final ImmutableMap<String, Prefab.Config> overrideConfig;
 
   public ConfigLoader(Options options) {
     this.options = options;
-    classPathConfig = loadClasspathConfig();
-    overrideConfig = loadOverrideConfig();
+    this.apiConfig = new ConcurrentHashMap<>();
+    this.highwaterMark = new AtomicLong(0);
+    this.classPathConfig = loadClasspathConfig();
+    this.overrideConfig = loadOverrideConfig();
   }
 
   /**
@@ -41,15 +40,13 @@ public class ConfigLoader {
    * layer the overrides on last
    */
   public Map<String, Prefab.Config> calcConfig() {
-    Map<String, Prefab.Config> rtn = new HashMap<>(classPathConfig);
-    apiConfig.forEach((k, v) -> {
-      rtn.put(k, v);
-    });
+    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
 
-    overrideConfig.forEach((k, v) -> {
-      rtn.put(k, v);
-    });
-    return rtn;
+    builder.putAll(classPathConfig);
+    builder.putAll(apiConfig);
+    builder.putAll(overrideConfig);
+
+    return builder.buildKeepingLast();
   }
 
   public void set(Prefab.Config config) {
@@ -66,23 +63,18 @@ public class ConfigLoader {
   }
 
   private void recomputeHighWaterMark() {
-    Optional<Prefab.Config> highwaterMarkDelta = apiConfig
+    long highwaterMarkDelta = apiConfig
       .values()
       .stream()
-      .max(
-        new Comparator<Prefab.Config>() {
-          @Override
-          public int compare(Prefab.Config o1, Prefab.Config o2) {
-            return (int) (o1.getId() - o2.getId());
-          }
-        }
-      );
+      .mapToLong(Prefab.Config::getId)
+      .max()
+      .orElse(0L);
 
-    highwaterMark = highwaterMarkDelta.isPresent() ? highwaterMarkDelta.get().getId() : 0;
+    highwaterMark.set(highwaterMarkDelta);
   }
 
-  private Map<String, Prefab.Config> loadClasspathConfig() {
-    Map<String, Prefab.Config> rtn = new HashMap<>();
+  private ImmutableMap<String, Prefab.Config> loadClasspathConfig() {
+    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
 
     for (String env : options.getAllPrefabEnvs()) {
       final String file = String.format(".prefab.%s.config.yaml", env);
@@ -91,11 +83,11 @@ public class ConfigLoader {
       if (resourceAsStream == null) {
         LOG.warn("No default config file found {}", file);
       } else {
-        loadFileTo(resourceAsStream, rtn, file);
+        loadFileTo(resourceAsStream, builder, file);
       }
     }
 
-    return rtn;
+    return builder.buildKeepingLast();
   }
 
   private Prefab.Config toValue(Object obj) {
@@ -115,8 +107,8 @@ public class ConfigLoader {
       .build();
   }
 
-  private Map<String, Prefab.Config> loadOverrideConfig() {
-    Map<String, Prefab.Config> rtn = new HashMap<>();
+  private ImmutableMap<String, Prefab.Config> loadOverrideConfig() {
+    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
 
     File dir = new File(options.getConfigOverrideDir());
     for (String env : options.getAllPrefabEnvs()) {
@@ -125,35 +117,34 @@ public class ConfigLoader {
 
       if (file.exists()) {
         try (InputStream inputStream = new FileInputStream(file)) {
-          loadFileTo(inputStream, rtn, fileName);
+          loadFileTo(inputStream, builder, fileName);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
       }
     }
 
-    return rtn;
+    return builder.buildKeepingLast();
   }
 
   private void loadFileTo(
     InputStream inputStream,
-    Map<String, Prefab.Config> rtn,
+    ImmutableMap.Builder<String, Prefab.Config> builder,
     String file
   ) {
     LOG.info("Load File {}", file);
     Yaml yaml = new Yaml();
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {
-      loadKeyValue(k, v, rtn, file);
-      rtn.put(k, toValue(v));
+      loadKeyValue(k, v, builder);
+      builder.put(k, toValue(v));
     });
   }
 
   private void loadKeyValue(
     String k,
     Object v,
-    Map<String, Prefab.Config> rtn,
-    String file
+    ImmutableMap.Builder<String, Prefab.Config> builder
   ) {
     if (v instanceof Map) {
       Map<String, Object> map = (Map<String, Object>) v;
@@ -163,14 +154,14 @@ public class ConfigLoader {
         if (nest.getKey().equals("_")) {
           nestedKey = k;
         }
-        loadKeyValue(nestedKey, nest.getValue(), rtn, file);
+        loadKeyValue(nestedKey, nest.getValue(), builder);
       }
     } else {
-      rtn.put(k, toValue(v));
+      builder.put(k, toValue(v));
     }
   }
 
   public long getHighwaterMark() {
-    return highwaterMark;
+    return highwaterMark.get();
   }
 }
