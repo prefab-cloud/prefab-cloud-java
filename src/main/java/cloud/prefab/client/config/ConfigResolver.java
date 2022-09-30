@@ -23,11 +23,11 @@ public class ConfigResolver {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
-  private final String NAMESPACE_DELIMITER = "\\.";
+  private static final String NAMESPACE_DELIMITER = "\\.";
 
   private final PrefabCloudClient baseClient;
   private final ConfigLoader configLoader;
-  private AtomicReference<ImmutableMap<String, ResolverElement>> localMap = new AtomicReference<>(
+  private final AtomicReference<ImmutableMap<String, ResolverElement>> localMap = new AtomicReference<>(
     ImmutableMap.of()
   );
 
