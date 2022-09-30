@@ -80,7 +80,11 @@ public class ConfigLoader {
       final String file = String.format(".prefab.%s.config.yaml", env);
       final InputStream resourceAsStream =
         this.getClass().getClassLoader().getResourceAsStream(file);
-      loadFileTo(resourceAsStream, builder, file);
+      if (resourceAsStream == null) {
+        LOG.warn("No default config file found {}", file);
+      } else {
+        loadFileTo(resourceAsStream, builder, file);
+      }
     }
 
     return builder.buildKeepingLast();
@@ -128,7 +132,7 @@ public class ConfigLoader {
     ImmutableMap.Builder<String, Prefab.Config> builder,
     String file
   ) {
-    LOG.info("Load Default File {}", file);
+    LOG.info("Load File {}", file);
     Yaml yaml = new Yaml();
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {

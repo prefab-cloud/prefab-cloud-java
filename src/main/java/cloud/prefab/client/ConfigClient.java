@@ -4,6 +4,11 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.client.value.LiveBoolean;
+import cloud.prefab.client.value.LiveDouble;
+import cloud.prefab.client.value.LiveLong;
+import cloud.prefab.client.value.LiveString;
+import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Sets;
@@ -68,6 +73,22 @@ public class ConfigClient implements ConfigStore {
       startStreamingExecutor();
       startCheckpointExecutor();
     }
+  }
+
+  public Value<String> liveString(String key) {
+    return new LiveString(this, key);
+  }
+
+  public Value<Boolean> liveBoolean(String key) {
+    return new LiveBoolean(this, key);
+  }
+
+  public Value<Long> liveLong(String key) {
+    return new LiveLong(this, key);
+  }
+
+  public Value<Double> liveDouble(String key) {
+    return new LiveDouble(this, key);
   }
 
   @Override
