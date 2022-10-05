@@ -1,6 +1,7 @@
 package cloud.prefab.client.config.logging;
 
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
@@ -11,16 +12,15 @@ public class Log4j2ConfigListener extends AbstractLoggingListener<Level> {
 
   private static final ConfigChangeListener INSTANCE = new Log4j2ConfigListener();
 
-  private static final Map<String, Level> LEVEL_MAP = ImmutableMap
-    .<String, Level>builder()
-    .put("OFF", Level.OFF)
-    .put("FATAL", Level.FATAL)
-    .put("ERROR", Level.ERROR)
-    .put("WARN", Level.WARN)
-    .put("INFO", Level.INFO)
-    .put("DEBUG", Level.DEBUG)
-    .put("TRACE", Level.TRACE)
-    .put("ALL", Level.ALL)
+  // missing OFF and ALL
+  private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
+    .<LogLevel, Level>builder()
+    .put(LogLevel.FATAL, Level.FATAL)
+    .put(LogLevel.ERROR, Level.ERROR)
+    .put(LogLevel.WARN, Level.WARN)
+    .put(LogLevel.INFO, Level.INFO)
+    .put(LogLevel.DEBUG, Level.DEBUG)
+    .put(LogLevel.TRACE, Level.TRACE)
     .build();
 
   public static ConfigChangeListener getInstance() {
@@ -30,7 +30,7 @@ public class Log4j2ConfigListener extends AbstractLoggingListener<Level> {
   private Log4j2ConfigListener() {}
 
   @Override
-  protected Map<String, Level> getValidLevels() {
+  protected Map<LogLevel, Level> getValidLevels() {
     return LEVEL_MAP;
   }
 
