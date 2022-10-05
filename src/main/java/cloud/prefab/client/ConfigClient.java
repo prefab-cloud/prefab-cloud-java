@@ -4,6 +4,7 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.client.config.LoggingConfigListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
@@ -66,6 +67,7 @@ public class ConfigClient implements ConfigStore {
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     resolver = new ConfigResolver(baseClient, configLoader);
+    configChangeListeners.add(LoggingConfigListener.getInstance());
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
