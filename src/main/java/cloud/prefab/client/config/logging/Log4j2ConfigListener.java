@@ -8,11 +8,13 @@ import java.util.Optional;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 
+/**
+ * OFF and ALL log levels are unsupported
+ */
 public class Log4j2ConfigListener extends AbstractLoggingListener<Level> {
 
   private static final ConfigChangeListener INSTANCE = new Log4j2ConfigListener();
 
-  // missing OFF and ALL
   private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
     .<LogLevel, Level>builder()
     .put(LogLevel.FATAL, Level.FATAL)

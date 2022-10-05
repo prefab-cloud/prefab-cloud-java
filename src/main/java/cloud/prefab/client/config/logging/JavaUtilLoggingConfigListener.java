@@ -9,13 +9,22 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
+/**
+ * Log levels require some translation:
+ * - FATAL -> SEVERE
+ * - ERROR -> SEVERE
+ * - WARN -> WARNING
+ * - DEBUG -> FINE
+ * - TRACE -> FINER
+ * <p>
+ * OFF, CONFIG, FINEST, and ALL are unsupported
+ */
 public class JavaUtilLoggingConfigListener extends AbstractLoggingListener<Level> {
 
   private static final ConfigChangeListener INSTANCE = new JavaUtilLoggingConfigListener();
 
   private static final String ROOT_LOGGER = "";
 
-  // missing OFF, CONFIG, FINEST, and ALL
   private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
     .<LogLevel, Level>builder()
     .put(LogLevel.FATAL, Level.SEVERE)

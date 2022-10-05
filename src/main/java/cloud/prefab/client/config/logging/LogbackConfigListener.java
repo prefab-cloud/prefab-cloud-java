@@ -9,11 +9,16 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Log levels require some translation:
+ * - FATAL -> ERROR
+ * <p>
+ * OFF and ALL are unsupported
+ */
 public class LogbackConfigListener extends AbstractLoggingListener<Level> {
 
   private static final ConfigChangeListener INSTANCE = new LogbackConfigListener();
 
-  // missing OFF and ALL
   private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
     .<LogLevel, Level>builder()
     .put(LogLevel.FATAL, Level.ERROR)
