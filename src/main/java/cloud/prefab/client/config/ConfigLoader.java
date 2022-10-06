@@ -10,8 +10,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -80,14 +78,13 @@ public class ConfigLoader {
   private ImmutableMap<String, Prefab.Config> loadClasspathConfig() {
     ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
 
-    Path dir = Paths.get(options.getConfigOverrideDir());
     for (String env : options.getAllPrefabEnvs()) {
       final String file = String.format(".prefab.%s.config.yaml", env);
 
       try (
         InputStream resourceAsStream = this.getClass()
           .getClassLoader()
-          .getResourceAsStream(dir.resolve(file).toString())
+          .getResourceAsStream(file)
       ) {
         if (resourceAsStream == null) {
           LOG.warn("No default config file found {}", file);

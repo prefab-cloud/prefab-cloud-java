@@ -22,7 +22,7 @@ public abstract class AbstractLoggingListenerTest {
     return new PrefabCloudClient(
       new Options()
         .setPrefabDatasource(Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("override_directory")
+        .setConfigOverrideDir("src/test/resources/override_directory")
         .setPrefabEnvs(List.of("logging_specific"))
     );
   }
@@ -31,7 +31,7 @@ public abstract class AbstractLoggingListenerTest {
     return new PrefabCloudClient(
       new Options()
         .setPrefabDatasource(Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("override_directory")
+        .setConfigOverrideDir("src/test/resources/override_directory")
         .setPrefabEnvs(List.of("logging_default"))
     );
   }
