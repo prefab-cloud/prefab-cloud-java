@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
-import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
@@ -53,7 +52,7 @@ public class JavaUtilLoggingConfigListener extends AbstractLoggingListener<Level
 
   @Override
   protected void setLevel(String loggerName, Optional<Level> level) {
-    Logger logger = LogManager.getLogManager().getLogger(loggerName);
+    Logger logger = Logger.getLogger(loggerName);
 
     logger.setLevel(level.orElse(null));
   }

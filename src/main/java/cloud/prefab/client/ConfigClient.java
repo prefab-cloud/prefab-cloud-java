@@ -24,6 +24,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
@@ -62,12 +63,13 @@ public class ConfigClient implements ConfigStore {
     INIT_TIMEOUT,
   }
 
-  public ConfigClient(PrefabCloudClient baseClient) {
+  public ConfigClient(PrefabCloudClient baseClient, ConfigChangeListener... listeners) {
     this.baseClient = baseClient;
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     resolver = new ConfigResolver(baseClient, configLoader);
     configChangeListeners.add(LoggingConfigListener.getInstance());
+    configChangeListeners.addAll(Arrays.asList(listeners));
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);

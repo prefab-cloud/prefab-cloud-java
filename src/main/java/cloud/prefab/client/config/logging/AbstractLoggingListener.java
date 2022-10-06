@@ -24,6 +24,10 @@ public abstract class AbstractLoggingListener<LEVEL_TYPE>
 
   protected abstract void setLevel(String loggerName, Optional<LEVEL_TYPE> level);
 
+  public static boolean keyIsLogLevel(String key) {
+    return key.startsWith(LOG_LEVEL_PREFIX);
+  }
+
   @Override
   public final void onChange(ConfigChangeEvent changeEvent) {
     if (isLogLevelChange(changeEvent)) {
@@ -35,10 +39,14 @@ public abstract class AbstractLoggingListener<LEVEL_TYPE>
       String key = changeEvent.getKey();
       if (key.equals(DEFAULT_LOG_LEVEL)) {
         setDefaultLevel(level);
-      } else if (key.startsWith(LOG_LEVEL_PREFIX)) {
+
+        LOG.info("Set default log level to '{}'", level.orElse(null));
+      } else if (keyIsLogLevel(key)) {
         String loggerName = key.substring(LOG_LEVEL_PREFIX.length());
 
         setLevel(loggerName, level);
+
+        LOG.info("Set log level for '{}' to '{}'", loggerName, level.orElse(null));
       } else {
         LOG.warn(
           "Expected log level override to start with '{}', but was '{}'",

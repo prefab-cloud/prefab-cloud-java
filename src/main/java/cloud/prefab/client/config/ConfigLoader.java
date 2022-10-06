@@ -1,13 +1,17 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.Options;
+import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.Config;
+import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -76,21 +80,29 @@ public class ConfigLoader {
   private ImmutableMap<String, Prefab.Config> loadClasspathConfig() {
     ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
 
+    Path dir = Paths.get(options.getConfigOverrideDir());
     for (String env : options.getAllPrefabEnvs()) {
       final String file = String.format(".prefab.%s.config.yaml", env);
-      final InputStream resourceAsStream =
-        this.getClass().getClassLoader().getResourceAsStream(file);
-      if (resourceAsStream == null) {
-        LOG.warn("No default config file found {}", file);
-      } else {
-        loadFileTo(resourceAsStream, builder, file);
+
+      try (
+        InputStream resourceAsStream = this.getClass()
+          .getClassLoader()
+          .getResourceAsStream(dir.resolve(file).toString())
+      ) {
+        if (resourceAsStream == null) {
+          LOG.warn("No default config file found {}", file);
+        } else {
+          loadFileTo(resourceAsStream, builder, file);
+        }
+      } catch (IOException e) {
+        throw new RuntimeException("Error loading config from file: " + file, e);
       }
     }
 
     return builder.buildKeepingLast();
   }
 
-  private Prefab.Config toValue(Object obj) {
+  private Prefab.Config toValue(String key, Object obj) {
     final Prefab.ConfigValue.Builder builder = Prefab.ConfigValue.newBuilder();
     if (obj instanceof Boolean) {
       builder.setBool((Boolean) obj);
@@ -99,7 +111,11 @@ public class ConfigLoader {
     } else if (obj instanceof Double) {
       builder.setDouble((Double) obj);
     } else if (obj instanceof String) {
-      builder.setString((String) obj);
+      if (AbstractLoggingListener.keyIsLogLevel(key)) {
+        builder.setLogLevel(LogLevel.valueOf((String) obj));
+      } else {
+        builder.setString((String) obj);
+      }
     }
     return Prefab.Config
       .newBuilder()
@@ -137,7 +153,7 @@ public class ConfigLoader {
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {
       loadKeyValue(k, v, builder);
-      builder.put(k, toValue(v));
+      builder.put(k, toValue(k, v));
     });
   }
 
@@ -157,7 +173,7 @@ public class ConfigLoader {
         loadKeyValue(nestedKey, nest.getValue(), builder);
       }
     } else {
-      builder.put(k, toValue(v));
+      builder.put(k, toValue(k, v));
     }
   }
 
