@@ -236,21 +236,6 @@ public class ConfigResolverTest {
     assertThat(key.get().getString()).isEqualTo(expectedValue);
   }
 
-  private void put(String key, String value, Map<String, Prefab.Config> data) {
-    data.put(
-      key,
-      Prefab.Config
-        .newBuilder()
-        .setKey(key)
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setValue(Prefab.ConfigValue.newBuilder().setString(value).build())
-        )
-        .build()
-    );
-  }
-
   private Map<String, Prefab.Config> testData() {
     Map<String, Prefab.Config> rtn = new HashMap<>();
     rtn.put(
