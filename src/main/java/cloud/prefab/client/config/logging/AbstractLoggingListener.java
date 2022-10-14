@@ -36,12 +36,11 @@ public abstract class AbstractLoggingListener<LEVEL_TYPE>
         .map(newValue -> getValidLevels().get(newValue.getLogLevel()));
 
       String key = changeEvent.getKey();
-      System.out.println("CHECK KEY: " + key);
       if (key.equals(LOG_LEVEL_PREFIX)) {
         setDefaultLevel(level);
         LOG.info("Set default log level to '{}'", level.orElse(null));
       } else if (keyIsLogLevel(key)) {
-        String loggerName = key.substring(LOG_LEVEL_PREFIX.length() +1);
+        String loggerName = key.substring(LOG_LEVEL_PREFIX.length() + 1);
 
         setLevel(loggerName, level);
 

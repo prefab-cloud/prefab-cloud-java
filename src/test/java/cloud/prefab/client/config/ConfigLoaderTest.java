@@ -59,14 +59,16 @@ public class ConfigLoaderTest {
   }
 
   private void assertValueOfConfigIs(String expectedValue, String configKey) {
-
     assertThat(
       stringConfigDeltaMap.get(configKey).getRowsList().get(0).getValue().getString()
     )
       .isEqualTo(expectedValue);
   }
-  private void assertValueOfConfigIsLogLevel(Prefab.LogLevel expectedValue, String configKey) {
 
+  private void assertValueOfConfigIsLogLevel(
+    Prefab.LogLevel expectedValue,
+    String configKey
+  ) {
     assertThat(
       stringConfigDeltaMap.get(configKey).getRowsList().get(0).getValue().getLogLevel()
     )
