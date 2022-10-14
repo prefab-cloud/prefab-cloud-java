@@ -13,8 +13,7 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractLoggingListener<LEVEL_TYPE>
   implements ConfigChangeListener {
 
-  private static final String LOG_LEVEL_PREFIX = "log-level.";
-  private static final String DEFAULT_LOG_LEVEL = LOG_LEVEL_PREFIX + "default";
+  private static final String LOG_LEVEL_PREFIX = "log-level";
 
   protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
@@ -37,12 +36,12 @@ public abstract class AbstractLoggingListener<LEVEL_TYPE>
         .map(newValue -> getValidLevels().get(newValue.getLogLevel()));
 
       String key = changeEvent.getKey();
-      if (key.equals(DEFAULT_LOG_LEVEL)) {
+      System.out.println("CHECK KEY: " + key);
+      if (key.equals(LOG_LEVEL_PREFIX)) {
         setDefaultLevel(level);
-
         LOG.info("Set default log level to '{}'", level.orElse(null));
       } else if (keyIsLogLevel(key)) {
-        String loggerName = key.substring(LOG_LEVEL_PREFIX.length());
+        String loggerName = key.substring(LOG_LEVEL_PREFIX.length() +1);
 
         setLevel(loggerName, level);
 
