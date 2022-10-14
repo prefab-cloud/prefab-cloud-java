@@ -51,9 +51,26 @@ public class ConfigLoaderTest {
     assertValueOfConfigIs("value from override in default", "sample_to_override");
   }
 
+  @Test
+  public void testLoggersCapitalization() {
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.INFO, "log-level.tests.capitalized");
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.INFO, "log-level.tests.uncapitalized");
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.DEBUG, "log-level.tests");
+  }
+
   private void assertValueOfConfigIs(String expectedValue, String configKey) {
     assertThat(
       stringConfigDeltaMap.get(configKey).getRowsList().get(0).getValue().getString()
+    )
+      .isEqualTo(expectedValue);
+  }
+
+  private void assertValueOfConfigIsLogLevel(
+    Prefab.LogLevel expectedValue,
+    String configKey
+  ) {
+    assertThat(
+      stringConfigDeltaMap.get(configKey).getRowsList().get(0).getValue().getLogLevel()
     )
       .isEqualTo(expectedValue);
   }
@@ -62,9 +79,8 @@ public class ConfigLoaderTest {
   public void test_nested() {
     assertValueOfConfigIs("nested value", "nested.values.string");
     assertValueOfConfigIs("top level", "nested.values");
-    assertValueOfConfigIs("error", "logging.app");
-    assertValueOfConfigIs("warn", "logging.app.controller.hello");
-    assertValueOfConfigIs("info", "logging.app.controller.hello.index");
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.DEBUG, "log-level.tests.nested");
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.ERROR, "log-level.tests.nested.deeply");
   }
 
   @Test

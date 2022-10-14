@@ -16,10 +16,11 @@ nested:
     _: top level
     string: nested value
 
-logging:
-  app:
-    _: error
-    controller:
-      hello:
-        _: warn
-        index: info
+log-level:
+  tests:
+    _: debug
+    capitalized: INFO
+    uncapitalized: info
+    nested:
+      _: debug
+      deeply: error
