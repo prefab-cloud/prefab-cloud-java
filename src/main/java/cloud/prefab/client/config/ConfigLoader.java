@@ -109,7 +109,7 @@ public class ConfigLoader {
       builder.setDouble((Double) obj);
     } else if (obj instanceof String) {
       if (AbstractLoggingListener.keyIsLogLevel(key)) {
-        builder.setLogLevel(LogLevel.valueOf((String) obj));
+        builder.setLogLevel(LogLevel.valueOf(((String) obj).toUpperCase()));
       } else {
         builder.setString((String) obj);
       }
