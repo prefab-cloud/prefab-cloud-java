@@ -228,7 +228,9 @@ public class ConfigResolver {
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
       return "Segment";
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return "FeatureFlage";
+      return "FeatureFlag";
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.LOG_LEVEL) {
+      return configValue.getLogLevel().toString();
     } else {
       return "Unknown";
     }
