@@ -42,11 +42,12 @@ public class ResolverElement implements Comparable<ResolverElement> {
   }
 
   public String provenance() {
-    return MoreObjects
-      .toStringHelper(this)
-      .add("source", configElement.getSource())
-      .add("sourceLocation", configElement.getSourceLocation())
-      .add("match", match)
+    return new StringBuilder()
+      .append(configElement.getSource().name())
+      .append(":")
+      .append(configElement.getSourceLocation())
+      .append(":")
+      .append(match)
       .toString();
   }
 

@@ -239,8 +239,8 @@ public class ConfigResolverTest {
     resolver.update();
     String expected =
       "\n" +
-      "key1                          value_no_env_default                    ResolverElement{source=LOCAL_ONLY, sourceLocation=unit test, match=default}               \n" +
-      "key2                          valueB2                                 ResolverElement{source=LOCAL_ONLY, sourceLocation=unit test, match=default}               \n";
+      "key1                          value_no_env_default                    LOCAL_ONLY:unit test:default                                                              \n" +
+      "key2                          valueB2                                 LOCAL_ONLY:unit test:default                                                              \n";
     assertThat(resolver.contentsString()).isEqualTo(expected);
   }
 

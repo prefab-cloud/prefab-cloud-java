@@ -9,6 +9,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -159,7 +160,7 @@ public class ConfigResolver {
                     1,
                     configElement,
                     row.getValue(),
-                    String.format("%d", projectEnvId)
+                    String.format("Env:%d", projectEnvId)
                   );
                 }
               } else {
@@ -205,11 +206,13 @@ public class ConfigResolver {
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder("\n");
-
-    for (Map.Entry<String, ResolverElement> entry : localMap.get().entrySet()) {
-      sb.append(padded(entry.getKey(), 30));
-      sb.append(padded(toS(entry.getValue().getConfigValue()), 40));
-      sb.append(padded(entry.getValue().provenance(), 90));
+    List<String> sortedKeys = new ArrayList(localMap.get().keySet());
+    Collections.sort(sortedKeys);
+    for (String key : sortedKeys) {
+      ResolverElement resolverElement = localMap.get().get(key);
+      sb.append(padded(key, 30));
+      sb.append(padded(toS(resolverElement.getConfigValue()), 40));
+      sb.append(padded(resolverElement.provenance(), 90));
       sb.append("\n");
     }
     System.out.println(sb.toString());
