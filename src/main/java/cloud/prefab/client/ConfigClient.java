@@ -2,6 +2,7 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LoggingConfigListener;
@@ -53,12 +54,14 @@ public class ConfigClient implements ConfigStore {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
-  private enum Source {
+  public enum Source {
     REMOTE_API_GRPC,
     STREAMING,
     REMOTE_CDN,
     LOCAL_ONLY,
     INIT_TIMEOUT,
+    CLASSPATH,
+    OVERRIDE,
   }
 
   public ConfigClient(PrefabCloudClient baseClient, ConfigChangeListener... listeners) {
@@ -336,7 +339,7 @@ public class ConfigClient implements ConfigStore {
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
     for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(config);
+      configLoader.set(new ConfigElement(config, source, ""));
     }
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {

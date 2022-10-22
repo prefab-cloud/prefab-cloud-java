@@ -1,9 +1,9 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
-import cloud.prefab.domain.Prefab.Config;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
@@ -23,10 +23,10 @@ public class ConfigLoader {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
 
   private final Options options;
-  private final ConcurrentMap<String, Prefab.Config> apiConfig;
+  private final ConcurrentMap<String, ConfigElement> apiConfig;
   private final AtomicLong highwaterMark;
-  private final ImmutableMap<String, Config> classPathConfig;
-  private final ImmutableMap<String, Prefab.Config> overrideConfig;
+  private final ImmutableMap<String, ConfigElement> classPathConfig;
+  private final ImmutableMap<String, ConfigElement> overrideConfig;
 
   public ConfigLoader(Options options) {
     this.options = options;
@@ -41,8 +41,8 @@ public class ConfigLoader {
    * merge the live API configs on next
    * layer the overrides on last
    */
-  public Map<String, Prefab.Config> calcConfig() {
-    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
+  public Map<String, ConfigElement> calcConfig() {
+    ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
 
     builder.putAll(classPathConfig);
     builder.putAll(apiConfig);
@@ -51,14 +51,15 @@ public class ConfigLoader {
     return builder.buildKeepingLast();
   }
 
-  public void set(Prefab.Config config) {
-    final Prefab.Config existing = apiConfig.get(config.getKey());
+  public void set(ConfigElement configElement) {
+    final Prefab.Config config = configElement.getConfig();
+    final ConfigElement existing = apiConfig.get(config.getKey());
 
-    if (existing == null || existing.getId() <= config.getId()) {
+    if (existing == null || existing.getConfig().getId() <= config.getId()) {
       if (config.getRowsList().isEmpty()) {
         apiConfig.remove(config.getKey());
       } else {
-        apiConfig.put(config.getKey(), config);
+        apiConfig.put(config.getKey(), configElement);
       }
       recomputeHighWaterMark();
     }
@@ -68,6 +69,7 @@ public class ConfigLoader {
     long highwaterMarkDelta = apiConfig
       .values()
       .stream()
+      .map(ConfigElement::getConfig)
       .mapToLong(Prefab.Config::getId)
       .max()
       .orElse(0L);
@@ -75,8 +77,8 @@ public class ConfigLoader {
     highwaterMark.set(highwaterMarkDelta);
   }
 
-  private ImmutableMap<String, Prefab.Config> loadClasspathConfig() {
-    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
+  private ImmutableMap<String, ConfigElement> loadClasspathConfig() {
+    ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
 
     for (String env : options.getAllPrefabEnvs()) {
       final String file = String.format(".prefab.%s.config.yaml", env);
@@ -89,7 +91,7 @@ public class ConfigLoader {
         if (resourceAsStream == null) {
           LOG.warn("No default config file found {}", file);
         } else {
-          loadFileTo(resourceAsStream, builder, file);
+          loadFileTo(resourceAsStream, builder, ConfigClient.Source.CLASSPATH, file);
         }
       } catch (IOException e) {
         throw new RuntimeException("Error loading config from file: " + file, e);
@@ -99,7 +101,12 @@ public class ConfigLoader {
     return builder.buildKeepingLast();
   }
 
-  private Prefab.Config toValue(String key, Object obj) {
+  private ConfigElement toValue(
+    String key,
+    Object obj,
+    ConfigClient.Source source,
+    String sourceLocation
+  ) {
     final Prefab.ConfigValue.Builder builder = Prefab.ConfigValue.newBuilder();
     if (obj instanceof Boolean) {
       builder.setBool((Boolean) obj);
@@ -114,14 +121,18 @@ public class ConfigLoader {
         builder.setString((String) obj);
       }
     }
-    return Prefab.Config
-      .newBuilder()
-      .addRows(Prefab.ConfigRow.newBuilder().setValue(builder.build()).build())
-      .build();
+    return new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .addRows(Prefab.ConfigRow.newBuilder().setValue(builder.build()).build())
+        .build(),
+      source,
+      sourceLocation
+    );
   }
 
-  private ImmutableMap<String, Prefab.Config> loadOverrideConfig() {
-    ImmutableMap.Builder<String, Prefab.Config> builder = ImmutableMap.builder();
+  private ImmutableMap<String, ConfigElement> loadOverrideConfig() {
+    ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
 
     File dir = new File(options.getConfigOverrideDir());
     for (String env : options.getAllPrefabEnvs()) {
@@ -130,7 +141,7 @@ public class ConfigLoader {
 
       if (file.exists()) {
         try (InputStream inputStream = new FileInputStream(file)) {
-          loadFileTo(inputStream, builder, fileName);
+          loadFileTo(inputStream, builder, ConfigClient.Source.OVERRIDE, fileName);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -142,22 +153,25 @@ public class ConfigLoader {
 
   private void loadFileTo(
     InputStream inputStream,
-    ImmutableMap.Builder<String, Prefab.Config> builder,
-    String file
+    ImmutableMap.Builder<String, ConfigElement> builder,
+    ConfigClient.Source source,
+    String sourceLocation
   ) {
-    LOG.info("Load File {}", file);
+    LOG.info("Load File {}", sourceLocation);
     Yaml yaml = new Yaml();
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {
-      loadKeyValue(k, v, builder);
-      builder.put(k, toValue(k, v));
+      loadKeyValue(k, v, builder, source, sourceLocation);
+      builder.put(k, toValue(k, v, source, sourceLocation));
     });
   }
 
   private void loadKeyValue(
     String k,
     Object v,
-    ImmutableMap.Builder<String, Prefab.Config> builder
+    ImmutableMap.Builder<String, ConfigElement> builder,
+    ConfigClient.Source source,
+    String sourceLocation
   ) {
     if (v instanceof Map) {
       Map<String, Object> map = (Map<String, Object>) v;
@@ -167,10 +181,10 @@ public class ConfigLoader {
         if (nest.getKey().equals("_")) {
           nestedKey = k;
         }
-        loadKeyValue(nestedKey, nest.getValue(), builder);
+        loadKeyValue(nestedKey, nest.getValue(), builder, source, sourceLocation);
       }
     } else {
-      builder.put(k, toValue(k, v));
+      builder.put(k, toValue(k, v, source, sourceLocation));
     }
   }
 

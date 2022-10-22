@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.domain.Prefab;
@@ -70,22 +71,24 @@ public class ConfigResolverTest {
       );
   }
 
-  private Map<String, Prefab.Config> testDataAddingKey3andTombstoningKey1() {
-    Map<String, Prefab.Config> rtn = new HashMap<>();
-    rtn.put("key1", Prefab.Config.newBuilder().setKey("key1").build());
-    rtn.put("key2", key2());
+  private Map<String, ConfigElement> testDataAddingKey3andTombstoningKey1() {
+    Map<String, ConfigElement> rtn = new HashMap<>();
+    rtn.put("key1", ce(Prefab.Config.newBuilder().setKey("key1").build()));
+    rtn.put("key2", ce(key2()));
     rtn.put(
       "key3",
-      Prefab.Config
-        .newBuilder()
-        .setKey("key1")
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setValue(Prefab.ConfigValue.newBuilder().setString("key3").build())
-            .build()
-        )
-        .build()
+      ce(
+        Prefab.Config
+          .newBuilder()
+          .setKey("key1")
+          .addRows(
+            Prefab.ConfigRow
+              .newBuilder()
+              .setValue(Prefab.ConfigValue.newBuilder().setString("key3").build())
+              .build()
+          )
+          .build()
+      )
     );
     return rtn;
   }
@@ -108,80 +111,82 @@ public class ConfigResolverTest {
   public void testSpecialFeatureFlagBehavior() {
     final ConfigLoader mockLoader = mock(ConfigLoader.class);
 
-    Map<String, Prefab.Config> testFFData = new HashMap<>();
+    Map<String, ConfigElement> testFFData = new HashMap<>();
 
     String featureName = "ff";
     testFFData.put(
       featureName,
-      Prefab.Config
-        .newBuilder()
-        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v1").build())
-        .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v2").build())
-        .addVariants(
-          Prefab.FeatureFlagVariant.newBuilder().setString("variantInEnv").build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setValue(
-              Prefab.ConfigValue
-                .newBuilder()
-                .setFeatureFlag(
-                  Prefab.FeatureFlag
-                    .newBuilder()
-                    .setActive(true)
-                    .setInactiveVariantIdx(0)
-                    .addRules(
-                      Prefab.Rule
-                        .newBuilder()
-                        .setCriteria(
-                          Prefab.Criteria
-                            .newBuilder()
-                            .setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE)
-                            .build()
-                        )
-                        .addVariantWeights(
-                          Prefab.VariantWeight.newBuilder().setVariantIdx(1).build()
-                        )
-                    )
-                    .build()
-                )
-                .build()
-            )
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(33)
-            .setValue(
-              Prefab.ConfigValue
-                .newBuilder()
-                .setFeatureFlag(
-                  Prefab.FeatureFlag
-                    .newBuilder()
-                    .setActive(true)
-                    .setInactiveVariantIdx(0)
-                    .addRules(
-                      Prefab.Rule
-                        .newBuilder()
-                        .setCriteria(
-                          Prefab.Criteria
-                            .newBuilder()
-                            .setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE)
-                            .build()
-                        )
-                        .addVariantWeights(
-                          Prefab.VariantWeight.newBuilder().setVariantIdx(2).build()
-                        )
-                    )
-                    .build()
-                )
-                .build()
-            )
-            .build()
-        )
-        .build()
+      ce(
+        Prefab.Config
+          .newBuilder()
+          .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v1").build())
+          .addVariants(Prefab.FeatureFlagVariant.newBuilder().setString("v2").build())
+          .addVariants(
+            Prefab.FeatureFlagVariant.newBuilder().setString("variantInEnv").build()
+          )
+          .addRows(
+            Prefab.ConfigRow
+              .newBuilder()
+              .setValue(
+                Prefab.ConfigValue
+                  .newBuilder()
+                  .setFeatureFlag(
+                    Prefab.FeatureFlag
+                      .newBuilder()
+                      .setActive(true)
+                      .setInactiveVariantIdx(0)
+                      .addRules(
+                        Prefab.Rule
+                          .newBuilder()
+                          .setCriteria(
+                            Prefab.Criteria
+                              .newBuilder()
+                              .setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE)
+                              .build()
+                          )
+                          .addVariantWeights(
+                            Prefab.VariantWeight.newBuilder().setVariantIdx(1).build()
+                          )
+                      )
+                      .build()
+                  )
+                  .build()
+              )
+              .build()
+          )
+          .addRows(
+            Prefab.ConfigRow
+              .newBuilder()
+              .setProjectEnvId(33)
+              .setValue(
+                Prefab.ConfigValue
+                  .newBuilder()
+                  .setFeatureFlag(
+                    Prefab.FeatureFlag
+                      .newBuilder()
+                      .setActive(true)
+                      .setInactiveVariantIdx(0)
+                      .addRules(
+                        Prefab.Rule
+                          .newBuilder()
+                          .setCriteria(
+                            Prefab.Criteria
+                              .newBuilder()
+                              .setOperator(Prefab.Criteria.CriteriaOperator.ALWAYS_TRUE)
+                              .build()
+                          )
+                          .addVariantWeights(
+                            Prefab.VariantWeight.newBuilder().setVariantIdx(2).build()
+                          )
+                      )
+                      .build()
+                  )
+                  .build()
+              )
+              .build()
+          )
+          .build()
+      )
     );
 
     when(mockLoader.calcConfig()).thenReturn(testFFData);
@@ -229,6 +234,16 @@ public class ConfigResolverTest {
     assertThat(resolver.getConfigValue("key_that_doesnt_exist").isPresent()).isFalse();
   }
 
+  @Test
+  public void testContentsString() {
+    resolver.update();
+    String expected =
+      "\n" +
+      "key1                          value_no_env_default                    ResolverElement{source=LOCAL_ONLY, sourceLocation=unit test, match=default}               \n" +
+      "key2                          valueB2                                 ResolverElement{source=LOCAL_ONLY, sourceLocation=unit test, match=default}               \n";
+    assertThat(resolver.contentsString()).isEqualTo(expected);
+  }
+
   private void assertConfigValueStringIs(
     Optional<Prefab.ConfigValue> key,
     String expectedValue
@@ -236,68 +251,73 @@ public class ConfigResolverTest {
     assertThat(key.get().getString()).isEqualTo(expectedValue);
   }
 
-  private Map<String, Prefab.Config> testData() {
-    Map<String, Prefab.Config> rtn = new HashMap<>();
-    rtn.put(
-      "key1",
-      Prefab.Config
-        .newBuilder()
-        .setKey("key1")
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setValue(
-              Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
-            )
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(TEST_PROJ_ENV)
-            .setValue(Prefab.ConfigValue.newBuilder().setString("value_none").build())
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(TEST_PROJ_ENV)
-            .setNamespace("projectA")
-            .setValue(Prefab.ConfigValue.newBuilder().setString("valueA").build())
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(TEST_PROJ_ENV)
-            .setNamespace("projectB")
-            .setValue(Prefab.ConfigValue.newBuilder().setString("valueB").build())
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(TEST_PROJ_ENV)
-            .setNamespace("projectB.subprojectX")
-            .setValue(
-              Prefab.ConfigValue.newBuilder().setString("projectB.subprojectX").build()
-            )
-            .build()
-        )
-        .addRows(
-          Prefab.ConfigRow
-            .newBuilder()
-            .setProjectEnvId(TEST_PROJ_ENV)
-            .setNamespace("projectB.subprojectY")
-            .setValue(
-              Prefab.ConfigValue.newBuilder().setString("projectB.subprojectY").build()
-            )
-            .build()
-        )
-        .build()
-    );
-    rtn.put("key2", key2());
+  private Map<String, ConfigElement> testData() {
+    Map<String, ConfigElement> rtn = new HashMap<>();
+    rtn.put("key1", ce(key1()));
+    rtn.put("key2", ce(key2()));
     return rtn;
+  }
+
+  private ConfigElement ce(Prefab.Config config) {
+    return new ConfigElement(config, ConfigClient.Source.LOCAL_ONLY, "unit test");
+  }
+
+  private Prefab.Config key1() {
+    return Prefab.Config
+      .newBuilder()
+      .setKey("key1")
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setValue(
+            Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
+          )
+          .build()
+      )
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setProjectEnvId(TEST_PROJ_ENV)
+          .setValue(Prefab.ConfigValue.newBuilder().setString("value_none").build())
+          .build()
+      )
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setProjectEnvId(TEST_PROJ_ENV)
+          .setNamespace("projectA")
+          .setValue(Prefab.ConfigValue.newBuilder().setString("valueA").build())
+          .build()
+      )
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setProjectEnvId(TEST_PROJ_ENV)
+          .setNamespace("projectB")
+          .setValue(Prefab.ConfigValue.newBuilder().setString("valueB").build())
+          .build()
+      )
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setProjectEnvId(TEST_PROJ_ENV)
+          .setNamespace("projectB.subprojectX")
+          .setValue(
+            Prefab.ConfigValue.newBuilder().setString("projectB.subprojectX").build()
+          )
+          .build()
+      )
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .setProjectEnvId(TEST_PROJ_ENV)
+          .setNamespace("projectB.subprojectY")
+          .setValue(
+            Prefab.ConfigValue.newBuilder().setString("projectB.subprojectY").build()
+          )
+          .build()
+      )
+      .build();
   }
 
   private static Prefab.Config key2() {

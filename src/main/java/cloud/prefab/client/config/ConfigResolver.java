@@ -129,8 +129,9 @@ public class ConfigResolver {
 
     configLoader
       .calcConfig()
-      .forEach((key, config) -> {
-        List<ResolverElement> l = config
+      .forEach((key, configElement) -> {
+        List<ResolverElement> l = configElement
+          .getConfig()
           .getRowsList()
           .stream()
           .map(row -> {
@@ -146,7 +147,7 @@ public class ConfigResolver {
                   if (match.isMatch()) {
                     return new ResolverElement(
                       2 + match.getPartCount(),
-                      config,
+                      configElement,
                       row.getValue(),
                       row.getNamespace()
                     );
@@ -156,7 +157,7 @@ public class ConfigResolver {
                 } else {
                   return new ResolverElement(
                     1,
-                    config,
+                    configElement,
                     row.getValue(),
                     String.format("%d", projectEnvId)
                   );
@@ -165,7 +166,7 @@ public class ConfigResolver {
                 return null;
               }
             }
-            return new ResolverElement(0, config, row.getValue(), "default");
+            return new ResolverElement(0, configElement, row.getValue(), "default");
           })
           .filter(Objects::nonNull)
           .sorted()
@@ -207,7 +208,8 @@ public class ConfigResolver {
 
     for (Map.Entry<String, ResolverElement> entry : localMap.get().entrySet()) {
       sb.append(padded(entry.getKey(), 30));
-      sb.append(padded(toS(entry.getValue().getConfigValue()), 90));
+      sb.append(padded(toS(entry.getValue().getConfigValue()), 40));
+      sb.append(padded(entry.getValue().provenance(), 90));
       sb.append("\n");
     }
     System.out.println(sb.toString());

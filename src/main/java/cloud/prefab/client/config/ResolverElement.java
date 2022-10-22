@@ -1,5 +1,6 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
@@ -7,18 +8,18 @@ import java.util.Objects;
 public class ResolverElement implements Comparable<ResolverElement> {
 
   private final int matchSize;
-  private final Prefab.Config config;
+  private final ConfigElement configElement;
   private final Prefab.ConfigValue configValue;
   private final String match;
 
   public ResolverElement(
     int matchSize,
-    Prefab.Config config,
+    ConfigElement configElement,
     Prefab.ConfigValue configValue,
     String match
   ) {
     this.matchSize = matchSize;
-    this.config = config;
+    this.configElement = configElement;
     this.configValue = configValue;
     this.match = match;
   }
@@ -33,11 +34,20 @@ public class ResolverElement implements Comparable<ResolverElement> {
   }
 
   public Prefab.Config getConfig() {
-    return config;
+    return configElement.getConfig();
   }
 
   public int getMatchSize() {
     return matchSize;
+  }
+
+  public String provenance() {
+    return MoreObjects
+      .toStringHelper(this)
+      .add("source", configElement.getSource())
+      .add("sourceLocation", configElement.getSourceLocation())
+      .add("match", match)
+      .toString();
   }
 
   @Override
@@ -45,7 +55,7 @@ public class ResolverElement implements Comparable<ResolverElement> {
     return MoreObjects
       .toStringHelper(this)
       .add("matchSize", matchSize)
-      .add("config", config)
+      .add("config", configElement)
       .add("configValue", configValue)
       .add("match", match)
       .toString();
