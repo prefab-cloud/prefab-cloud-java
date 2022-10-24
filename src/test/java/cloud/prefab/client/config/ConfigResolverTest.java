@@ -195,12 +195,27 @@ public class ConfigResolverTest {
     assertThat(resolver.getConfig(featureName).get().getVariantsList()).hasSize(3);
   }
 
+  private Prefab.Configs configsWithEnv(int projectEnvId) {
+    return Prefab.Configs
+      .newBuilder()
+      .setConfigServicePointer(
+        Prefab.ConfigServicePointer.newBuilder().setProjectEnvId(projectEnvId).build()
+      )
+      .build();
+  }
+
+  @Test
+  public void noProjEnvOverwrite() {
+    assertThat(resolver.setProjectEnvId(configsWithEnv(1))).isTrue();
+    assertThat(resolver.setProjectEnvId(Prefab.Configs.getDefaultInstance())).isFalse();
+  }
+
   @Test
   public void test() {
     resolver.update();
     assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_no_env_default");
 
-    resolver.setProjectEnvId(TEST_PROJ_ENV);
+    resolver.setProjectEnvId(configsWithEnv(TEST_PROJ_ENV));
 
     when(mockOptions.getNamespace()).thenReturn("");
     resolver.update();

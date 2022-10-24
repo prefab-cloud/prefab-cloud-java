@@ -342,7 +342,13 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void loadConfigs(Prefab.Configs configs, Source source) {
-    resolver.setProjectEnvId(configs.getConfigServicePointer().getProjectEnvId());
+    LOG.debug(
+      "Loading {} configs from {} pointer {}",
+      configs.getConfigsCount(),
+      source,
+      configs.hasConfigServicePointer()
+    );
+    resolver.setProjectEnvId(configs);
 
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
