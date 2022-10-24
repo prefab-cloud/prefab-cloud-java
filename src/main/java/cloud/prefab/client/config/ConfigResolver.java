@@ -117,9 +117,12 @@ public class ConfigResolver {
     }
   }
 
-  public ConfigResolver setProjectEnvId(long projectEnvId) {
-    this.projectEnvId = projectEnvId;
-    return this;
+  public boolean setProjectEnvId(Prefab.Configs configs) {
+    if (configs.hasConfigServicePointer()) {
+      this.projectEnvId = configs.getConfigServicePointer().getProjectEnvId();
+      return true;
+    }
+    return false;
   }
 
   /**
