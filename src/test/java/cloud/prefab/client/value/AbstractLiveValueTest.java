@@ -37,7 +37,7 @@ class AbstractLiveValueTest {
         Optional.of(Prefab.ConfigValue.newBuilder().setString("mismatch").build())
       );
     when(mockConfigClient.get("boolean"))
-      .thenReturn(Optional.of(Prefab.ConfigValue.newBuilder().setBool(true).build()));
+      .thenReturn(Optional.of(Prefab.ConfigValue.newBuilder().setBool(false).build()));
     when(mockConfigClient.get("boolean mismatch"))
       .thenReturn(
         Optional.of(Prefab.ConfigValue.newBuilder().setString("mismatch").build())
@@ -61,7 +61,7 @@ class AbstractLiveValueTest {
       TypeMismatchException.class,
       () -> new LiveDouble(mockConfigClient, "double mismatch").get()
     );
-    assertEquals(true, new LiveBoolean(mockConfigClient, "boolean").get());
+    assertEquals(false, new LiveBoolean(mockConfigClient, "boolean").get());
     assertThrows(
       TypeMismatchException.class,
       () -> new LiveBoolean(mockConfigClient, "boolean mismatch").get()

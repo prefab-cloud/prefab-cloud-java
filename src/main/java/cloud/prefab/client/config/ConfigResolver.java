@@ -9,6 +9,7 @@ import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -129,8 +130,9 @@ public class ConfigResolver {
 
     configLoader
       .calcConfig()
-      .forEach((key, config) -> {
-        List<ResolverElement> l = config
+      .forEach((key, configElement) -> {
+        List<ResolverElement> l = configElement
+          .getConfig()
           .getRowsList()
           .stream()
           .map(row -> {
@@ -146,7 +148,7 @@ public class ConfigResolver {
                   if (match.isMatch()) {
                     return new ResolverElement(
                       2 + match.getPartCount(),
-                      config,
+                      configElement,
                       row.getValue(),
                       row.getNamespace()
                     );
@@ -156,16 +158,16 @@ public class ConfigResolver {
                 } else {
                   return new ResolverElement(
                     1,
-                    config,
+                    configElement,
                     row.getValue(),
-                    String.format("%d", projectEnvId)
+                    String.format("Env:%d", projectEnvId)
                   );
                 }
               } else {
                 return null;
               }
             }
-            return new ResolverElement(0, config, row.getValue(), "default");
+            return new ResolverElement(0, configElement, row.getValue(), "default");
           })
           .filter(Objects::nonNull)
           .sorted()
@@ -204,10 +206,13 @@ public class ConfigResolver {
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder("\n");
-
-    for (Map.Entry<String, ResolverElement> entry : localMap.get().entrySet()) {
-      sb.append(padded(entry.getKey(), 30));
-      sb.append(padded(toS(entry.getValue().getConfigValue()), 90));
+    List<String> sortedKeys = new ArrayList(localMap.get().keySet());
+    Collections.sort(sortedKeys);
+    for (String key : sortedKeys) {
+      ResolverElement resolverElement = localMap.get().get(key);
+      sb.append(padded(key, 30));
+      sb.append(padded(toS(resolverElement.getConfigValue()), 40));
+      sb.append(padded(resolverElement.provenance(), 90));
       sb.append("\n");
     }
     System.out.println(sb.toString());
@@ -228,7 +233,9 @@ public class ConfigResolver {
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
       return "Segment";
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return "FeatureFlage";
+      return "FeatureFlag";
+    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.LOG_LEVEL) {
+      return configValue.getLogLevel().toString();
     } else {
       return "Unknown";
     }

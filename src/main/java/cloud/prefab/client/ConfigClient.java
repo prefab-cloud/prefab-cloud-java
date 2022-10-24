@@ -2,6 +2,7 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LoggingConfigListener;
@@ -13,7 +14,6 @@ import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -22,7 +22,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -55,12 +54,14 @@ public class ConfigClient implements ConfigStore {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
-  private enum Source {
+  public enum Source {
     REMOTE_API_GRPC,
     STREAMING,
     REMOTE_CDN,
     LOCAL_ONLY,
     INIT_TIMEOUT,
+    CLASSPATH,
+    OVERRIDE,
   }
 
   public ConfigClient(PrefabCloudClient baseClient, ConfigChangeListener... listeners) {
@@ -199,17 +200,8 @@ public class ConfigClient implements ConfigStore {
   }
 
   boolean loadCDN() {
-    final String keyHash = keyHash(options.getApikey());
-    final String url = String.format(
-      "%s/api/v1/configs/0/%s/0",
-      options.getCDNUrl(),
-      keyHash
-    );
+    final String url = String.format("%s/api/v1/configs/0", options.getCDNUrl());
     return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
-  }
-
-  private String keyHash(String apikey) {
-    return Hashing.sha256().hashString(apikey, StandardCharsets.UTF_8).toString();
   }
 
   private static final String getBasicAuthenticationHeader(
@@ -240,7 +232,7 @@ public class ConfigClient implements ConfigStore {
       );
 
       if (response.statusCode() != 200) {
-        LOG.warn("Problem loading CDN {}", response.statusCode());
+        LOG.warn("Problem loading {} {} {}", source, response.statusCode(), url);
       } else {
         Prefab.Configs configs = Prefab.Configs.parseFrom(response.body());
         loadConfigs(configs, source);
@@ -347,7 +339,7 @@ public class ConfigClient implements ConfigStore {
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
     for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(config);
+      configLoader.set(new ConfigElement(config, source, ""));
     }
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
