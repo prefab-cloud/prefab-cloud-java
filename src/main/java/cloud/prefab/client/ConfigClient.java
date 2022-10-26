@@ -260,6 +260,7 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void startStreaming(long highwaterMark) {
+    LOG.debug("Starting streaming at {}", highwaterMark);
     Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
       .newBuilder()
       .setStartAtId(highwaterMark)
@@ -283,7 +284,7 @@ public class ConfigClient implements ConfigStore {
             ) {
               LOG.info("Not restarting the stream: {}", throwable.getMessage());
             } else {
-              LOG.warn("Error from API: ", throwable);
+              LOG.info("Error from API: ", throwable);
               try {
                 Thread.sleep(BACKOFF_MILLIS);
               } catch (InterruptedException e) {
