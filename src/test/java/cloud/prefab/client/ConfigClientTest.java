@@ -13,10 +13,15 @@ import org.junit.jupiter.api.Test;
 
 class ConfigClientTest {
 
+  static final String OVERRIDE_DIRECTORY = "src/test/resources/override_directory";
+  static final String NO_DIRECTORY = "src/test/resources/non_existent_directory";
+
   @Test
   void localModeUnlocks() {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
-      new Options().setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
+      new Options()
+        .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
+        .setConfigOverrideDir(OVERRIDE_DIRECTORY)
     );
     ConfigClient configClient = new ConfigClient(baseClient);
 
@@ -60,6 +65,7 @@ class ConfigClientTest {
         .setApikey("0-P1-E1-SDK-1234-123-23")
         .setInitializationTimeoutSec(1)
         .setOnInitializationFailure(Options.OnInitializationFailure.UNLOCK)
+        .setConfigOverrideDir(NO_DIRECTORY)
     );
 
     ConfigClient configClient = new ConfigClient(baseClient);
