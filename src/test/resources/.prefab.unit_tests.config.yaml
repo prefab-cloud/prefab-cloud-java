@@ -17,10 +17,12 @@ nested:
     string: nested value
 
 log-level:
+  _: warn
+  cloud.prefab.client: warn
   tests:
     _: debug
     capitalized: INFO
     uncapitalized: info
     nested:
-      _: debug
+      _: warn
       deeply: error

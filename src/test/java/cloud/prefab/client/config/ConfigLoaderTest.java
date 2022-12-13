@@ -104,7 +104,7 @@ public class ConfigLoaderTest {
   public void test_nested() {
     assertValueOfConfigIs("nested value", "nested.values.string");
     assertValueOfConfigIs("top level", "nested.values");
-    assertValueOfConfigIsLogLevel(Prefab.LogLevel.DEBUG, "log-level.tests.nested");
+    assertValueOfConfigIsLogLevel(Prefab.LogLevel.WARN, "log-level.tests.nested");
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.ERROR, "log-level.tests.nested.deeply");
   }
 

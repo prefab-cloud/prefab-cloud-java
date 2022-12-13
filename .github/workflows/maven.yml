@@ -27,3 +27,6 @@ jobs:
         cache: maven
     - name: Build with Maven
       run: mvn -B package --file pom.xml
+      env:
+        PREFAB_INTEGRATION_TEST_API_KEY: ${{ secrets.PREFAB_INTEGRATION_TEST_API_KEY }}
+        PREFAB_API_KEY: 1-fake-apikey
