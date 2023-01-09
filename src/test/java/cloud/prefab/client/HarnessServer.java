@@ -68,16 +68,17 @@ public class HarnessServer extends NanoHTTPD {
           .setSsl(false)
       );
       if (featureFlag) {
-        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient
-          .featureFlagClient()
-          .get(key, Optional.of(user_key), attributes);
-        if (featureFlagVariant.isPresent()) {
-          LOG.info("return {}", featureFlagVariant.get());
-          return newFixedLengthResponse(featureFlagVariant.get().getString());
-        } else {
-          LOG.info("No ff found {}", key);
-          return newFixedLengthResponse("No FF Found");
-        }
+        //        final Optional<Prefab.FeatureFlagVariant> featureFlagVariant = prefabCloudClient
+        //          .featureFlagClient()
+        //          .get(key, Optional.of(user_key), attributes);
+        //        if (featureFlagVariant.isPresent()) {
+        //          LOG.info("return {}", featureFlagVariant.get());
+        //          return newFixedLengthResponse(featureFlagVariant.get().getString());
+        //        } else {
+        //          LOG.info("No ff found {}", key);
+        //          return newFixedLengthResponse("No FF Found");
+        //        }
+        return null;
       } else {
         final Optional<Prefab.ConfigValue> configValue = prefabCloudClient
           .configClient()

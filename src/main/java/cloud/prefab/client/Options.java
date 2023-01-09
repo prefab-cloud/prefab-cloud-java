@@ -80,8 +80,8 @@ public class Options {
     return this;
   }
 
-  public String getNamespace() {
-    return namespace;
+  public Optional<String> getNamespace() {
+    return Optional.ofNullable(namespace);
   }
 
   public Options setNamespace(String namespace) {

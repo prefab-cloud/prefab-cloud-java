@@ -17,9 +17,9 @@ public class Provenance {
   @Override
   public String toString() {
     return new StringBuilder()
-          .append(source.name())
-          .append(":")
-          .append(sourceLocation)
-          .toString();
+      .append(source.name())
+      .append(":")
+      .append(sourceLocation)
+      .toString();
   }
 }

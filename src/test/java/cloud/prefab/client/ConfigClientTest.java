@@ -58,6 +58,7 @@ class ConfigClientTest {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
       new Options()
         .setApikey("0-P1-E1-SDK-1234-123-23")
+        .setConfigOverrideDir("none")
         .setInitializationTimeoutSec(1)
         .setOnInitializationFailure(Options.OnInitializationFailure.UNLOCK)
     );
