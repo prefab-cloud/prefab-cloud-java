@@ -24,7 +24,7 @@ public class Match {
     return configValue;
   }
 
-  public String getReason(){
+  public String getReason() {
     StringBuilder sb = new StringBuilder();
     evaluatedCriterion.forEach(ec -> {
       sb.append(ec.getCriterion().getPropertyName());
