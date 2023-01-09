@@ -6,6 +6,7 @@ import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LoggingConfigListener;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
@@ -26,7 +27,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -96,8 +99,15 @@ public class ConfigClient implements ConfigStore {
     return new LiveDouble(this, key);
   }
 
-  @Override
   public Optional<Prefab.ConfigValue> get(String key) {
+    return get(key, new HashMap<>());
+  }
+
+  @Override
+  public Optional<Prefab.ConfigValue> get(
+    String key,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
@@ -112,7 +122,7 @@ public class ConfigClient implements ConfigStore {
           );
         }
       }
-      return resolver.getConfigValue(key);
+      return resolver.getConfigValue(key, properties);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -122,7 +132,11 @@ public class ConfigClient implements ConfigStore {
     Prefab.Config upsertRequest = Prefab.Config
       .newBuilder()
       .setKey(key)
-      .addRows(Prefab.ConfigRow.newBuilder().setValue(configValue).build())
+      .addRows(
+        Prefab.ConfigRow
+          .newBuilder()
+          .addValues(Prefab.ConditionalValue.newBuilder().setValue(configValue).build())
+      )
       .build();
 
     configServiceBlockingStub().upsert(upsertRequest);
@@ -130,16 +144,6 @@ public class ConfigClient implements ConfigStore {
 
   public void upsert(Prefab.Config config) {
     configServiceBlockingStub().upsert(config);
-  }
-
-  @Override
-  public Optional<Prefab.Config> getConfigObj(String key) {
-    try {
-      initializedLatch.await();
-      return resolver.getConfig(key);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   public boolean addConfigChangeListener(ConfigChangeListener configChangeListener) {
@@ -345,7 +349,7 @@ public class ConfigClient implements ConfigStore {
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
     for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(new ConfigElement(config, source, ""));
+      configLoader.set(new ConfigElement(config, new Provenance(source, "")));
     }
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
