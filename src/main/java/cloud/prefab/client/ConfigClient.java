@@ -208,10 +208,7 @@ public class ConfigClient implements ConfigStore {
     return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
   }
 
-  private static final String getBasicAuthenticationHeader(
-    String username,
-    String password
-  ) {
+  private static String getBasicAuthenticationHeader(String username, String password) {
     String valueToEncode = username + ":" + password;
     return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
   }

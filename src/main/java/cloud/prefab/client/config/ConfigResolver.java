@@ -77,13 +77,15 @@ public class ConfigResolver {
     ConfigElement configElement,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    if (baseClient.getOptions().getNamespace().isPresent()) properties.put(
-      NAMESPACE_KEY,
-      Prefab.ConfigValue
-        .newBuilder()
-        .setString(baseClient.getOptions().getNamespace().get())
-        .build()
-    );
+    if (baseClient.getOptions().getNamespace().isPresent()) {
+      properties.put(
+        NAMESPACE_KEY,
+        Prefab.ConfigValue
+          .newBuilder()
+          .setString(baseClient.getOptions().getNamespace().get())
+          .build()
+      );
+    }
 
     // Prefer rows that have a projEnvId to ones that don't
     // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
