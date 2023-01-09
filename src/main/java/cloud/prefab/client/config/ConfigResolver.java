@@ -126,60 +126,15 @@ public class ConfigResolver {
   }
 
   /**
-   * pre-evaluate all config values for our env_key and namespace so that lookups are simple
+   * set the localMap
    */
   private void makeLocal() {
-    ImmutableMap.Builder<String, ResolverElement> store = ImmutableMap.builder();
+    ImmutableMap.Builder<String, ConfigElement> store = ImmutableMap.builder();
 
     configLoader
       .calcConfig()
       .forEach((key, configElement) -> {
-        List<ResolverElement> l = configElement
-          .getConfig()
-          .getRowsList()
-          .stream()
-          .map(row -> {
-            //        LOG.info("eval {}", row);
-            //        LOG.info("row projectID {}", row.getProjectEnvId());
-            if (row.getProjectEnvId() != 0) { //protobuf is set
-              if (row.getProjectEnvId() == projectEnvId) {
-                if (!row.getNamespace().isEmpty()) {
-                  NamespaceMatch match = evaluateMatch(
-                    row.getNamespace(),
-                    baseClient.getOptions().getNamespace()
-                  );
-                  if (match.isMatch()) {
-                    return new ResolverElement(
-                      2 + match.getPartCount(),
-                      configElement,
-                      row.getValue(),
-                      row.getNamespace()
-                    );
-                  } else {
-                    return null;
-                  }
-                } else {
-                  return new ResolverElement(
-                    1,
-                    configElement,
-                    row.getValue(),
-                    String.format("Env:%d", projectEnvId)
-                  );
-                }
-              } else {
-                return null;
-              }
-            }
-            return new ResolverElement(0, configElement, row.getValue(), "default");
-          })
-          .filter(Objects::nonNull)
-          .sorted()
-          .collect(Collectors.toList());
-
-        if (!l.isEmpty()) {
-          final ResolverElement resolverElement = l.get(l.size() - 1);
-          store.put(key, resolverElement);
-        }
+        store.put(key, configElement);
       });
 
     localMap.set(store.buildKeepingLast());
