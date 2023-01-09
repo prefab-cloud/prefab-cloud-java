@@ -116,7 +116,7 @@ public class ConfigResolverTest {
               Prefab.Criterion
                 .newBuilder()
                 .setPropertyName(ConfigResolver.NAMESPACE_KEY)
-                .setOperator(Prefab.Criterion.CriteriaOperator.HIERARCHICAL_MATCH)
+                .setOperator(Prefab.Criterion.CriterionOperator.HIERARCHICAL_MATCH)
                 .setValueToMatch(Prefab.ConfigValue.newBuilder().setString(namespace))
             );
           }
@@ -243,7 +243,7 @@ public class ConfigResolverTest {
                         Prefab.Criterion
                           .newBuilder()
                           .setPropertyName("group")
-                          .setOperator(Prefab.Criterion.CriteriaOperator.PROP_IS_ONE_OF)
+                          .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
                           .setValueToMatch(
                             Prefab.ConfigValue
                               .newBuilder()
@@ -467,7 +467,7 @@ public class ConfigResolverTest {
               .build()
           )
       )
-      .setOperator(Prefab.Criterion.CriteriaOperator.PROP_ENDS_WITH_ONE_OF)
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF)
       .build();
 
     final EvaluatedCriterion bobEval = resolver.evaluateCriterionMatch(
@@ -511,7 +511,7 @@ public class ConfigResolverTest {
               .build()
           )
       )
-      .setOperator(Prefab.Criterion.CriteriaOperator.PROP_DOES_NOT_END_WITH_ONE_OF)
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_END_WITH_ONE_OF)
       .build();
 
     final EvaluatedCriterion bobEval = resolver.evaluateCriterionMatch(
@@ -547,7 +547,7 @@ public class ConfigResolverTest {
     final Prefab.Criterion segmentCriteria = Prefab.Criterion
       .newBuilder()
       .setValueToMatch(Prefab.ConfigValue.newBuilder().setString("segment").build())
-      .setOperator(Prefab.Criterion.CriteriaOperator.IN_SEG)
+      .setOperator(Prefab.Criterion.CriterionOperator.IN_SEG)
       .build();
     final EvaluatedCriterion betaEval = resolver.evaluateCriterionMatch(
       segmentCriteria,
