@@ -28,23 +28,39 @@ public class ConfigResolver {
 
   private final PrefabCloudClient baseClient;
   private final ConfigLoader configLoader;
-  private final AtomicReference<ImmutableMap<String, ResolverElement>> localMap = new AtomicReference<>(
+  private final AtomicReference<ImmutableMap<String, ConfigElement>> localMap = new AtomicReference<>(
     ImmutableMap.of()
   );
+  private final WeightedValueEvaluator weightedValueEvaluator;
 
   private long projectEnvId = 0;
 
   public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
     this.baseClient = baseClient;
     this.configLoader = configLoader;
+    this.weightedValueEvaluator = new WeightedValueEvaluator();
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
-    final ResolverElement resolverElement = localMap.get().get(key);
-    if (resolverElement != null) {
-      return Optional.of(resolverElement.getConfigValue());
+    return getConfigValue(key, new HashMap<>());
+  }
+
+  public Optional<Prefab.ConfigValue> getConfigValue(
+    String key,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
+    if (!localMap.get().containsKey(key)) {
+      return Optional.empty();
     }
-    return Optional.empty();
+    final ConfigElement configElement = localMap.get().get(key);
+
+    final Optional<Match> match = findMatch(configElement, properties);
+
+    if (match.isPresent()) {
+      return Optional.of(match.get().getConfigValue());
+    } else {
+      return Optional.empty();
+    }
   }
 
   public Optional<Prefab.Config> getConfig(String key) {
