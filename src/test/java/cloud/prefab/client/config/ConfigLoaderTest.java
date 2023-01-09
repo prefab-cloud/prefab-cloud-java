@@ -30,36 +30,9 @@ public class ConfigLoaderTest {
   @Test
   public void testLoad() {
     assertValueOfConfigIs("test sample value", "sample");
-    assertThat(
-      stringConfigDeltaMap
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(123);
-    assertThat(
-      stringConfigDeltaMap
-        .get("sample_double")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getDouble()
-    )
-      .isEqualTo(12.12);
-    assertThat(
-      stringConfigDeltaMap
-        .get("sample_bool")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getBool()
-    )
-      .isEqualTo(true);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(123);
+    assertThat(getValue("sample_double").getDouble()).isEqualTo(12.12);
+    assertThat(getValue("sample_bool").getBool()).isEqualTo(true);
 
     assertValueOfConfigIs("value from override in default", "sample_to_override");
   }
@@ -72,32 +45,25 @@ public class ConfigLoaderTest {
   }
 
   private void assertValueOfConfigIs(String expectedValue, String configKey) {
-    assertThat(
-      stringConfigDeltaMap
-        .get(configKey)
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getString()
-    )
-      .isEqualTo(expectedValue);
+    assertThat(getValue(configKey).getString()).isEqualTo(expectedValue);
   }
 
   private void assertValueOfConfigIsLogLevel(
     Prefab.LogLevel expectedValue,
     String configKey
   ) {
-    assertThat(
-      stringConfigDeltaMap
-        .get(configKey)
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getLogLevel()
-    )
-      .isEqualTo(expectedValue);
+    assertThat(getValue(configKey).getLogLevel()).isEqualTo(expectedValue);
+  }
+
+  private Prefab.ConfigValue getValue(String configKey) {
+    return configLoader
+      .calcConfig()
+      .get(configKey)
+      .getConfig()
+      .getRowsList()
+      .get(0)
+      .getValues(0)
+      .getValue();
   }
 
   @Test
@@ -128,74 +94,24 @@ public class ConfigLoaderTest {
 
     configLoader.set(cd(1, "sample_int", 1));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(1);
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(1);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(1);
 
     configLoader.set(cd(4, "sample_int", 4));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(4);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(4);
 
     configLoader.set(cd(2, "sample_int", 2));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(4);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(4);
   }
 
   @Test
   public void testAPIPrecedence() {
     configLoader.calcConfig();
 
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(123);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(123);
     configLoader.set(cd(2, "sample_int", 456));
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("sample_int")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(456);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(456);
   }
 
   @Test
@@ -203,23 +119,12 @@ public class ConfigLoaderTest {
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));
-    assertThat(
-      configLoader
-        .calcConfig()
-        .get("val_from_api")
-        .getConfig()
-        .getRowsList()
-        .get(0)
-        .getValue()
-        .getInt()
-    )
-      .isEqualTo(456);
+    assertThat(getValue("val_from_api").getInt()).isEqualTo(456);
 
     configLoader.set(
       new ConfigElement(
         Prefab.Config.newBuilder().setId(2).setKey("val_from_api").build(),
-        ConfigClient.Source.LOCAL_ONLY,
-        "unit_tests"
+        new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit_tests")
       )
     );
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
@@ -234,11 +139,15 @@ public class ConfigLoaderTest {
         .addRows(
           Prefab.ConfigRow
             .newBuilder()
-            .setValue(Prefab.ConfigValue.newBuilder().setInt(val).build())
+            .addValues(
+              Prefab.ConditionalValue
+                .newBuilder()
+                .setValue(Prefab.ConfigValue.newBuilder().setInt(val).build())
+                .build()
+            )
         )
         .build(),
-      ConfigClient.Source.LOCAL_ONLY,
-      "unit_tests"
+      new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit_tests")
     );
   }
 }
