@@ -1,7 +1,6 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.ConfigClient;
-import com.google.gson.JsonElement;
 
 public class Provenance {
 
@@ -11,7 +10,6 @@ public class Provenance {
   public Provenance(ConfigClient.Source source, String sourceLocation) {
     this.source = source;
     this.sourceLocation = sourceLocation;
-    JsonElement jsonElement = null;
   }
 
   @Override
