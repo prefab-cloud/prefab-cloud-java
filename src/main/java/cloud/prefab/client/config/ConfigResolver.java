@@ -27,7 +27,12 @@ public class ConfigResolver {
   private long projectEnvId = 0;
 
   public ConfigResolver(ConfigStore configStoreImpl) {
+    this(configStoreImpl, 0L);
+  }
+
+  public ConfigResolver(ConfigStore configStoreImpl, long projectEnvId) {
     this.weightedValueEvaluator = new WeightedValueEvaluator();
+    this.projectEnvId = projectEnvId;
     this.configStore = configStoreImpl;
   }
 
