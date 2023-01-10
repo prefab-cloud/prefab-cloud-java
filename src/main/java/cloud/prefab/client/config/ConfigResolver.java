@@ -1,21 +1,15 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.ConfigStore;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,25 +17,18 @@ import org.slf4j.LoggerFactory;
 public class ConfigResolver {
 
   public static final String NAMESPACE_KEY = "NAMESPACE";
-  public static final String LOOKUP_KEY = "lookup_key";
+  public static final String LOOKUP_KEY = "LOOKUP";
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
-  private static final String NAMESPACE_DELIMITER = "\\.";
-
-  private final PrefabCloudClient baseClient;
-  private final ConfigLoader configLoader;
-  private final AtomicReference<ImmutableMap<String, ConfigElement>> localMap = new AtomicReference<>(
-    ImmutableMap.of()
-  );
+  private final ConfigStore configStore;
   private final WeightedValueEvaluator weightedValueEvaluator;
 
   private long projectEnvId = 0;
 
-  public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
-    this.baseClient = baseClient;
-    this.configLoader = configLoader;
+  public ConfigResolver(ConfigStore configStoreImpl) {
     this.weightedValueEvaluator = new WeightedValueEvaluator();
+    this.configStore = configStoreImpl;
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
@@ -52,10 +39,10 @@ public class ConfigResolver {
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    if (!localMap.get().containsKey(key)) {
+    if (!configStore.containsKey(key)) {
       return Optional.empty();
     }
-    final ConfigElement configElement = localMap.get().get(key);
+    final ConfigElement configElement = configStore.getElement(key);
 
     final Optional<Match> match = findMatch(configElement, properties);
 
@@ -77,16 +64,6 @@ public class ConfigResolver {
     ConfigElement configElement,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    if (baseClient.getOptions().getNamespace().isPresent()) {
-      properties.put(
-        NAMESPACE_KEY,
-        Prefab.ConfigValue
-          .newBuilder()
-          .setString(baseClient.getOptions().getNamespace().get())
-          .build()
-      );
-    }
-
     // Prefer rows that have a projEnvId to ones that don't
     // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
     final Optional<Match> match = configElement
@@ -358,63 +335,6 @@ public class ConfigResolver {
     return propertyString.startsWith(valueToMatch);
   }
 
-  /**
-   * Return the changed config values since last update()
-   */
-  public synchronized List<ConfigChangeEvent> update() {
-    // store the old map
-    final Map<String, Optional<Prefab.ConfigValue>> before = localMap
-      .get()
-      .entrySet()
-      .stream()
-      .collect(Collectors.toMap(Entry::getKey, e -> getConfigValue(e.getKey())));
-
-    // load the new map
-    makeLocal();
-
-    // build the new map
-    final Map<String, Optional<Prefab.ConfigValue>> after = localMap
-      .get()
-      .entrySet()
-      .stream()
-      .collect(Collectors.toMap(Entry::getKey, e -> getConfigValue(e.getKey())));
-
-    MapDifference<String, Optional<Prefab.ConfigValue>> delta = Maps.difference(
-      before,
-      after
-    );
-    if (delta.areEqual()) {
-      return ImmutableList.of();
-    } else {
-      ImmutableList.Builder<ConfigChangeEvent> changeEvents = ImmutableList.builder();
-
-      // removed config values
-      delta
-        .entriesOnlyOnLeft()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, value, Optional.empty()))
-        );
-
-      // added config values
-      delta
-        .entriesOnlyOnRight()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, Optional.empty(), value))
-        );
-
-      // changed config values
-      delta
-        .entriesDiffering()
-        .forEach((key, values) ->
-          changeEvents.add(
-            new ConfigChangeEvent(key, values.leftValue(), values.rightValue())
-          )
-        );
-
-      return changeEvents.build();
-    }
-  }
-
   public boolean setProjectEnvId(Prefab.Configs configs) {
     if (configs.hasConfigServicePointer()) {
       this.projectEnvId = configs.getConfigServicePointer().getProjectEnvId();
@@ -423,31 +343,16 @@ public class ConfigResolver {
     return false;
   }
 
-  /**
-   * set the localMap
-   */
-  private void makeLocal() {
-    ImmutableMap.Builder<String, ConfigElement> store = ImmutableMap.builder();
-
-    configLoader
-      .calcConfig()
-      .forEach((key, configElement) -> {
-        store.put(key, configElement);
-      });
-
-    localMap.set(store.buildKeepingLast());
-  }
-
   public Collection<String> getKeys() {
-    return localMap.get().keySet();
+    return configStore.getKeys();
   }
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder("\n");
-    List<String> sortedKeys = new ArrayList(localMap.get().keySet());
+    List<String> sortedKeys = new ArrayList(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
-      ConfigElement configElement = localMap.get().get(key);
+      ConfigElement configElement = configStore.getElement(key);
       final Optional<Match> match = findMatch(configElement, new HashMap<>());
 
       if (match.isPresent()) {

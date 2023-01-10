@@ -6,25 +6,18 @@ import cloud.prefab.client.util.RandomProvider;
 import cloud.prefab.client.util.RandomProviderIF;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-import com.google.protobuf.ProtocolStringList;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.core.jackson.ListOfMapEntryDeserializer;
 
 public class FeatureFlagClient {
 
-  private final ConfigStore configStore;
+  private final ConfigResolver configResolver;
 
   private RandomProviderIF randomProvider = new RandomProvider();
 
-  public FeatureFlagClient(ConfigStore configStore) {
-    this.configStore = configStore;
+  public FeatureFlagClient(ConfigResolver configResolver) {
+    this.configResolver = configResolver;
   }
 
   /**
@@ -104,7 +97,7 @@ public class FeatureFlagClient {
         Prefab.ConfigValue.newBuilder().setString(lookupKey.get()).build()
       );
     }
-    return configStore.get(feature, attributes);
+    return configResolver.getConfigValue(feature, attributes);
   }
 
   private boolean isOn(Optional<Prefab.ConfigValue> featureFlagVariant) {

@@ -1,26 +1,19 @@
 package cloud.prefab.client;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import cloud.prefab.client.config.ConfigResolver;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 public class FeatureFlagClientTest {
 
-  private ConfigClient mockConfigClient;
+  private ConfigResolver mockConfigResolver;
   private FeatureFlagClient featureFlagClient;
 
   @BeforeEach
   public void setup() {
-    mockConfigClient = mock(ConfigClient.class);
-    featureFlagClient = new FeatureFlagClient(mockConfigClient);
+    mockConfigResolver = mock(ConfigResolver.class);
+    featureFlagClient = new FeatureFlagClient(mockConfigResolver);
   }
   //
 

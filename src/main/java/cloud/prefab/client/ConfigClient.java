@@ -1,5 +1,7 @@
 package cloud.prefab.client;
 
+import static cloud.prefab.client.config.ConfigResolver.NAMESPACE_KEY;
+
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigElement;
@@ -7,6 +9,7 @@ import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LoggingConfigListener;
 import cloud.prefab.client.config.Provenance;
+import cloud.prefab.client.config.UpdatingConfigResolver;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
@@ -41,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConfigClient implements ConfigStore {
+public class ConfigClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClient.class);
   private static final String AUTH_USER = "authuser";
@@ -51,11 +54,15 @@ public class ConfigClient implements ConfigStore {
   private final PrefabCloudClient baseClient;
   private final Options options;
 
-  private final ConfigResolver resolver;
+  private final UpdatingConfigResolver updatingConfigResolver;
   private final ConfigLoader configLoader;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
+
+  public ConfigResolver getResolver() {
+    return updatingConfigResolver.getResolver();
+  }
 
   public enum Source {
     REMOTE_API_GRPC,
@@ -71,7 +78,7 @@ public class ConfigClient implements ConfigStore {
     this.baseClient = baseClient;
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
-    resolver = new ConfigResolver(baseClient, configLoader);
+    updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
     configChangeListeners.add(LoggingConfigListener.getInstance());
     configChangeListeners.addAll(Arrays.asList(listeners));
 
@@ -103,7 +110,6 @@ public class ConfigClient implements ConfigStore {
     return get(key, new HashMap<>());
   }
 
-  @Override
   public Optional<Prefab.ConfigValue> get(
     String key,
     Map<String, Prefab.ConfigValue> properties
@@ -122,7 +128,16 @@ public class ConfigClient implements ConfigStore {
           );
         }
       }
-      return resolver.getConfigValue(key, properties);
+      if (baseClient.getOptions().getNamespace().isPresent()) {
+        properties.put(
+          NAMESPACE_KEY,
+          Prefab.ConfigValue
+            .newBuilder()
+            .setString(baseClient.getOptions().getNamespace().get())
+            .build()
+        );
+      }
+      return updatingConfigResolver.getConfigValue(key, properties);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -154,11 +169,10 @@ public class ConfigClient implements ConfigStore {
     return configChangeListeners.remove(configChangeListener);
   }
 
-  @Override
   public Collection<String> getKeys() {
     try {
       initializedLatch.await();
-      return resolver.getKeys();
+      return updatingConfigResolver.getKeys();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -321,7 +335,7 @@ public class ConfigClient implements ConfigStore {
   }
 
   private void finishInit(Source source) {
-    final List<ConfigChangeEvent> changes = resolver.update();
+    final List<ConfigChangeEvent> changes = updatingConfigResolver.update();
     broadcastChanges(changes);
     if (initializedLatch.getCount() > 0) {
       LOG.info(
@@ -329,7 +343,7 @@ public class ConfigClient implements ConfigStore {
         source,
         configLoader.getHighwaterMark()
       );
-      LOG.info(resolver.contentsString());
+      LOG.info(updatingConfigResolver.contentsString());
       initializedLatch.countDown();
     }
   }
@@ -341,7 +355,7 @@ public class ConfigClient implements ConfigStore {
       source,
       configs.hasConfigServicePointer()
     );
-    resolver.setProjectEnvId(configs);
+    updatingConfigResolver.setProjectEnvId(configs);
 
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
