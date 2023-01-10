@@ -45,7 +45,7 @@ public class FeatureFlagClient {
   public boolean featureIsOnFor(
     String feature,
     String lookupKey,
-    Map<String, Object> attributes
+    Map<String, ? extends Object> attributes
   ) {
     return featureIsOnFor(feature, Optional.of(lookupKey), attributes);
   }
@@ -53,7 +53,7 @@ public class FeatureFlagClient {
   public boolean featureIsOnFor(
     String feature,
     Optional<String> lookupKey,
-    Map<String, Object> attributes
+    Map<String, ? extends Object> attributes
   ) {
     return isOn(get(feature, lookupKey, attributes));
   }
@@ -69,7 +69,7 @@ public class FeatureFlagClient {
   public Optional<Prefab.ConfigValue> get(
     String feature,
     Optional<String> lookupKey,
-    Map<String, Object> properties
+    Map<String, ? extends Object> properties
   ) {
     return getFrom(
       feature,
