@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,7 +108,7 @@ public class ConfigClient {
   }
 
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, new HashMap<>());
+    return get(key, Collections.emptyMap());
   }
 
   public Optional<Prefab.ConfigValue> get(
@@ -167,15 +168,6 @@ public class ConfigClient {
 
   public boolean removeConfigChangeListener(ConfigChangeListener configChangeListener) {
     return configChangeListeners.remove(configChangeListener);
-  }
-
-  public Collection<String> getKeys() {
-    try {
-      initializedLatch.await();
-      return updatingConfigResolver.getKeys();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private void loadCheckpoint() {

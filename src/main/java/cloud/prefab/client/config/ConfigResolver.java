@@ -51,11 +51,7 @@ public class ConfigResolver {
 
     final Optional<Match> match = findMatch(configElement, properties);
 
-    if (match.isPresent()) {
-      return Optional.of(match.get().getConfigValue());
-    } else {
-      return Optional.empty();
-    }
+    return match.map(Match::getConfigValue);
   }
 
   /**
@@ -74,7 +70,8 @@ public class ConfigResolver {
     final Optional<Match> match = configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
-        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(properties);
+        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(properties.size() +configRow.getPropertiesMap().size());
+        rowProperties.putAll(properties);
 
         // Add row properties like "active"
         rowProperties.putAll(configRow.getPropertiesMap());
