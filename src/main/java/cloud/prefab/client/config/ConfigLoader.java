@@ -101,33 +101,43 @@ public class ConfigLoader {
     return builder.buildKeepingLast();
   }
 
+  public static Prefab.ConfigValue configValueFromObj(String key, Object obj) {
+    final Prefab.ConfigValue.Builder valueBuilder = Prefab.ConfigValue.newBuilder();
+    if (obj instanceof Boolean) {
+      valueBuilder.setBool((Boolean) obj);
+    } else if (obj instanceof Integer) {
+      valueBuilder.setInt((Integer) obj);
+    } else if (obj instanceof Double) {
+      valueBuilder.setDouble((Double) obj);
+    } else if (obj instanceof String) {
+      if (AbstractLoggingListener.keyIsLogLevel(key)) {
+        valueBuilder.setLogLevel(LogLevel.valueOf(((String) obj).toUpperCase()));
+      } else {
+        valueBuilder.setString((String) obj);
+      }
+    }
+    return valueBuilder.build();
+  }
+
   private ConfigElement toValue(
     String key,
     Object obj,
     ConfigClient.Source source,
     String sourceLocation
   ) {
-    final Prefab.ConfigValue.Builder builder = Prefab.ConfigValue.newBuilder();
-    if (obj instanceof Boolean) {
-      builder.setBool((Boolean) obj);
-    } else if (obj instanceof Integer) {
-      builder.setInt((Integer) obj);
-    } else if (obj instanceof Double) {
-      builder.setDouble((Double) obj);
-    } else if (obj instanceof String) {
-      if (AbstractLoggingListener.keyIsLogLevel(key)) {
-        builder.setLogLevel(LogLevel.valueOf(((String) obj).toUpperCase()));
-      } else {
-        builder.setString((String) obj);
-      }
-    }
+    final Prefab.ConfigValue value = configValueFromObj(key, obj);
+
     return new ConfigElement(
       Prefab.Config
         .newBuilder()
-        .addRows(Prefab.ConfigRow.newBuilder().setValue(builder.build()).build())
+        .addRows(
+          Prefab.ConfigRow
+            .newBuilder()
+            .addValues(Prefab.ConditionalValue.newBuilder().setValue(value).build())
+            .build()
+        )
         .build(),
-      source,
-      sourceLocation
+      new Provenance(source, sourceLocation)
     );
   }
 

@@ -1,33 +1,31 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
+import java.util.stream.Stream;
 
 public class ConfigElement {
 
   private Prefab.Config config;
-  private ConfigClient.Source source;
-  private String sourceLocation;
+  private Provenance provenance;
 
-  public ConfigElement(
-    Prefab.Config config,
-    ConfigClient.Source source,
-    String sourceLocation
-  ) {
+  public ConfigElement(Prefab.Config config, Provenance provenance) {
     this.config = config;
-    this.source = source;
-    this.sourceLocation = sourceLocation;
+    this.provenance = provenance;
   }
 
   public Prefab.Config getConfig() {
     return config;
   }
 
-  public ConfigClient.Source getSource() {
-    return source;
+  public Provenance getProvenance() {
+    return provenance;
   }
 
-  public String getSourceLocation() {
-    return sourceLocation;
+  public Stream<Prefab.ConfigRow> getRowsProjEnvFirst(long projectEnvId) {
+    return config
+      .getRowsList()
+      .stream()
+      .filter(cr -> !cr.hasProjectEnvId() || cr.getProjectEnvId() == projectEnvId)
+      .sorted((o1, o2) -> o1.hasProjectEnvId() ? -1 : 1);
   }
 }

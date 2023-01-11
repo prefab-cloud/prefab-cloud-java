@@ -1,13 +1,12 @@
 package cloud.prefab.client;
 
-import cloud.prefab.domain.Prefab;
+import cloud.prefab.client.config.ConfigElement;
 import java.util.Collection;
-import java.util.Optional;
 
 public interface ConfigStore {
-  Optional<Prefab.ConfigValue> get(String key);
-
-  Optional<Prefab.Config> getConfigObj(String key);
-
   Collection<String> getKeys();
+
+  ConfigElement getElement(String key);
+
+  boolean containsKey(String key);
 }

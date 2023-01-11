@@ -1,120 +1,342 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.ConfigStore;
 import cloud.prefab.domain.Prefab;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConfigResolver {
 
+  public static final String NAMESPACE_KEY = "NAMESPACE";
+  public static final String LOOKUP_KEY = "LOOKUP";
+
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
-  private static final String NAMESPACE_DELIMITER = "\\.";
-
-  private final PrefabCloudClient baseClient;
-  private final ConfigLoader configLoader;
-  private final AtomicReference<ImmutableMap<String, ResolverElement>> localMap = new AtomicReference<>(
-    ImmutableMap.of()
-  );
+  private final ConfigStore configStore;
+  private final WeightedValueEvaluator weightedValueEvaluator;
 
   private long projectEnvId = 0;
 
-  public ConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
-    this.baseClient = baseClient;
-    this.configLoader = configLoader;
+  public ConfigResolver(ConfigStore configStoreImpl) {
+    this(configStoreImpl, 0L);
+  }
+
+  public ConfigResolver(ConfigStore configStoreImpl, long projectEnvId) {
+    this.weightedValueEvaluator = new WeightedValueEvaluator();
+    this.projectEnvId = projectEnvId;
+    this.configStore = configStoreImpl;
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
-    final ResolverElement resolverElement = localMap.get().get(key);
-    if (resolverElement != null) {
-      return Optional.of(resolverElement.getConfigValue());
-    }
-    return Optional.empty();
+    return getConfigValue(key, new HashMap<>());
   }
 
-  public Optional<Prefab.Config> getConfig(String key) {
-    final ResolverElement resolverElement = localMap.get().get(key);
-    if (resolverElement != null) {
-      return Optional.of(resolverElement.getConfig());
+  public Optional<Prefab.ConfigValue> getConfigValue(
+    String key,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
+    if (!configStore.containsKey(key)) {
+      return Optional.empty();
     }
-    return Optional.empty();
+    final ConfigElement configElement = configStore.getElement(key);
+
+    final Optional<Match> match = findMatch(configElement, properties);
+
+    return match.map(Match::getConfigValue);
   }
 
   /**
-   * Return the changed config values since last update()
+   * find if we have a match for the given properties
+   *
+   * @param configElement
+   * @param properties
+   * @return
    */
-  public synchronized List<ConfigChangeEvent> update() {
-    // store the old map
-    final Map<String, Prefab.ConfigValue> before = localMap
-      .get()
-      .entrySet()
+  Optional<Match> findMatch(
+    ConfigElement configElement,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
+    // Prefer rows that have a projEnvId to ones that don't
+    // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
+    final Optional<Match> match = configElement
+      .getRowsProjEnvFirst(projectEnvId)
+      .map(configRow -> {
+        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(
+          properties.size() + configRow.getPropertiesMap().size()
+        );
+        rowProperties.putAll(properties);
+
+        // Add row properties like "active"
+        rowProperties.putAll(configRow.getPropertiesMap());
+        // Return the value of the first matching set of criteria
+        for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
+          Optional<Match> optionalMatch = evaluateConditionalValue(
+            conditionalValue,
+            rowProperties,
+            configElement
+          );
+          if (optionalMatch.isPresent()) {
+            return optionalMatch.get();
+          }
+        }
+        return null;
+      })
+      .filter(Objects::nonNull)
+      .findFirst();
+
+    return match;
+  }
+
+  /**
+   * If all of the conditions match, return a true match
+   *
+   * @param conditionalValue
+   * @param rowProperties
+   * @param configElement
+   * @return
+   */
+  private Optional<Match> evaluateConditionalValue(
+    Prefab.ConditionalValue conditionalValue,
+    Map<String, Prefab.ConfigValue> rowProperties,
+    ConfigElement configElement
+  ) {
+    final List<EvaluatedCriterion> evaluatedCriterionStream = conditionalValue
+      .getCriteriaList()
       .stream()
-      .collect(Collectors.toMap(Entry::getKey, e -> e.getValue().getConfigValue()));
+      .map((criterion -> evaluateCriterionMatch(criterion, rowProperties)))
+      .collect(Collectors.toList());
 
-    // load the new map
-    makeLocal();
+    if (evaluatedCriterionStream.stream().allMatch(EvaluatedCriterion::isMatch)) {
+      Prefab.ConfigValue simplified = simplify(
+        conditionalValue,
+        configElement.getConfig().getKey(),
+        rowProperties
+      );
 
-    // build the new map
-    final Map<String, Prefab.ConfigValue> after = localMap
-      .get()
-      .entrySet()
-      .stream()
-      .collect(Collectors.toMap(Entry::getKey, e -> e.getValue().getConfigValue()));
-
-    MapDifference<String, Prefab.ConfigValue> delta = Maps.difference(before, after);
-    if (delta.areEqual()) {
-      return ImmutableList.of();
+      return Optional.of(
+        new Match(
+          simplified,
+          configElement,
+          evaluatedCriterionStream.stream().collect(Collectors.toList())
+        )
+      );
     } else {
-      ImmutableList.Builder<ConfigChangeEvent> changeEvents = ImmutableList.builder();
-
-      // removed config values
-      delta
-        .entriesOnlyOnLeft()
-        .forEach((key, value) ->
-          changeEvents.add(
-            new ConfigChangeEvent(key, Optional.of(value), Optional.empty())
-          )
-        );
-
-      // added config values
-      delta
-        .entriesOnlyOnRight()
-        .forEach((key, value) ->
-          changeEvents.add(
-            new ConfigChangeEvent(key, Optional.empty(), Optional.of(value))
-          )
-        );
-
-      // changed config values
-      delta
-        .entriesDiffering()
-        .forEach((key, values) ->
-          changeEvents.add(
-            new ConfigChangeEvent(
-              key,
-              Optional.of(values.leftValue()),
-              Optional.of(values.rightValue())
-            )
-          )
-        );
-
-      return changeEvents.build();
+      return Optional.empty();
     }
+  }
+
+  /**
+   * A ConfigValue may be a WeightedValue. If so break it down so we can return a simpler form.
+   */
+  private Prefab.ConfigValue simplify(
+    Prefab.ConditionalValue conditionalValue,
+    String key,
+    Map<String, Prefab.ConfigValue> rowProperties
+  ) {
+    if (conditionalValue.getValue().hasWeightedValues()) {
+      return weightedValueEvaluator.toValue(
+        conditionalValue.getValue().getWeightedValues(),
+        key,
+        lookupKey(rowProperties)
+      );
+    } else {
+      return conditionalValue.getValue();
+    }
+  }
+
+  private Optional<String> lookupKey(Map<String, Prefab.ConfigValue> attributes) {
+    if (attributes.containsKey(LOOKUP_KEY)) {
+      return Optional.of(attributes.get(LOOKUP_KEY).getString());
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  private Optional<Prefab.ConfigValue> prop(
+    String key,
+    Map<String, Prefab.ConfigValue> attributes
+  ) {
+    if (attributes.containsKey(key)) {
+      return Optional.of(attributes.get(key));
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Does this criterion match?
+   *
+   * @param criterion
+   * @param attributes
+   * @return
+   */
+  EvaluatedCriterion evaluateCriterionMatch(
+    Prefab.Criterion criterion,
+    Map<String, Prefab.ConfigValue> attributes
+  ) {
+    Optional<String> lookupKey = lookupKey(attributes);
+    final Optional<Prefab.ConfigValue> prop = prop(
+      criterion.getPropertyName(),
+      attributes
+    );
+
+    switch (criterion.getOperator()) {
+      case ALWAYS_TRUE:
+        return new EvaluatedCriterion(criterion, true);
+      case LOOKUP_KEY_IN:
+        if (!lookupKey.isPresent()) {
+          return new EvaluatedCriterion(criterion, false);
+        }
+        boolean match = criterion
+          .getValueToMatch()
+          .getStringList()
+          .getValuesList()
+          .contains(lookupKey.get());
+        return new EvaluatedCriterion(criterion, lookupKey.get(), match);
+      case LOOKUP_KEY_NOT_IN:
+        if (!lookupKey.isPresent()) {
+          return new EvaluatedCriterion(criterion, false);
+        }
+        boolean notMatch = !criterion
+          .getValueToMatch()
+          .getStringList()
+          .getValuesList()
+          .contains(lookupKey.get());
+        return new EvaluatedCriterion(criterion, lookupKey.get(), notMatch);
+      case HIERARCHICAL_MATCH:
+        if (prop.isPresent()) {
+          if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
+            final String propertyString = attributes
+              .get(criterion.getPropertyName())
+              .getString();
+            return new EvaluatedCriterion(
+              criterion,
+              criterion.getValueToMatch(),
+              hierarchicalMatch(propertyString, criterion.getValueToMatch().getString())
+            );
+          }
+        }
+        return new EvaluatedCriterion(criterion, criterion.getValueToMatch(), false);
+      // The string here is the key of the Segment
+      case IN_SEG:
+        final Optional<Prefab.ConfigValue> optionalSegment = getConfigValue(
+          criterion.getValueToMatch().getString()
+        );
+
+        if (optionalSegment.isPresent() && optionalSegment.get().hasSegment()) {
+          //NOTE This only supports a single set of criteria
+          return evaluateCriterionMatch(
+            optionalSegment
+              .get()
+              .getSegment()
+              .getCriteriaList()
+              .stream()
+              .findFirst()
+              .get(),
+            attributes
+          );
+        } else {
+          return new EvaluatedCriterion(
+            criterion,
+            "Missing Segment " + criterion.getValueToMatch().getString(),
+            false
+          );
+        }
+      case NOT_IN_SEG:
+        final Optional<Prefab.ConfigValue> optionalNotSegment = getConfigValue(
+          criterion.getValueToMatch().getString()
+        );
+
+        if (optionalNotSegment.isPresent() && optionalNotSegment.get().hasSegment()) {
+          return evaluateCriterionMatch(
+            optionalNotSegment
+              .get()
+              .getSegment()
+              .getCriteriaList()
+              .stream()
+              .findFirst()
+              .get(),
+            attributes
+          )
+            .negated();
+        } else {
+          return new EvaluatedCriterion(
+            criterion,
+            "Missing Segment " + criterion.getValueToMatch().getString(),
+            true
+          );
+        }
+      case PROP_IS_ONE_OF:
+        // assumption that property is a String
+        return new EvaluatedCriterion(
+          criterion,
+          prop.get().getString(),
+          criterion
+            .getValueToMatch()
+            .getStringList()
+            .getValuesList()
+            .contains(prop.get().getString())
+        );
+      case PROP_IS_NOT_ONE_OF:
+        return new EvaluatedCriterion(
+          criterion,
+          prop.get().getString(),
+          !criterion
+            .getValueToMatch()
+            .getStringList()
+            .getValuesList()
+            .contains(prop.get().getString())
+        );
+      case PROP_ENDS_WITH_ONE_OF:
+        if (prop.isPresent() && prop.get().hasString()) {
+          final boolean matched = criterion
+            .getValueToMatch()
+            .getStringList()
+            .getValuesList()
+            .stream()
+            .anyMatch(value -> prop.get().getString().endsWith(value));
+
+          return new EvaluatedCriterion(criterion, prop.get(), matched);
+        } else {
+          return new EvaluatedCriterion(criterion, false);
+        }
+      case PROP_DOES_NOT_END_WITH_ONE_OF:
+        if (prop.isPresent() && prop.get().hasString()) {
+          final boolean matched = criterion
+            .getValueToMatch()
+            .getStringList()
+            .getValuesList()
+            .stream()
+            .anyMatch(value -> prop.get().getString().endsWith(value));
+
+          return new EvaluatedCriterion(criterion, prop.get(), !matched);
+        } else {
+          return new EvaluatedCriterion(criterion, true);
+        }
+    }
+    // Unknown Operator
+    return new EvaluatedCriterion(criterion, false);
+  }
+
+  /**
+   * a.b.c match a.b -> true
+   * a.b match a.b.c -> false
+   *
+   * @param valueToMatch
+   * @param propertyString
+   * @return
+   */
+  boolean hierarchicalMatch(String propertyString, String valueToMatch) {
+    return propertyString.startsWith(valueToMatch);
   }
 
   public boolean setProjectEnvId(Prefab.Configs configs) {
@@ -125,97 +347,24 @@ public class ConfigResolver {
     return false;
   }
 
-  /**
-   * pre-evaluate all config values for our env_key and namespace so that lookups are simple
-   */
-  private void makeLocal() {
-    ImmutableMap.Builder<String, ResolverElement> store = ImmutableMap.builder();
-
-    configLoader
-      .calcConfig()
-      .forEach((key, configElement) -> {
-        List<ResolverElement> l = configElement
-          .getConfig()
-          .getRowsList()
-          .stream()
-          .map(row -> {
-            //        LOG.info("eval {}", row);
-            //        LOG.info("row projectID {}", row.getProjectEnvId());
-            if (row.getProjectEnvId() != 0) { //protobuf is set
-              if (row.getProjectEnvId() == projectEnvId) {
-                if (!row.getNamespace().isEmpty()) {
-                  NamespaceMatch match = evaluateMatch(
-                    row.getNamespace(),
-                    baseClient.getOptions().getNamespace()
-                  );
-                  if (match.isMatch()) {
-                    return new ResolverElement(
-                      2 + match.getPartCount(),
-                      configElement,
-                      row.getValue(),
-                      row.getNamespace()
-                    );
-                  } else {
-                    return null;
-                  }
-                } else {
-                  return new ResolverElement(
-                    1,
-                    configElement,
-                    row.getValue(),
-                    String.format("Env:%d", projectEnvId)
-                  );
-                }
-              } else {
-                return null;
-              }
-            }
-            return new ResolverElement(0, configElement, row.getValue(), "default");
-          })
-          .filter(Objects::nonNull)
-          .sorted()
-          .collect(Collectors.toList());
-
-        if (!l.isEmpty()) {
-          final ResolverElement resolverElement = l.get(l.size() - 1);
-          store.put(key, resolverElement);
-        }
-      });
-
-    localMap.set(store.buildKeepingLast());
-  }
-
-  NamespaceMatch evaluateMatch(String namespace, String baseNamespace) {
-    final String[] nsSplit = namespace.split(NAMESPACE_DELIMITER);
-    final String[] baseSplit = baseNamespace.split(NAMESPACE_DELIMITER);
-
-    List<Boolean> matches = new ArrayList<>();
-    for (int i = 0; i < nsSplit.length; i++) {
-      if (baseSplit.length <= i) {
-        matches.add(false);
-        continue;
-      }
-      matches.add(nsSplit[i].equals(baseSplit[i]));
-    }
-    return new NamespaceMatch(
-      matches.stream().allMatch(b -> b),
-      matches.stream().filter(b -> b).count()
-    );
-  }
-
   public Collection<String> getKeys() {
-    return localMap.get().keySet();
+    return configStore.getKeys();
   }
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder("\n");
-    List<String> sortedKeys = new ArrayList(localMap.get().keySet());
+    List<String> sortedKeys = new ArrayList(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
-      ResolverElement resolverElement = localMap.get().get(key);
-      sb.append(padded(key, 30));
-      sb.append(padded(toS(resolverElement.getConfigValue()), 40));
-      sb.append(padded(resolverElement.provenance(), 90));
+      ConfigElement configElement = configStore.getElement(key);
+      final Optional<Match> match = findMatch(configElement, new HashMap<>());
+
+      if (match.isPresent()) {
+        sb.append(padded(key, 30));
+        sb.append(padded(toS(match.get().getConfigValue()), 40));
+        sb.append(padded(configElement.getProvenance().toString(), 40));
+        sb.append(padded(match.get().getReason(), 40));
+      }
       sb.append("\n");
     }
     System.out.println(sb.toString());
@@ -235,8 +384,6 @@ public class ConfigResolver {
       return Double.toString(configValue.getDouble());
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
       return "Segment";
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.FEATURE_FLAG) {
-      return "FeatureFlag";
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.LOG_LEVEL) {
       return configValue.getLogLevel().toString();
     } else {
@@ -249,50 +396,5 @@ public class ConfigResolver {
       "%-" + size + "s",
       s.substring(0, Math.min(s.length(), size - 1))
     );
-  }
-
-  public static class NamespaceMatch {
-
-    private boolean match;
-    private int partCount;
-
-    public NamespaceMatch(boolean match, long partCount) {
-      this.match = match;
-      this.partCount = (int) partCount;
-    }
-
-    public boolean isMatch() {
-      return match;
-    }
-
-    public int getPartCount() {
-      return partCount;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      NamespaceMatch that = (NamespaceMatch) o;
-      return match == that.match && partCount == that.partCount;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(match, partCount);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects
-        .toStringHelper(this)
-        .add("match", match)
-        .add("partCount", partCount)
-        .toString();
-    }
   }
 }
