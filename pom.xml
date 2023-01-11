@@ -10,7 +10,7 @@
 
   <groupId>cloud.prefab</groupId>
   <artifactId>prefab-cloud-java</artifactId>
-  <version>0.1.8</version>
+  <version>0.2.0.pre1</version>
 
   <name>Prefab.cloud API Client</name>
   <description>API Client for https://prefab.cloud: rate limits, feature flags and semaphores as a service</description>
