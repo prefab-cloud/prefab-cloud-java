@@ -108,7 +108,7 @@ public class ConfigClient {
   }
 
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, Collections.emptyMap());
+    return get(key, new HashMap<>());
   }
 
   public Optional<Prefab.ConfigValue> get(
