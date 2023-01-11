@@ -70,7 +70,9 @@ public class ConfigResolver {
     final Optional<Match> match = configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
-        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(properties.size() +configRow.getPropertiesMap().size());
+        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(
+          properties.size() + configRow.getPropertiesMap().size()
+        );
         rowProperties.putAll(properties);
 
         // Add row properties like "active"
