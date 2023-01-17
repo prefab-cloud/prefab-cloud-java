@@ -276,6 +276,9 @@ public class ConfigResolver {
           );
         }
       case PROP_IS_ONE_OF:
+        if (!prop.isPresent()) {
+          return new EvaluatedCriterion(criterion, false);
+        }
         // assumption that property is a String
         return new EvaluatedCriterion(
           criterion,
@@ -287,6 +290,9 @@ public class ConfigResolver {
             .contains(prop.get().getString())
         );
       case PROP_IS_NOT_ONE_OF:
+        if (!prop.isPresent()) {
+          return new EvaluatedCriterion(criterion, false);
+        }
         return new EvaluatedCriterion(
           criterion,
           prop.get().getString(),
