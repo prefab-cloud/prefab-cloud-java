@@ -3,10 +3,10 @@ package cloud.prefab.client.integration;
 import cloud.prefab.client.PrefabCloudClient;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public enum IntegrationTestFunction {
   GET_OR_RAISE("get_or_raise") {
@@ -35,10 +35,7 @@ public enum IntegrationTestFunction {
   private static final Map<String, IntegrationTestFunction> JSON_INDEX = Arrays
     .stream(IntegrationTestFunction.values())
     .collect(
-      ImmutableMap.toImmutableMap(
-        IntegrationTestFunction::getJsonValue,
-        Function.identity()
-      )
+      Collectors.toMap(IntegrationTestFunction::getJsonValue, Function.identity())
     );
 
   private final String jsonValue;
