@@ -12,12 +12,12 @@ import java.util.stream.Collectors;
 
 public class FeatureFlagClient {
 
-  private final ConfigResolver configResolver;
+  private final ConfigClient configClient;
 
   private RandomProviderIF randomProvider = new RandomProvider();
 
-  public FeatureFlagClient(ConfigResolver configResolver) {
-    this.configResolver = configResolver;
+  public FeatureFlagClient(ConfigClient configClient) {
+    this.configClient = configClient;
   }
 
   /**
@@ -97,7 +97,7 @@ public class FeatureFlagClient {
         Prefab.ConfigValue.newBuilder().setString(lookupKey.get()).build()
       );
     }
-    return configResolver.getConfigValue(feature, attributes);
+    return configClient.get(feature, attributes);
   }
 
   private boolean isOn(Optional<Prefab.ConfigValue> featureFlagVariant) {
