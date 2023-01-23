@@ -122,13 +122,7 @@ public class ConfigResolver {
         rowProperties
       );
 
-      return Optional.of(
-        new Match(
-          simplified,
-          configElement,
-          evaluatedCriterionStream.stream().collect(Collectors.toList())
-        )
-      );
+      return Optional.of(new Match(simplified, configElement, evaluatedCriterionStream));
     } else {
       return Optional.empty();
     }
@@ -233,17 +227,9 @@ public class ConfigResolver {
         );
 
         if (optionalSegment.isPresent() && optionalSegment.get().hasSegment()) {
-          //NOTE This only supports a single set of criteria
-          return evaluateCriterionMatch(
-            optionalSegment
-              .get()
-              .getSegment()
-              .getCriteriaList()
-              .stream()
-              .findFirst()
-              .get(),
-            attributes
-          );
+          if (segMatches(optionalSegment.get().getSegment(), attributes)) {
+            return new EvaluatedCriterion(criterion, criterion.getValueToMatch(), true);
+          }
         } else {
           return new EvaluatedCriterion(
             criterion,
@@ -257,17 +243,9 @@ public class ConfigResolver {
         );
 
         if (optionalNotSegment.isPresent() && optionalNotSegment.get().hasSegment()) {
-          return evaluateCriterionMatch(
-            optionalNotSegment
-              .get()
-              .getSegment()
-              .getCriteriaList()
-              .stream()
-              .findFirst()
-              .get(),
-            attributes
-          )
-            .negated();
+          if (!segMatches(optionalNotSegment.get().getSegment(), attributes)) {
+            return new EvaluatedCriterion(criterion, criterion.getValueToMatch(), true);
+          }
         } else {
           return new EvaluatedCriterion(
             criterion,
@@ -331,6 +309,16 @@ public class ConfigResolver {
     }
     // Unknown Operator
     return new EvaluatedCriterion(criterion, false);
+  }
+
+  private boolean segMatches(
+    Prefab.Segment segment,
+    Map<String, Prefab.ConfigValue> attributes
+  ) {
+    return segment
+      .getCriteriaList()
+      .stream()
+      .allMatch(criterion -> evaluateCriterionMatch(criterion, attributes).isMatch());
   }
 
   /**
