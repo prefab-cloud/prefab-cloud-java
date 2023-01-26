@@ -45,6 +45,7 @@ public class ConfigResolver {
     Map<String, Prefab.ConfigValue> properties
   ) {
     if (!configStore.containsKey(key)) {
+      LOG.warn("No config value found for key {}", key);
       return Optional.empty();
     }
     final ConfigElement configElement = configStore.getElement(key);
@@ -52,9 +53,10 @@ public class ConfigResolver {
     return evalConfigElementMatch(configElement, properties);
   }
 
-  public Optional<Prefab.ConfigValue> getConfigValue(String key,
-      Map<String, Prefab.ConfigValue> properties){
-
+  public Optional<Prefab.ConfigValue> getConfigValue(
+    String key,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
     return getMatch(key, properties).map(Match::getConfigValue);
   }
 
@@ -216,14 +218,18 @@ public class ConfigResolver {
             final String propertyString = attributes
               .get(criterion.getPropertyName())
               .getString();
-            return List.of(new EvaluatedCriterion(
-              criterion,
-              criterion.getValueToMatch(),
-              hierarchicalMatch(propertyString, criterion.getValueToMatch().getString()))
+            return List.of(
+              new EvaluatedCriterion(
+                criterion,
+                criterion.getValueToMatch(),
+                hierarchicalMatch(propertyString, criterion.getValueToMatch().getString())
+              )
             );
           }
         }
-        return List.of(new EvaluatedCriterion(criterion, criterion.getValueToMatch(), false));
+        return List.of(
+          new EvaluatedCriterion(criterion, criterion.getValueToMatch(), false)
+        );
       // The string here is the key of the Segment
       case IN_SEG:
         final Optional<Match> evaluatedSegment = getMatch(
@@ -231,14 +237,20 @@ public class ConfigResolver {
           attributes
         );
 
-        if (evaluatedSegment.isPresent() && evaluatedSegment.get().getConfigValue().hasBool()) {
+        if (
+          evaluatedSegment.isPresent() &&
+          evaluatedSegment.get().getConfigValue().hasBool() &&
+          evaluatedSegment.get().getConfigValue().getBool()
+        ) {
           return evaluatedSegment.get().getEvaluatedCriterion();
         } else {
-          return List.of(new EvaluatedCriterion(
-            criterion,
-            "Missing Segment " + criterion.getValueToMatch().getString(),
-            false
-          ));
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              "Missing Segment " + criterion.getValueToMatch().getString(),
+              false
+            )
+          );
         }
       case NOT_IN_SEG:
         final Optional<Prefab.ConfigValue> evaluatedNotSegment = getConfigValue(
@@ -247,45 +259,53 @@ public class ConfigResolver {
         );
 
         if (evaluatedNotSegment.isPresent() && evaluatedNotSegment.get().hasBool()) {
-          return List.of(new EvaluatedCriterion(
-            criterion,
-            criterion.getValueToMatch(),
-            !evaluatedNotSegment.get().getBool()
-          ));
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              criterion.getValueToMatch(),
+              !evaluatedNotSegment.get().getBool()
+            )
+          );
         } else {
-          return List.of(new EvaluatedCriterion(
-            criterion,
-            "Missing Segment " + criterion.getValueToMatch().getString(),
-            true
-          ));
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              "Missing Segment " + criterion.getValueToMatch().getString(),
+              true
+            )
+          );
         }
       case PROP_IS_ONE_OF:
         if (!prop.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
         // assumption that property is a String
-        return List.of(new EvaluatedCriterion(
-          criterion,
-          prop.get().getString(),
-          criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .contains(prop.get().getString())
-        ));
+        return List.of(
+          new EvaluatedCriterion(
+            criterion,
+            prop.get().getString(),
+            criterion
+              .getValueToMatch()
+              .getStringList()
+              .getValuesList()
+              .contains(prop.get().getString())
+          )
+        );
       case PROP_IS_NOT_ONE_OF:
         if (!prop.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
-        return List.of(new EvaluatedCriterion(
-          criterion,
-          prop.get().getString(),
-          !criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .contains(prop.get().getString())
-        ));
+        return List.of(
+          new EvaluatedCriterion(
+            criterion,
+            prop.get().getString(),
+            !criterion
+              .getValueToMatch()
+              .getStringList()
+              .getValuesList()
+              .contains(prop.get().getString())
+          )
+        );
       case PROP_ENDS_WITH_ONE_OF:
         if (prop.isPresent() && prop.get().hasString()) {
           final boolean matched = criterion
@@ -347,7 +367,10 @@ public class ConfigResolver {
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
-      final Optional<Match> match = evalConfigElementMatch(configElement, new HashMap<>());
+      final Optional<Match> match = evalConfigElementMatch(
+        configElement,
+        new HashMap<>()
+      );
 
       if (match.isPresent()) {
         sb.append(padded(key, 30));

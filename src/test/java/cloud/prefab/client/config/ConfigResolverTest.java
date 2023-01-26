@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -207,26 +206,38 @@ public class ConfigResolverTest {
       .setOperator(Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF)
       .build();
 
-    final EvaluatedCriterion bobEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("bob@example.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion bobEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("bob@example.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(bobEval.isMatch()).isFalse();
     assertThat(bobEval.getEvaluatedProperty().get().getString())
       .isEqualTo("bob@example.com");
 
-    final EvaluatedCriterion yahooEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("alice@yahoo.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion yahooEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("alice@yahoo.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(yahooEval.isMatch()).isTrue();
     assertThat(yahooEval.getEvaluatedProperty().get().getString())
       .isEqualTo("alice@yahoo.com");
 
-    final EvaluatedCriterion gmailEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("alice@gmail.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion gmailEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("alice@gmail.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(gmailEval.isMatch()).isTrue();
     assertThat(gmailEval.getEvaluatedProperty().get().getString())
       .isEqualTo("alice@gmail.com");
@@ -251,26 +262,38 @@ public class ConfigResolverTest {
       .setOperator(Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_END_WITH_ONE_OF)
       .build();
 
-    final EvaluatedCriterion bobEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("bob@example.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion bobEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("bob@example.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(bobEval.isMatch()).isTrue();
     assertThat(bobEval.getEvaluatedProperty().get().getString())
       .isEqualTo("bob@example.com");
 
-    final EvaluatedCriterion yahooEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("alice@yahoo.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion yahooEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("alice@yahoo.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(yahooEval.isMatch()).isFalse();
     assertThat(yahooEval.getEvaluatedProperty().get().getString())
       .isEqualTo("alice@yahoo.com");
 
-    final EvaluatedCriterion gmailEval = resolver.evaluateCriterionMatch(
-      socialEmailCritieria,
-      ImmutableMap.of("email", sv("alice@gmail.com"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion gmailEval = resolver
+      .evaluateCriterionMatch(
+        socialEmailCritieria,
+        ImmutableMap.of("email", sv("alice@gmail.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
     assertThat(gmailEval.isMatch()).isFalse();
     assertThat(gmailEval.getEvaluatedProperty().get().getString())
       .isEqualTo("alice@gmail.com");
@@ -287,20 +310,20 @@ public class ConfigResolverTest {
       .setOperator(Prefab.Criterion.CriterionOperator.IN_SEG)
       .build();
 
-    final EvaluatedCriterion betaEval = resolver.evaluateCriterionMatch(
-      segmentCriteria,
-      ImmutableMap.of("group", sv("beta"))
-    ).stream().findFirst().get();
+    final EvaluatedCriterion betaEval = resolver
+      .evaluateCriterionMatch(segmentCriteria, ImmutableMap.of("group", sv("beta")))
+      .stream()
+      .findFirst()
+      .get();
     assertThat(betaEval.getEvaluatedProperty().get().getString()).isEqualTo("beta");
     assertThat(betaEval.isMatch()).isTrue();
-
-//    final List<EvaluatedCriterion> alphaEval = resolver.evaluateCriterionMatch(
-//      segmentCriteria,
-//      ImmutableMap.of("group", sv("alpha"))
-//    );
-//    System.out.println(alphaEval);
-//    assertThat(alphaEval.isMatch()).isFalse();
-//    assertThat(alphaEval.getEvaluatedProperty().get().getString()).isEqualTo("alpha");
+    final List<EvaluatedCriterion> alphaEval = resolver.evaluateCriterionMatch(
+      segmentCriteria,
+      ImmutableMap.of("group", sv("alpha"))
+    );
+    System.out.println(alphaEval);
+    assertThat(alphaEval).hasSize(1);
+    assertThat(alphaEval.get(0).isMatch()).isFalse();
   }
 
   private Prefab.ConfigValue sv(String s) {
