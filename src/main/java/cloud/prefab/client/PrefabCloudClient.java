@@ -54,7 +54,7 @@ public class PrefabCloudClient implements AutoCloseable {
 
   public FeatureFlagClient featureFlagClient() {
     if (featureFlagClient == null) {
-      featureFlagClient = new FeatureFlagClient(configClient().getResolver());
+      featureFlagClient = new FeatureFlagClient(configClient());
     }
     return featureFlagClient;
   }

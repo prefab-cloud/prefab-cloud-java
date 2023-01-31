@@ -40,18 +40,24 @@ public class ConfigResolver {
     return getConfigValue(key, new HashMap<>());
   }
 
-  public Optional<Prefab.ConfigValue> getConfigValue(
+  public Optional<Match> getMatch(
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
     if (!configStore.containsKey(key)) {
+      LOG.warn("No config value found for key {}", key);
       return Optional.empty();
     }
     final ConfigElement configElement = configStore.getElement(key);
 
-    final Optional<Match> match = findMatch(configElement, properties);
+    return evalConfigElementMatch(configElement, properties);
+  }
 
-    return match.map(Match::getConfigValue);
+  public Optional<Prefab.ConfigValue> getConfigValue(
+    String key,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
+    return getMatch(key, properties).map(Match::getConfigValue);
   }
 
   /**
@@ -61,7 +67,7 @@ public class ConfigResolver {
    * @param properties
    * @return
    */
-  Optional<Match> findMatch(
+  Optional<Match> evalConfigElementMatch(
     ConfigElement configElement,
     Map<String, Prefab.ConfigValue> properties
   ) {
@@ -112,7 +118,7 @@ public class ConfigResolver {
     final List<EvaluatedCriterion> evaluatedCriterionStream = conditionalValue
       .getCriteriaList()
       .stream()
-      .map((criterion -> evaluateCriterionMatch(criterion, rowProperties)))
+      .flatMap(criterion -> evaluateCriterionMatch(criterion, rowProperties).stream())
       .collect(Collectors.toList());
 
     if (evaluatedCriterionStream.stream().allMatch(EvaluatedCriterion::isMatch)) {
@@ -122,13 +128,7 @@ public class ConfigResolver {
         rowProperties
       );
 
-      return Optional.of(
-        new Match(
-          simplified,
-          configElement,
-          evaluatedCriterionStream.stream().collect(Collectors.toList())
-        )
-      );
+      return Optional.of(new Match(simplified, configElement, evaluatedCriterionStream));
     } else {
       return Optional.empty();
     }
@@ -179,7 +179,7 @@ public class ConfigResolver {
    * @param attributes
    * @return
    */
-  EvaluatedCriterion evaluateCriterionMatch(
+  List<EvaluatedCriterion> evaluateCriterionMatch(
     Prefab.Criterion criterion,
     Map<String, Prefab.ConfigValue> attributes
   ) {
@@ -191,110 +191,120 @@ public class ConfigResolver {
 
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
-        return new EvaluatedCriterion(criterion, true);
+        return List.of(new EvaluatedCriterion(criterion, true));
       case LOOKUP_KEY_IN:
         if (!lookupKey.isPresent()) {
-          return new EvaluatedCriterion(criterion, false);
+          return List.of(new EvaluatedCriterion(criterion, false));
         }
         boolean match = criterion
           .getValueToMatch()
           .getStringList()
           .getValuesList()
           .contains(lookupKey.get());
-        return new EvaluatedCriterion(criterion, lookupKey.get(), match);
+        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), match));
       case LOOKUP_KEY_NOT_IN:
         if (!lookupKey.isPresent()) {
-          return new EvaluatedCriterion(criterion, false);
+          return List.of(new EvaluatedCriterion(criterion, false));
         }
         boolean notMatch = !criterion
           .getValueToMatch()
           .getStringList()
           .getValuesList()
           .contains(lookupKey.get());
-        return new EvaluatedCriterion(criterion, lookupKey.get(), notMatch);
+        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), notMatch));
       case HIERARCHICAL_MATCH:
         if (prop.isPresent()) {
           if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
             final String propertyString = attributes
               .get(criterion.getPropertyName())
               .getString();
-            return new EvaluatedCriterion(
-              criterion,
-              criterion.getValueToMatch(),
-              hierarchicalMatch(propertyString, criterion.getValueToMatch().getString())
+            return List.of(
+              new EvaluatedCriterion(
+                criterion,
+                criterion.getValueToMatch(),
+                hierarchicalMatch(propertyString, criterion.getValueToMatch().getString())
+              )
             );
           }
         }
-        return new EvaluatedCriterion(criterion, criterion.getValueToMatch(), false);
+        return List.of(
+          new EvaluatedCriterion(criterion, criterion.getValueToMatch(), false)
+        );
       // The string here is the key of the Segment
       case IN_SEG:
-        final Optional<Prefab.ConfigValue> optionalSegment = getConfigValue(
-          criterion.getValueToMatch().getString()
+        final Optional<Match> evaluatedSegment = getMatch(
+          criterion.getValueToMatch().getString(),
+          attributes
         );
 
-        if (optionalSegment.isPresent() && optionalSegment.get().hasSegment()) {
-          //NOTE This only supports a single set of criteria
-          return evaluateCriterionMatch(
-            optionalSegment
-              .get()
-              .getSegment()
-              .getCriteriaList()
-              .stream()
-              .findFirst()
-              .get(),
-            attributes
-          );
+        if (
+          evaluatedSegment.isPresent() &&
+          evaluatedSegment.get().getConfigValue().hasBool() &&
+          evaluatedSegment.get().getConfigValue().getBool()
+        ) {
+          return evaluatedSegment.get().getEvaluatedCriterion();
         } else {
-          return new EvaluatedCriterion(
-            criterion,
-            "Missing Segment " + criterion.getValueToMatch().getString(),
-            false
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              "Missing Segment " + criterion.getValueToMatch().getString(),
+              false
+            )
           );
         }
       case NOT_IN_SEG:
-        final Optional<Prefab.ConfigValue> optionalNotSegment = getConfigValue(
-          criterion.getValueToMatch().getString()
+        final Optional<Prefab.ConfigValue> evaluatedNotSegment = getConfigValue(
+          criterion.getValueToMatch().getString(),
+          attributes
         );
 
-        if (optionalNotSegment.isPresent() && optionalNotSegment.get().hasSegment()) {
-          return evaluateCriterionMatch(
-            optionalNotSegment
-              .get()
-              .getSegment()
-              .getCriteriaList()
-              .stream()
-              .findFirst()
-              .get(),
-            attributes
-          )
-            .negated();
+        if (evaluatedNotSegment.isPresent() && evaluatedNotSegment.get().hasBool()) {
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              criterion.getValueToMatch(),
+              !evaluatedNotSegment.get().getBool()
+            )
+          );
         } else {
-          return new EvaluatedCriterion(
-            criterion,
-            "Missing Segment " + criterion.getValueToMatch().getString(),
-            true
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              "Missing Segment " + criterion.getValueToMatch().getString(),
+              true
+            )
           );
         }
       case PROP_IS_ONE_OF:
+        if (!prop.isPresent()) {
+          return List.of(new EvaluatedCriterion(criterion, false));
+        }
         // assumption that property is a String
-        return new EvaluatedCriterion(
-          criterion,
-          prop.get().getString(),
-          criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .contains(prop.get().getString())
+        return List.of(
+          new EvaluatedCriterion(
+            criterion,
+            prop.get().getString(),
+            criterion
+              .getValueToMatch()
+              .getStringList()
+              .getValuesList()
+              .contains(prop.get().getString())
+          )
         );
       case PROP_IS_NOT_ONE_OF:
-        return new EvaluatedCriterion(
-          criterion,
-          prop.get().getString(),
-          !criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .contains(prop.get().getString())
+        if (!prop.isPresent()) {
+          return List.of(new EvaluatedCriterion(criterion, false));
+        }
+        return List.of(
+          new EvaluatedCriterion(
+            criterion,
+            prop.get().getString(),
+            !criterion
+              .getValueToMatch()
+              .getStringList()
+              .getValuesList()
+              .contains(prop.get().getString())
+          )
         );
       case PROP_ENDS_WITH_ONE_OF:
         if (prop.isPresent() && prop.get().hasString()) {
@@ -305,9 +315,9 @@ public class ConfigResolver {
             .stream()
             .anyMatch(value -> prop.get().getString().endsWith(value));
 
-          return new EvaluatedCriterion(criterion, prop.get(), matched);
+          return List.of(new EvaluatedCriterion(criterion, prop.get(), matched));
         } else {
-          return new EvaluatedCriterion(criterion, false);
+          return List.of(new EvaluatedCriterion(criterion, false));
         }
       case PROP_DOES_NOT_END_WITH_ONE_OF:
         if (prop.isPresent() && prop.get().hasString()) {
@@ -318,13 +328,13 @@ public class ConfigResolver {
             .stream()
             .anyMatch(value -> prop.get().getString().endsWith(value));
 
-          return new EvaluatedCriterion(criterion, prop.get(), !matched);
+          return List.of(new EvaluatedCriterion(criterion, prop.get(), !matched));
         } else {
-          return new EvaluatedCriterion(criterion, true);
+          return List.of(new EvaluatedCriterion(criterion, true));
         }
     }
     // Unknown Operator
-    return new EvaluatedCriterion(criterion, false);
+    return List.of(new EvaluatedCriterion(criterion, false));
   }
 
   /**
@@ -357,7 +367,10 @@ public class ConfigResolver {
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
-      final Optional<Match> match = findMatch(configElement, new HashMap<>());
+      final Optional<Match> match = evalConfigElementMatch(
+        configElement,
+        new HashMap<>()
+      );
 
       if (match.isPresent()) {
         sb.append(padded(key, 30));
@@ -382,8 +395,6 @@ public class ConfigResolver {
       return "Bytes";
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.DOUBLE) {
       return Double.toString(configValue.getDouble());
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.SEGMENT) {
-      return "Segment";
     } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.LOG_LEVEL) {
       return configValue.getLogLevel().toString();
     } else {

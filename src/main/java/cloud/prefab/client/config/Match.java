@@ -34,6 +34,10 @@ public class Match {
     return sb.toString();
   }
 
+  public List<EvaluatedCriterion> getEvaluatedCriterion() {
+    return evaluatedCriterion;
+  }
+
   @Override
   public String toString() {
     return MoreObjects

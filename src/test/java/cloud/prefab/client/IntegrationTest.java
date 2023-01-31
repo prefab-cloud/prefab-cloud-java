@@ -4,14 +4,13 @@ import cloud.prefab.client.integration.IntegrationTestFile;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -28,14 +27,11 @@ public class IntegrationTest {
 
   @TestFactory
   public Collection<DynamicTest> runIntegrationTests() throws IOException {
-    if (1 == 1) {
-      return Collections.emptyList();
-    }
     return findIntegrationTestFiles()
       .stream()
       .map(IntegrationTest::parseTestFile)
       .flatMap(IntegrationTestFile::buildDynamicTests)
-      .collect(ImmutableList.toImmutableList());
+      .collect(Collectors.toList());
   }
 
   private static List<Path> findIntegrationTestFiles() throws IOException {
@@ -46,7 +42,7 @@ public class IntegrationTest {
           .resolve(getIntegrationTestsVersion())
       )
     ) {
-      return stream.collect(ImmutableList.toImmutableList());
+      return stream.collect(Collectors.toList());
     }
   }
 

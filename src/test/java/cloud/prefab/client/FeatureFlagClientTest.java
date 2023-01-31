@@ -7,13 +7,13 @@ import org.junit.jupiter.api.BeforeEach;
 
 public class FeatureFlagClientTest {
 
-  private ConfigResolver mockConfigResolver;
+  private ConfigClient mockConfigClient;
   private FeatureFlagClient featureFlagClient;
 
   @BeforeEach
   public void setup() {
-    mockConfigResolver = mock(ConfigResolver.class);
-    featureFlagClient = new FeatureFlagClient(mockConfigResolver);
+    mockConfigClient = mock(ConfigClient.class);
+    featureFlagClient = new FeatureFlagClient(mockConfigClient);
   }
   //
 
