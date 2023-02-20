@@ -29,8 +29,6 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,17 +169,23 @@ public class ConfigClient {
   }
 
   private void loadCheckpoint() {
-    boolean cdnSuccess = loadCDN();
-    if (cdnSuccess) {
-      return;
+    // allowing an exception to reach the ScheduledExecutor cancels future execution so we
+    // need to catch and log here
+    try {
+      boolean cdnSuccess = loadCDN();
+      if (cdnSuccess) {
+        return;
+      }
+
+      Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
+        .newBuilder()
+        .setStartAtId(configLoader.getHighwaterMark())
+        .build();
+
+      loadGrpc(pointer);
+    } catch (Exception e) {
+      LOG.warn("Error getting checkpoint - will try again", e);
     }
-
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-      .newBuilder()
-      .setStartAtId(configLoader.getHighwaterMark())
-      .build();
-
-    loadGrpc(pointer);
   }
 
   private void loadGrpc(Prefab.ConfigServicePointer pointer) {
