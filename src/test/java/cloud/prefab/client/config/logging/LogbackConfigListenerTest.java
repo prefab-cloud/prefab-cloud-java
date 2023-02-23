@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.internal.ConfigClientImpl;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +18,10 @@ public class LogbackConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsSpecificLogLevel() {
-    new ConfigClient(clientWithSpecificLogLevel(), LogbackConfigListener.getInstance());
+    new ConfigClientImpl(
+      clientWithSpecificLogLevel(),
+      LogbackConfigListener.getInstance()
+    );
 
     assertThat(
       ((Logger) LoggerFactory.getLogger(specificLoggerName())).getEffectiveLevel()
@@ -31,7 +34,10 @@ public class LogbackConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsDefaultLogLevel() {
-    new ConfigClient(clientWithDefaultLogLevel(), LogbackConfigListener.getInstance());
+    new ConfigClientImpl(
+      clientWithDefaultLogLevel(),
+      LogbackConfigListener.getInstance()
+    );
 
     assertThat(
       ((Logger) LoggerFactory.getLogger(specificLoggerName())).getEffectiveLevel()

@@ -9,7 +9,6 @@ import cloud.prefab.domain.Prefab;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 
 class AbstractLiveValueTest {
 

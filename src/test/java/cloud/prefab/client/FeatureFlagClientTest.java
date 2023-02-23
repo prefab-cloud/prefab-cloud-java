@@ -2,7 +2,6 @@ package cloud.prefab.client;
 
 import static org.mockito.Mockito.mock;
 
-import cloud.prefab.client.config.ConfigResolver;
 import org.junit.jupiter.api.BeforeEach;
 
 public class FeatureFlagClientTest {

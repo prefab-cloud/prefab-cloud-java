@@ -1,5 +1,6 @@
 package cloud.prefab.client;
 
+import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.client.util.NoopCache;
 import com.google.common.base.Preconditions;
@@ -47,7 +48,7 @@ public class PrefabCloudClient implements AutoCloseable {
 
   public ConfigClient configClient() {
     if (configClient == null) {
-      configClient = new ConfigClient(this);
+      configClient = new ConfigClientImpl(this);
     }
     return configClient;
   }

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
@@ -41,7 +41,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -58,7 +58,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -80,7 +80,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -97,7 +97,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -119,7 +119,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -136,7 +136,7 @@ public class ConfigResolverTest {
         .evalConfigElementMatch(
           new ConfigElement(
             flag,
-            new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
           Map.of(
             ConfigResolver.LOOKUP_KEY,
@@ -367,7 +367,7 @@ public class ConfigResolverTest {
 
     return new ConfigElement(
       segment,
-      new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit test")
+      new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
     );
   }
 }
