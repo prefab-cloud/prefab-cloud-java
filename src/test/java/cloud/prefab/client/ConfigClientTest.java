@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import java.util.ArrayList;
 import java.util.List;

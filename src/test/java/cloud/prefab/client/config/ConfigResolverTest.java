@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import cloud.prefab.client.ConfigClientImpl;
+import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;

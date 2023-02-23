@@ -1,7 +1,11 @@
-package cloud.prefab.client;
+package cloud.prefab.client.internal;
 
 import static cloud.prefab.client.config.ConfigResolver.NAMESPACE_KEY;
 
+import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.Options;
+import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigElement;

@@ -2,7 +2,7 @@ package cloud.prefab.client.config.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cloud.prefab.client.ConfigClientImpl;
+import cloud.prefab.client.internal.ConfigClientImpl;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.config.Configurator;
