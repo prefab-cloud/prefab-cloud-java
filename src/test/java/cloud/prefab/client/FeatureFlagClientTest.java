@@ -2,6 +2,7 @@ package cloud.prefab.client;
 
 import static org.mockito.Mockito.mock;
 
+import cloud.prefab.client.internal.FeatureFlagClientImpl;
 import org.junit.jupiter.api.BeforeEach;
 
 public class FeatureFlagClientTest {
@@ -12,7 +13,7 @@ public class FeatureFlagClientTest {
   @BeforeEach
   public void setup() {
     mockConfigClient = mock(ConfigClient.class);
-    featureFlagClient = new FeatureFlagClient(mockConfigClient);
+    featureFlagClient = new FeatureFlagClientImpl(mockConfigClient);
   }
   //
 
