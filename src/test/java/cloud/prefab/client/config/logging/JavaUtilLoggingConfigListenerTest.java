@@ -2,7 +2,7 @@ package cloud.prefab.client.config.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.ConfigClientImpl;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -17,7 +17,7 @@ public class JavaUtilLoggingConfigListenerTest extends AbstractLoggingListenerTe
 
   @Test
   public void itSetsSpecificLogLevel() {
-    new ConfigClient(
+    new ConfigClientImpl(
       clientWithSpecificLogLevel(),
       JavaUtilLoggingConfigListener.getInstance()
     );
@@ -31,7 +31,7 @@ public class JavaUtilLoggingConfigListenerTest extends AbstractLoggingListenerTe
 
   @Test
   public void itSetsDefaultLogLevel() {
-    new ConfigClient(
+    new ConfigClientImpl(
       clientWithDefaultLogLevel(),
       JavaUtilLoggingConfigListener.getInstance()
     );

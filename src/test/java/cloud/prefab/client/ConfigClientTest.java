@@ -18,7 +18,7 @@ class ConfigClientTest {
     final PrefabCloudClient baseClient = new PrefabCloudClient(
       new Options().setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
     );
-    ConfigClient configClient = new ConfigClient(baseClient);
+    ConfigClient configClient = new ConfigClientImpl(baseClient);
 
     final Optional<Prefab.ConfigValue> key = configClient.get("key");
     assertThat(key).isNotPresent();
@@ -33,7 +33,7 @@ class ConfigClientTest {
         .setOnInitializationFailure(Options.OnInitializationFailure.RAISE)
     );
 
-    ConfigClient configClient = new ConfigClient(baseClient);
+    ConfigClient configClient = new ConfigClientImpl(baseClient);
     assertThrows(
       PrefabInitializationTimeoutException.class,
       () -> configClient.get("key")
@@ -49,7 +49,7 @@ class ConfigClientTest {
         .setOnInitializationFailure(Options.OnInitializationFailure.UNLOCK)
     );
 
-    ConfigClient configClient = new ConfigClient(baseClient);
+    ConfigClient configClient = new ConfigClientImpl(baseClient);
     assertThat(configClient.get("key")).isNotPresent();
   }
 
@@ -63,7 +63,7 @@ class ConfigClientTest {
         .setOnInitializationFailure(Options.OnInitializationFailure.UNLOCK)
     );
 
-    ConfigClient configClient = new ConfigClient(baseClient);
+    ConfigClient configClient = new ConfigClientImpl(baseClient);
 
     List<ConfigChangeEvent> receivedEvents = new ArrayList<>();
     ConfigChangeListener listener = receivedEvents::add;

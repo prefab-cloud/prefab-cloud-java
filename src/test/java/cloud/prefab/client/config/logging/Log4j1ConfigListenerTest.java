@@ -2,7 +2,7 @@ package cloud.prefab.client.config.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.ConfigClientImpl;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,10 @@ public class Log4j1ConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsSpecificLogLevel() {
-    new ConfigClient(clientWithSpecificLogLevel(), Log4j1ConfigListener.getInstance());
+    new ConfigClientImpl(
+      clientWithSpecificLogLevel(),
+      Log4j1ConfigListener.getInstance()
+    );
 
     assertThat(LogManager.getLogger(specificLoggerName()).getEffectiveLevel())
       .isEqualTo(Level.WARN);
@@ -27,7 +30,7 @@ public class Log4j1ConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsDefaultLogLevel() {
-    new ConfigClient(clientWithDefaultLogLevel(), Log4j1ConfigListener.getInstance());
+    new ConfigClientImpl(clientWithDefaultLogLevel(), Log4j1ConfigListener.getInstance());
 
     assertThat(LogManager.getLogger(specificLoggerName()).getEffectiveLevel())
       .isEqualTo(Level.WARN);
