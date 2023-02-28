@@ -35,6 +35,7 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
 
   /**
    * Will not throw exceptions on key mismatch or undefined key.
+   * May throw TypeMismatchException if entered data is not of appropriate type
    */
 
   @Override
@@ -53,7 +54,7 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
     try {
       return getMaybe().orElse(defaultValue);
     } catch (TypeMismatchException e) {
-      LOG.warn("Type mismatch for key {}.", key);
+      LOG.warn("Type mismatch for key {}. Returning default value", key);
       return defaultValue;
     }
   }
@@ -63,7 +64,13 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
    */
   @Override
   public T orElseGet(Supplier<T> defaultValueSupplier) {
-    return getMaybe().orElseGet(defaultValueSupplier);
+    try {
+      return getMaybe().orElseGet(defaultValueSupplier);
+    }
+    catch (TypeMismatchException e) {
+        LOG.warn("Type mismatch for key {}. returning default value", key);
+        return defaultValueSupplier.get();
+      }
   }
 
   /**
