@@ -7,7 +7,7 @@ Maven
 ```xml
 <dependency>
     <groupId>cloud.prefab</groupId>
-    <artifactId>java-client</artifactId>
+    <artifactId>client</artifactId>
     <version>0.2.0.pre2</version>
 </dependency>
 ```

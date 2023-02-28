@@ -10,13 +10,13 @@
     </parent>
 
     <groupId>cloud.prefab</groupId>
-    <artifactId>prefab-cloud-java</artifactId>
+    <artifactId>prefab-cloud-parent</artifactId>
     <version>0.2.0.pre2</version>
     <packaging>pom</packaging>
     <url>https://www.prefab.cloud</url>
 
     <modules>
-        <module>java-client</module>
+        <module>client</module>
     </modules>
     <properties>
         <basepom.check.skip-license>true</basepom.check.skip-license>
@@ -204,14 +204,6 @@
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.6.1</version>
-                    <configuration>
-                        <protocArtifact>com.google.protobuf:protoc:${dep.protoc.version}:exe:${os.detected.classifier}
-                        </protocArtifact>
-                        <pluginId>grpc-java</pluginId>
-                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${dep.grpc.version}:exe:${os.detected.classifier}
-                        </pluginArtifact>
-                        <protoSourceRoot>prefab-cloud/</protoSourceRoot>
-                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
