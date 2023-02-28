@@ -21,8 +21,8 @@
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
     <dep.grpc.version>1.48.0</dep.grpc.version>
     <dep.jackson.version>2.14.1</dep.jackson.version>
-    <dep.protobuf.version>3.21.3</dep.protobuf.version>
-    <dep.protoc.version>3.21.3</dep.protoc.version>
+    <dep.protobuf.version>3.21.7</dep.protobuf.version>
+    <dep.protoc.version>3.21.7</dep.protoc.version>
   </properties>
 
   <dependencyManagement>
