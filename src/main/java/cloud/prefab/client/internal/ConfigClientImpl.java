@@ -321,7 +321,15 @@ public class ConfigClientImpl implements ConfigClient {
       1
     );
     scheduledExecutorService.scheduleAtFixedRate(
-      () -> loadCheckpoint(),
+      () -> {
+        // allowing an exception to reach the ScheduledExecutor cancels future execution
+        // To prevent that we need to catch and log here
+        try {
+          loadCheckpoint();
+        } catch (Exception e) {
+          LOG.warn("Error getting checkpoint - will try again", e);
+        }
+      },
       0,
       DEFAULT_CHECKPOINT_SEC,
       TimeUnit.SECONDS
