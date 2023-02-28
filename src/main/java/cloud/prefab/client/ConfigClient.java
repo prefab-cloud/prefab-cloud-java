@@ -169,23 +169,17 @@ public class ConfigClient {
   }
 
   private void loadCheckpoint() {
-    // allowing an exception to reach the ScheduledExecutor cancels future execution so we
-    // need to catch and log here
-    try {
-      boolean cdnSuccess = loadCDN();
-      if (cdnSuccess) {
-        return;
-      }
-
-      Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-        .newBuilder()
-        .setStartAtId(configLoader.getHighwaterMark())
-        .build();
-
-      loadGrpc(pointer);
-    } catch (Exception e) {
-      LOG.warn("Error getting checkpoint - will try again", e);
+    boolean cdnSuccess = loadCDN();
+    if (cdnSuccess) {
+      return;
     }
+
+    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
+      .newBuilder()
+      .setStartAtId(configLoader.getHighwaterMark())
+      .build();
+
+    loadGrpc(pointer);
   }
 
   private void loadGrpc(Prefab.ConfigServicePointer pointer) {
@@ -323,7 +317,15 @@ public class ConfigClient {
       1
     );
     scheduledExecutorService.scheduleAtFixedRate(
-      () -> loadCheckpoint(),
+      () -> {
+        // allowing an exception to reach the ScheduledExecutor cancels future execution
+        // To prevent that we need to catch and log here
+        try {
+          loadCheckpoint();
+        } catch (Exception e) {
+          LOG.warn("Error getting checkpoint - will try again", e);
+        }
+      },
       0,
       DEFAULT_CHECKPOINT_SEC,
       TimeUnit.SECONDS
