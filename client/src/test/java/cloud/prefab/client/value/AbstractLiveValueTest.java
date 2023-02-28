@@ -69,15 +69,18 @@ class AbstractLiveValueTest {
 
   @Test
   void or() {
-    assertEquals(2L, new LiveLong(mockConfigClient, "missing").or(2L));
-    assertEquals("or", new LiveString(mockConfigClient, "missing").or("or"));
-    assertEquals(4.5, new LiveDouble(mockConfigClient, "missing").or(4.5));
-    assertEquals(false, new LiveBoolean(mockConfigClient, "missing").or(false));
+    assertEquals(2L, new LiveLong(mockConfigClient, "missing").orElse(2L));
+    assertEquals("or", new LiveString(mockConfigClient, "missing").orElse("or"));
+    assertEquals(4.5, new LiveDouble(mockConfigClient, "missing").orElse(4.5));
+    assertEquals(false, new LiveBoolean(mockConfigClient, "missing").orElse(false));
 
-    assertEquals(2L, new LiveLong(mockConfigClient, "long mismatch").or(2L));
-    assertEquals("or", new LiveString(mockConfigClient, "string mismatch").or("or"));
-    assertEquals(4.5, new LiveDouble(mockConfigClient, "double mismatch").or(4.5));
-    assertEquals(false, new LiveBoolean(mockConfigClient, "boolean mismatch").or(false));
+    assertEquals(2L, new LiveLong(mockConfigClient, "long mismatch").orElse(2L));
+    assertEquals("or", new LiveString(mockConfigClient, "string mismatch").orElse("or"));
+    assertEquals(4.5, new LiveDouble(mockConfigClient, "double mismatch").orElse(4.5));
+    assertEquals(
+      false,
+      new LiveBoolean(mockConfigClient, "boolean mismatch").orElse(false)
+    );
   }
 
   @Test
