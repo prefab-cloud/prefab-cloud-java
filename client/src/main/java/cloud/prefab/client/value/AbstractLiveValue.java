@@ -4,7 +4,6 @@ import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
 import java.util.Optional;
 import java.util.function.Supplier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +27,11 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
   @Override
   public T get() {
     final Optional<T> fromConfig = getMaybe();
-    return fromConfig.orElseThrow(() -> new UndefinedKeyException(
-            "No config value for key " + key + " and no default defined."
-    ));
+    return fromConfig.orElseThrow(() ->
+      new UndefinedKeyException(
+        "No config value for key " + key + " and no default defined."
+      )
+    );
   }
 
   /**
@@ -66,11 +67,10 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
   public T orElseGet(Supplier<T> defaultValueSupplier) {
     try {
       return getMaybe().orElseGet(defaultValueSupplier);
+    } catch (TypeMismatchException e) {
+      LOG.warn("Type mismatch for key {}. returning default value", key);
+      return defaultValueSupplier.get();
     }
-    catch (TypeMismatchException e) {
-        LOG.warn("Type mismatch for key {}. returning default value", key);
-        return defaultValueSupplier.get();
-      }
   }
 
   /**

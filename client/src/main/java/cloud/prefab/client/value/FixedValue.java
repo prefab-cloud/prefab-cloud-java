@@ -34,7 +34,6 @@ public class FixedValue<T> implements Value<T> {
     return value.orElse(defaultValue);
   }
 
-
   @Override
   public T orElseGet(Supplier<T> defaultValueSupplier) {
     return value.orElseGet(defaultValueSupplier);

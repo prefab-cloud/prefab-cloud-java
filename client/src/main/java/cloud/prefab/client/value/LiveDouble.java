@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LiveDouble extends AbstractLiveValue<Double> {
+
   private static final Logger LOG = LoggerFactory.getLogger(LiveDouble.class);
 
   public LiveDouble(ConfigClient configClient, String key) {
@@ -18,7 +19,12 @@ public class LiveDouble extends AbstractLiveValue<Double> {
     if (value.hasDouble()) {
       return Optional.of(value.getDouble());
     } else {
-      LOG.warn(String.format("Config value for key '%s' used as a double does not have a double value set, will treat as empty", key));
+      LOG.warn(
+        String.format(
+          "Config value for key '%s' used as a double does not have a double value set, will treat as empty",
+          key
+        )
+      );
       return Optional.empty();
     }
   }
