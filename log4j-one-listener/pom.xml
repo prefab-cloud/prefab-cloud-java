@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.2.0.pre2</version>
+    <version>0.3.0</version>
   </parent>
 
   <artifactId>log4j-one-listener</artifactId>
@@ -19,7 +19,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.2.0.pre2</version>
+      <version>0.3.0</version>
     </dependency>
     <dependency>
       <groupId>log4j</groupId>
@@ -30,7 +30,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.2.0.pre2</version>
+      <version>0.3.0</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

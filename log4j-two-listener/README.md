@@ -12,7 +12,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>log4j-two-listener</artifactId>
-    <version>0.2.0.pre2</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
