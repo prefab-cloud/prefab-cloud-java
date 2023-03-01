@@ -3,8 +3,6 @@ Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
-This listner is for the `log4j:log4j` version of Log4j
-
 
 Maven
 ```xml
@@ -14,6 +12,17 @@ Maven
     <version>0.2.0.pre2</version>
 </dependency>
 ```
+
+
+## Logging Setup
+
+Live log levels with log4j or logback require additional maven dependencies.
+
+* [Log4J (one)](../log4j-one-listener/README.md)
+* [Log4j (two)](../log4j-two-listener/README.md)
+* [LogBack](../logback-listener/README.md)
+
+
 ## Contributing to prefab-cloud-java
 
 * Check out the latest `main` to make sure the feature hasn't been implemented or the bug hasn't been fixed yet.

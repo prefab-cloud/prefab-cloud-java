@@ -5,6 +5,9 @@ See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
 ## Log4J One Config Change Listener
 
+This listener is for the older `log4j:log4j` version of Log4j
+
+
 Maven
 ```xml
 <dependency>
