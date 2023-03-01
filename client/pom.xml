@@ -111,11 +111,6 @@
       <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.nanohttpd</groupId>
-      <artifactId>nanohttpd</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>
