@@ -1,5 +1,5 @@
 # prefab-cloud-java
-Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
+Java Client and Logging adapters for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
@@ -11,6 +11,8 @@ Maven
     <version>0.2.0.pre2</version>
 </dependency>
 ```
+
+
 ## Contributing to prefab-cloud-java
 
 * Check out the latest `main` to make sure the feature hasn't been implemented or the bug hasn't been fixed yet.

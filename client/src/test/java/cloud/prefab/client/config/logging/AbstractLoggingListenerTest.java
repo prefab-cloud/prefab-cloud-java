@@ -3,7 +3,10 @@ package cloud.prefab.client.config.logging;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.Options.Datasources;
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.domain.Prefab;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 
 public abstract class AbstractLoggingListenerTest {
@@ -18,21 +21,42 @@ public abstract class AbstractLoggingListenerTest {
     return "other.logger";
   }
 
-  protected PrefabCloudClient clientWithSpecificLogLevel() {
-    return new PrefabCloudClient(
-      new Options()
-        .setPrefabDatasource(Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("src/test/resources/override_directory")
-        .setPrefabEnvs(List.of("logging_specific"))
+  protected ConfigChangeEvent getDefaultLogLevelEvent(Prefab.LogLevel level) {
+    return buildLogLevelEvent(
+      AbstractLoggingListener.LOG_LEVEL_PREFIX,
+      Optional.of(level)
     );
   }
 
-  protected PrefabCloudClient clientWithDefaultLogLevel() {
-    return new PrefabCloudClient(
-      new Options()
-        .setPrefabDatasource(Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("src/test/resources/override_directory")
-        .setPrefabEnvs(List.of("logging_default"))
+  protected ConfigChangeEvent getDefaultLogLevelEvent(Optional<Prefab.LogLevel> level) {
+    return buildLogLevelEvent(AbstractLoggingListener.LOG_LEVEL_PREFIX, level);
+  }
+
+  protected ConfigChangeEvent getSpecificLogLevelEvent(
+    String loggerName,
+    Prefab.LogLevel level
+  ) {
+    return getSpecificLogLevelEvent(loggerName, Optional.of(level));
+  }
+
+  protected ConfigChangeEvent getSpecificLogLevelEvent(
+    String loggerName,
+    Optional<Prefab.LogLevel> level
+  ) {
+    return buildLogLevelEvent(
+      AbstractLoggingListener.LOG_LEVEL_PREFIX + "." + loggerName,
+      level
+    );
+  }
+
+  private ConfigChangeEvent buildLogLevelEvent(
+    String key,
+    Optional<Prefab.LogLevel> levelMaybe
+  ) {
+    return new ConfigChangeEvent(
+      key,
+      Optional.empty(),
+      levelMaybe.map(level -> Prefab.ConfigValue.newBuilder().setLogLevel(level).build())
     );
   }
 
