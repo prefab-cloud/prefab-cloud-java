@@ -7,7 +7,7 @@
     <version>0.2.0.pre2</version>
   </parent>
 
-  <artifactId>log4j-two-listener</artifactId>
+  <artifactId>logback-listener</artifactId>
 
   <properties>
     <maven.compiler.source>11</maven.compiler.source>
@@ -17,9 +17,18 @@
 
   <dependencies>
     <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
       <version>0.2.0.pre2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
     </dependency>
 
     <dependency>
