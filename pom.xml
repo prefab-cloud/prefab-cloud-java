@@ -15,6 +15,7 @@
 
   <modules>
     <module>client</module>
+    <module>log4j-one-listener</module>
   </modules>
   <properties>
     <basepom.check.skip-license>true</basepom.check.skip-license>
