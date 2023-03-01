@@ -3,6 +3,9 @@ Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
+This listner is for the `log4j:log4j` version of Log4j
+
+
 Maven
 ```xml
 <dependency>
