@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractLoggingListener<LEVEL_TYPE>
   implements ConfigChangeListener {
 
-  private static final String LOG_LEVEL_PREFIX = "log-level";
+  public static final String LOG_LEVEL_PREFIX = "log-level";
 
   protected final Logger LOG = LoggerFactory.getLogger(getClass());
 

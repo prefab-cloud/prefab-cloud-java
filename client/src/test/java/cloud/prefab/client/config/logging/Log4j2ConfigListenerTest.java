@@ -3,6 +3,7 @@ package cloud.prefab.client.config.logging;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cloud.prefab.client.internal.ConfigClientImpl;
+import cloud.prefab.domain.Prefab;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -17,10 +18,14 @@ public class Log4j2ConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsSpecificLogLevel() {
-    new ConfigClientImpl(
-      clientWithSpecificLogLevel(),
-      Log4j2ConfigListener.getInstance()
-    );
+    assertThat(LogManager.getLogger(specificLoggerName()).getLevel())
+      .isEqualTo(Level.ERROR);
+
+    assertThat(LogManager.getLogger(otherLoggerName()).getLevel()).isEqualTo(Level.ERROR);
+
+    Log4j2ConfigListener
+      .getInstance()
+      .onChange(getSpecificLogLevelEvent(specificLoggerName(), Prefab.LogLevel.WARN));
 
     assertThat(LogManager.getLogger(specificLoggerName()).getLevel())
       .isEqualTo(Level.WARN);
@@ -30,7 +35,13 @@ public class Log4j2ConfigListenerTest extends AbstractLoggingListenerTest {
 
   @Test
   public void itSetsDefaultLogLevel() {
-    new ConfigClientImpl(clientWithDefaultLogLevel(), Log4j2ConfigListener.getInstance());
+    assertThat(LogManager.getLogger(specificLoggerName()).getLevel())
+      .isEqualTo(Level.ERROR);
+
+    assertThat(LogManager.getLogger(otherLoggerName()).getLevel()).isEqualTo(Level.ERROR);
+    Log4j2ConfigListener
+      .getInstance()
+      .onChange(getDefaultLogLevelEvent(Prefab.LogLevel.WARN));
 
     assertThat(LogManager.getLogger(specificLoggerName()).getLevel())
       .isEqualTo(Level.WARN);
