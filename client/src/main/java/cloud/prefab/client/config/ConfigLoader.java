@@ -16,7 +16,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
 
 public class ConfigLoader {
 
@@ -168,8 +169,9 @@ public class ConfigLoader {
     String sourceLocation
   ) {
     LOG.info("Load File {}", sourceLocation);
-    Yaml yaml = new Yaml();
-    Map<String, Object> obj = yaml.load(inputStream);
+    LoadSettings loadSettings = LoadSettings.builder().build();
+    Load load = new Load(loadSettings);
+    Map<String, Object> obj = (Map<String, Object>) load.loadFromInputStream(inputStream);
     obj.forEach((k, v) -> {
       loadKeyValue(k, v, builder, source, sourceLocation);
       builder.put(k, toValue(k, v, source, sourceLocation));
