@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 public class LiveLong extends AbstractLiveValue<Long> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(LiveLong.class);
+
   public LiveLong(ConfigClient configClient, String key) {
     super(configClient, key);
   }
@@ -17,6 +19,12 @@ public class LiveLong extends AbstractLiveValue<Long> {
     if (value.hasInt()) {
       return Optional.of(value.getInt());
     } else {
+      LOG.warn(
+        String.format(
+          "Config value for key '%s' used as a long does not have a integer value, will treat as empty",
+          key
+        )
+      );
       return Optional.empty();
     }
   }

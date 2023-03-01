@@ -1,14 +1,14 @@
 package cloud.prefab.client.value;
 
-import com.google.common.base.Optional;
-import java.util.function.Function;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 public class FixedValue<T> implements Value<T> {
 
   private final Optional<T> value;
 
   public FixedValue() {
-    this.value = Optional.absent();
+    this.value = Optional.empty();
   }
 
   public FixedValue(T value) {
@@ -25,29 +25,35 @@ public class FixedValue<T> implements Value<T> {
   }
 
   @Override
-  public T or(T defaultValue) {
-    return value.or(defaultValue);
+  public java.util.Optional<T> getMaybe() {
+    return value;
+  }
+
+  @Override
+  public T orElse(T defaultValue) {
+    return value.orElse(defaultValue);
+  }
+
+  @Override
+  public T orElseGet(Supplier<T> defaultValueSupplier) {
+    return value.orElseGet(defaultValueSupplier);
   }
 
   @Override
   public T orNull() {
-    if (value.isPresent()) {
-      return value.get();
-    } else {
-      return null;
-    }
+    return value.orElse(null);
   }
 
   public static <T> FixedValue<T> of(T value) {
-    return new FixedValue<T>(value);
+    return new FixedValue<>(value);
   }
 
-  public static <T> FixedValue<T> absent() {
-    return new FixedValue<T>();
+  public static <T> FixedValue<T> empty() {
+    return new FixedValue<>();
   }
 
   @Override
   public String toString() {
-    return String.format("FixedValue{}=%s", value.orNull());
+    return String.format("FixedValue{}=%s", orNull());
   }
 }

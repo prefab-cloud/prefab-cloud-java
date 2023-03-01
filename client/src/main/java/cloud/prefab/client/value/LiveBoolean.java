@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 public class LiveBoolean extends AbstractLiveValue<Boolean> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(LiveBoolean.class);
+
   public LiveBoolean(ConfigClient configClient, String key) {
     super(configClient, key);
   }
@@ -17,6 +19,12 @@ public class LiveBoolean extends AbstractLiveValue<Boolean> {
     if (value.hasBool()) {
       return Optional.of(value.getBool());
     } else {
+      LOG.warn(
+        String.format(
+          "Config value for key '%s' used as a boolean does not have a boolean value, will treat as empty",
+          key
+        )
+      );
       return Optional.empty();
     }
   }

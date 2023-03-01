@@ -3,6 +3,7 @@ package cloud.prefab.client.value;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,14 +26,22 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
    */
   @Override
   public T get() {
-    final Optional<T> fromConfig = getFromConfig();
-    if (fromConfig.isPresent()) {
-      return fromConfig.get();
-    } else {
-      throw new UndefinedKeyException(
+    final Optional<T> fromConfig = getMaybe();
+    return fromConfig.orElseThrow(() ->
+      new UndefinedKeyException(
         "No config value for key " + key + " and no default defined."
-      );
-    }
+      )
+    );
+  }
+
+  /**
+   * Will not throw exceptions on key mismatch or undefined key.
+   * May throw TypeMismatchException if entered data is not of appropriate type
+   */
+
+  @Override
+  public Optional<T> getMaybe() {
+    return getFromConfig();
   }
 
   /**
@@ -42,12 +51,25 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
    * @return
    */
   @Override
-  public T or(T defaultValue) {
+  public T orElse(T defaultValue) {
     try {
-      return getFromConfig().orElse(defaultValue);
+      return getMaybe().orElse(defaultValue);
     } catch (TypeMismatchException e) {
-      LOG.warn("Type mismatch for key {}.", key);
+      LOG.warn("Type mismatch for key {}. Returning default value", key);
       return defaultValue;
+    }
+  }
+
+  /**
+   * Will not throw exceptions on key mismatch or undefined key.
+   */
+  @Override
+  public T orElseGet(Supplier<T> defaultValueSupplier) {
+    try {
+      return getMaybe().orElseGet(defaultValueSupplier);
+    } catch (TypeMismatchException e) {
+      LOG.warn("Type mismatch for key {}. returning default value", key);
+      return defaultValueSupplier.get();
     }
   }
 
@@ -57,7 +79,7 @@ public abstract class AbstractLiveValue<T> implements Value<T> {
   @Override
   public T orNull() {
     try {
-      return getFromConfig().orElse(null);
+      return getMaybe().orElse(null);
     } catch (TypeMismatchException e) {
       LOG.warn("Type mismatch for key {}.", key);
       return null;

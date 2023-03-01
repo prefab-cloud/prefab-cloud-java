@@ -31,7 +31,7 @@ public class IntegrationTestInput {
   }
 
   public String getWithFallback(PrefabCloudClient client) {
-    return client.configClient().liveString(getKey()).or(defaultValue.orElse(null));
+    return client.configClient().liveString(getKey()).orElse(defaultValue.orElse(null));
   }
 
   public String getWithoutFallback(PrefabCloudClient client) {
