@@ -11,7 +11,6 @@ import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
-import cloud.prefab.client.config.LoggingConfigListener;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
 import cloud.prefab.client.value.LiveBoolean;
@@ -76,7 +75,9 @@ public class ConfigClientImpl implements ConfigClient {
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
-    configChangeListeners.add(LoggingConfigListener.getInstance());
+    configChangeListeners.add(
+      new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
+    );
     configChangeListeners.addAll(Arrays.asList(listeners));
 
     if (options.isLocalOnly()) {
