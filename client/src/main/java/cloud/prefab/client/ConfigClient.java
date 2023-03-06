@@ -40,6 +40,6 @@ public interface ConfigClient {
     LOCAL_ONLY,
     INIT_TIMEOUT,
     CLASSPATH,
-    OVERRIDE,
+    LOCAL_OVERRIDE,
   }
 }
