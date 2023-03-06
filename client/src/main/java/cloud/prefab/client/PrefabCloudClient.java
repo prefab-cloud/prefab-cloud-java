@@ -49,14 +49,22 @@ public class PrefabCloudClient implements AutoCloseable {
 
   public ConfigClient configClient() {
     if (configClient == null) {
-      configClient = new ConfigClientImpl(this);
+      synchronized (this) {
+        if (configClient == null) {
+          configClient = new ConfigClientImpl(this);
+        }
+      }
     }
     return configClient;
   }
 
   public FeatureFlagClient featureFlagClient() {
     if (featureFlagClient == null) {
-      featureFlagClient = new FeatureFlagClientImpl(configClient());
+      synchronized (this) {
+        if (featureFlagClient == null) {
+          featureFlagClient = new FeatureFlagClientImpl(configClient());
+        }
+      }
     }
     return featureFlagClient;
   }
