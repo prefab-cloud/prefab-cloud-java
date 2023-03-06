@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface ConfigClient {
   ConfigResolver getResolver();
 
+  Map<String, Prefab.ConfigValue> getAllValues();
+
   Value<String> liveString(String key);
 
   Value<Boolean> liveBoolean(String key);

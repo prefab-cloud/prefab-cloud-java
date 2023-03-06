@@ -21,6 +21,7 @@ import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -44,6 +45,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +112,46 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
     return get(key, new HashMap<>());
+  }
+
+  public Map<String, Prefab.ConfigValue> getAllValues() {
+    ImmutableMap.Builder<String, Prefab.ConfigValue> allValues = ImmutableMap.builder();
+    for (String key : getResolver().getKeys()) {
+      getResolver()
+        .getConfigValue(key)
+        .ifPresent(configValue -> allValues.put(key, configValue));
+    }
+    return allValues.buildKeepingLast();
+  }
+
+  public Map<String, Supplier<?>> getAllLiveValues() {
+    ImmutableMap.Builder<String, Supplier<?>> allValues = ImmutableMap.builder();
+    for (String key : updatingConfigResolver.getKeys()) {
+      updatingConfigResolver
+        .getConfigValue(key)
+        .ifPresent(configValue -> {
+          switch (configValue.getTypeCase()) {
+            case INT:
+              allValues.put(key, new LiveLong(this, key));
+              break;
+            case STRING:
+              allValues.put(key, new LiveString(this, key));
+              break;
+            case DOUBLE:
+              allValues.put(key, new LiveDouble(this, key));
+              break;
+            case BOOL:
+              allValues.put(key, new LiveBoolean(this, key));
+              break;
+            default:
+              LOG.debug(
+                "Unhandled typecase {} processing getAllLiveValues()",
+                configValue.getTypeCase()
+              );
+          }
+        });
+    }
+    return allValues.buildKeepingLast();
   }
 
   @Override

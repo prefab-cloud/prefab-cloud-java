@@ -15,6 +15,7 @@
 
   <modules>
     <module>client</module>
+    <module>client-guice</module>
     <module>log4j-one-listener</module>
     <module>log4j-two-listener</module>
     <module>logback-listener</module>
@@ -221,7 +222,6 @@
         <extensions>true</extensions>
       </plugin>
     </plugins>
-
 
   </build>
   <url>https://www.prefab.cloud</url>
