@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.client.ConfigStore;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,6 +59,14 @@ public class ConfigResolver {
     Map<String, Prefab.ConfigValue> properties
   ) {
     return getMatch(key, properties).map(Match::getConfigValue);
+  }
+
+  public Map<String, Prefab.ConfigValue> getAllValues() {
+    ImmutableMap.Builder<String, Prefab.ConfigValue> allValues = ImmutableMap.builder();
+    for (String key : getKeys()) {
+      getConfigValue(key).ifPresent(configValue -> allValues.put(key, configValue));
+    }
+    return allValues.buildKeepingLast();
   }
 
   /**

@@ -25,6 +25,8 @@ public interface ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   );
 
+  public Map<String, Prefab.ConfigValue> getAllValues();
+
   void upsert(String key, Prefab.ConfigValue configValue);
 
   void upsert(Prefab.Config config);
