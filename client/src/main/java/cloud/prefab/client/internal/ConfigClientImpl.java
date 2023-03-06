@@ -367,7 +367,7 @@ public class ConfigClientImpl implements ConfigClient {
     final long startingHighWaterMark = configLoader.getHighwaterMark();
 
     for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(new ConfigElement(config, new Provenance(source, "")));
+      configLoader.set(new ConfigElement(config, new Provenance(source)));
     }
 
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
