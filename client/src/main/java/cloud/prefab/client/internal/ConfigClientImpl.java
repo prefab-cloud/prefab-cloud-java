@@ -296,11 +296,13 @@ public class ConfigClientImpl implements ConfigClient {
             ) {
               LOG.info("Not restarting the stream: {}", throwable.getMessage());
             } else {
-              LOG.warn("Error from API: ", throwable);
+              LOG.warn("Error from streaming API will restart streaming connection");
+              LOG.debug("Details of streaming API failure are", throwable);
               try {
                 Thread.sleep(BACKOFF_MILLIS);
               } catch (InterruptedException e) {
                 LOG.warn("Interruption Backing Off");
+                Thread.currentThread().interrupt();
               }
               startStreaming();
             }
