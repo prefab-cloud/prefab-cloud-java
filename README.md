@@ -8,7 +8,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.3</version>
 </dependency>
 ```
 
