@@ -69,8 +69,15 @@ public class IntegrationTestDescriptor {
 
   @MustBeClosed
   private PrefabCloudClient buildClient(IntegrationTestClientOverrides clientOverrides) {
+    String apiKey = System.getenv("PREFAB_INTEGRATION_TEST_API_KEY");
+    if (apiKey == null) {
+      throw new IllegalStateException(
+        "Env var PREFAB_INTEGRATION_TEST_API_KEY is not set"
+      );
+    }
+
     Options options = new Options()
-      .setApikey(System.getenv("PREFAB_INTEGRATION_TEST_API_KEY"))
+      .setApikey(apiKey)
       .setPrefabGrpcUrl("grpc.staging-prefab.cloud:443")
       .setPrefabApiUrl("https://api.staging-prefab.cloud");
 

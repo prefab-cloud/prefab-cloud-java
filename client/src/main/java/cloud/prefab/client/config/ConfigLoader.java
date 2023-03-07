@@ -151,7 +151,12 @@ public class ConfigLoader {
 
       if (file.exists()) {
         try (InputStream inputStream = new FileInputStream(file)) {
-          loadFileTo(inputStream, builder, ConfigClient.Source.OVERRIDE, fileName);
+          loadFileTo(
+            inputStream,
+            builder,
+            ConfigClient.Source.LOCAL_OVERRIDE,
+            file.getAbsolutePath()
+          );
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
