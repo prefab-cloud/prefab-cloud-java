@@ -147,10 +147,6 @@ public class ConfigClientImpl implements ConfigClient {
     }
   }
 
-  public Map<String, Prefab.ConfigValue> getAllValues() {
-    return getResolver().getAllValues();
-  }
-
   @Override
   public void upsert(String key, Prefab.ConfigValue configValue) {
     Prefab.Config upsertRequest = Prefab.Config

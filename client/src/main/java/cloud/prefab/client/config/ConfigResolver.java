@@ -61,7 +61,13 @@ public class ConfigResolver {
     return getMatch(key, properties).map(Match::getConfigValue);
   }
 
-  public Map<String, Prefab.ConfigValue> getAllValues() {
+  /**
+   * Get all currently known parameter-less config values.
+   * ConfigValues that are not visible unless passed an appropriate map of parameters are not here
+   * Note: these values ARE NOT LIVE and will not change values
+   * @return
+   */
+  public Map<String, Prefab.ConfigValue> getAllCurrentValues() {
     ImmutableMap.Builder<String, Prefab.ConfigValue> allValues = ImmutableMap.builder();
     for (String key : getKeys()) {
       getConfigValue(key).ifPresent(configValue -> allValues.put(key, configValue));
