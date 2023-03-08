@@ -90,14 +90,15 @@ public class ConfigClientImpl implements ConfigClient {
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
     configChangeListeners.addAll(Arrays.asList(listeners));
-    loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
-    loggerStatsAggregator.start();
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
+      loggerStatsAggregator = null;
     } else {
       startStreamingExecutor();
       startCheckpointExecutor();
+      loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
+      loggerStatsAggregator.start();
       startLogStatsUploadExecutor();
     }
   }
@@ -193,7 +194,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count) {
-    if (logLevel != null) {
+    if (logLevel != null && loggerStatsAggregator != null) {
       loggerStatsAggregator.reportLoggerUsage(loggerName, logLevel, count);
     }
   }
