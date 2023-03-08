@@ -3,7 +3,6 @@ package cloud.prefab.client.config.logging;
 import ch.qos.logback.classic.Level;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.domain.Prefab.LogLevel;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -19,16 +18,6 @@ public class LogbackConfigListener extends AbstractLoggingListener<Level> {
 
   private static final ConfigChangeListener INSTANCE = new LogbackConfigListener();
 
-  private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
-    .<LogLevel, Level>builder()
-    .put(LogLevel.FATAL, Level.ERROR)
-    .put(LogLevel.ERROR, Level.ERROR)
-    .put(LogLevel.WARN, Level.WARN)
-    .put(LogLevel.INFO, Level.INFO)
-    .put(LogLevel.DEBUG, Level.DEBUG)
-    .put(LogLevel.TRACE, Level.TRACE)
-    .build();
-
   public static ConfigChangeListener getInstance() {
     return INSTANCE;
   }
@@ -37,7 +26,7 @@ public class LogbackConfigListener extends AbstractLoggingListener<Level> {
 
   @Override
   protected Map<LogLevel, Level> getValidLevels() {
-    return LEVEL_MAP;
+    return LogbackLevelMapper.LEVEL_MAP;
   }
 
   @Override
