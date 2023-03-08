@@ -19,6 +19,7 @@ import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
+import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -29,6 +30,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -37,10 +39,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -51,6 +55,9 @@ public class ConfigClientImpl implements ConfigClient {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClientImpl.class);
   private static final String AUTH_USER = "authuser";
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
+
+  private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
+
   private static final long BACKOFF_MILLIS = 3000;
 
   private final PrefabCloudClient baseClient;
@@ -62,6 +69,10 @@ public class ConfigClientImpl implements ConfigClient {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
+  private final LoggerStatsAggregator loggerStatsAggregator;
+
+  private final String uniqueClientId;
+
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -71,6 +82,7 @@ public class ConfigClientImpl implements ConfigClient {
     PrefabCloudClient baseClient,
     ConfigChangeListener... listeners
   ) {
+    this.uniqueClientId = UUID.randomUUID().toString();
     this.baseClient = baseClient;
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
@@ -82,9 +94,13 @@ public class ConfigClientImpl implements ConfigClient {
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
+      loggerStatsAggregator = null;
     } else {
       startStreamingExecutor();
       startCheckpointExecutor();
+      loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
+      loggerStatsAggregator.start();
+      startLogStatsUploadExecutor();
     }
   }
 
@@ -175,6 +191,13 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public boolean removeConfigChangeListener(ConfigChangeListener configChangeListener) {
     return configChangeListeners.remove(configChangeListener);
+  }
+
+  @Override
+  public void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count) {
+    if (logLevel != null && loggerStatsAggregator != null) {
+      loggerStatsAggregator.reportLoggerUsage(loggerName, logLevel, count);
+    }
   }
 
   private void loadCheckpoint() {
@@ -323,10 +346,75 @@ public class ConfigClientImpl implements ConfigClient {
       );
   }
 
-  private void startCheckpointExecutor() {
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
-      1
+  private void startLogStatsUploadExecutor() {
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+      1,
+      r -> new Thread(r, "prefab-logger-stats-uploader")
     );
+
+    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
+
+    scheduledExecutorService.scheduleAtFixedRate(
+      () -> {
+        // allowing an exception to reach the ScheduledExecutor cancels future execution
+        // To prevent that we need to catch and log here
+        try {
+          long now = System.currentTimeMillis();
+          LoggerStatsAggregator.LogCounts logCounts = loggerStatsAggregator.getAndResetStats();
+
+          Prefab.Loggers loggers = Prefab.Loggers
+            .newBuilder()
+            .setStartAt(logCounts.getStartTime())
+            .setEndAt(now)
+            .addAllLoggers(logCounts.getLoggerMap().values())
+            .setInstanceHash(uniqueClientId)
+            .build();
+
+          LOG.debug("Uploading stats for {} loggers", logCounts.getLoggerMap().size());
+          loggerReportingServiceStub()
+            .send(
+              loggers,
+              new StreamObserver<>() {
+                @Override
+                public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
+
+                @Override
+                public void onError(Throwable throwable) {
+                  LOG.warn("log stats upload failed", throwable);
+                }
+
+                @Override
+                public void onCompleted() {
+                  LOG.debug("log stats upload completed");
+                }
+              }
+            );
+        } catch (Exception e) {
+          LOG.warn("Error setting up aggregated log stats transmission", e);
+        }
+      },
+      DEFAULT_LOG_STATS_UPLOAD_SEC,
+      DEFAULT_LOG_STATS_UPLOAD_SEC,
+      TimeUnit.SECONDS
+    );
+  }
+
+  private void startCheckpointExecutor() {
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+      1,
+      r -> new Thread(r, "prefab-logger-checkpoint-executor")
+    );
+
+    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
+
     scheduledExecutorService.scheduleAtFixedRate(
       () -> {
         // allowing an exception to reach the ScheduledExecutor cancels future execution
@@ -410,5 +498,9 @@ public class ConfigClientImpl implements ConfigClient {
 
   private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
     return ConfigServiceGrpc.newStub(baseClient.getChannel());
+  }
+
+  private LoggerReportingServiceGrpc.LoggerReportingServiceStub loggerReportingServiceStub() {
+    return LoggerReportingServiceGrpc.newStub(baseClient.getChannel());
   }
 }
