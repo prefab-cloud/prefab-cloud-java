@@ -116,6 +116,9 @@ class LoggerStatsAggregator {
       case ERROR:
         loggerBuilder.setErrors(count);
         break;
+      case FATAL:
+        loggerBuilder.setFatals(count);
+        break;
     }
 
     try {
@@ -133,6 +136,7 @@ class LoggerStatsAggregator {
     long infos = loggerToMutate.getInfos();
     long warns = loggerToMutate.getWarns();
     long errors = loggerToMutate.getErrors();
+    long fatals = loggerToMutate.getFatals();
 
     while (iter.hasNext()) {
       Prefab.Logger logger = iter.next();
@@ -141,6 +145,7 @@ class LoggerStatsAggregator {
       infos += logger.getInfos();
       warns += logger.getWarns();
       errors += logger.getErrors();
+      fatals += logger.getFatals();
     }
 
     return loggerToMutate
@@ -150,6 +155,7 @@ class LoggerStatsAggregator {
       .setInfos(infos)
       .setWarns(warns)
       .setErrors(errors)
+      .setFatals(fatals)
       .build();
   }
 
@@ -161,6 +167,7 @@ class LoggerStatsAggregator {
       .setInfos(a.getInfos() + b.getInfos())
       .setWarns(a.getWarns() + b.getWarns())
       .setErrors(a.getErrors() + b.getErrors())
+      .setFatals(a.getFatals() + b.getFatals())
       .build();
   }
 

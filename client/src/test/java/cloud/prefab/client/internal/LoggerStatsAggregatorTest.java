@@ -43,6 +43,8 @@ class LoggerStatsAggregatorTest {
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.WARN, 8);
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.ERROR, 9);
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.ERROR, 10);
+    instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.FATAL, 21);
+    instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.FATAL, 22);
 
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.TRACE, 11);
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.ERROR, 12);
@@ -74,6 +76,7 @@ class LoggerStatsAggregatorTest {
             .setInfos(11)
             .setWarns(15)
             .setErrors(19)
+            .setFatals(43)
             .build()
         ),
         MapEntry.entry(
@@ -86,6 +89,7 @@ class LoggerStatsAggregatorTest {
             .setInfos(0)
             .setWarns(0)
             .setErrors(63)
+            .setFatals(0)
             .build()
         )
       );
