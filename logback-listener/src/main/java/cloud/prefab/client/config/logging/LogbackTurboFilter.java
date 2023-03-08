@@ -40,6 +40,11 @@ public class LogbackTurboFilter extends TurboFilter {
     } else {
       recursionCheck.set(true);
     }
+    configClient.reportLoggerUsage(
+      logger.getName(),
+      LogbackLevelMapper.REVERSE_LEVEL_MAP.get(level),
+      1
+    );
 
     try {
       return FilterReply.NEUTRAL;
