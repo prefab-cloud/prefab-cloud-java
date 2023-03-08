@@ -44,6 +44,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -55,7 +56,7 @@ public class ConfigClientImpl implements ConfigClient {
   private static final String AUTH_USER = "authuser";
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
 
-  private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = 60;
+  private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
 
   private static final long BACKOFF_MILLIS = 3000;
 
@@ -346,10 +347,17 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void startLogStatsUploadExecutor() {
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
       1,
       r -> new Thread(r, "prefab-logger-stats-uploader")
     );
+
+    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
+
     scheduledExecutorService.scheduleAtFixedRate(
       () -> {
         // allowing an exception to reach the ScheduledExecutor cancels future execution
@@ -396,9 +404,17 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void startCheckpointExecutor() {
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(
-      1
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+      1,
+      r -> new Thread(r, "prefab-logger-checkpoint-executor")
     );
+
+    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
+      100,
+      TimeUnit.MILLISECONDS
+    );
+
     scheduledExecutorService.scheduleAtFixedRate(
       () -> {
         // allowing an exception to reach the ScheduledExecutor cancels future execution
