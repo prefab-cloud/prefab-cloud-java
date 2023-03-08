@@ -33,7 +33,9 @@ public interface ConfigClient {
 
   boolean removeConfigChangeListener(ConfigChangeListener configChangeListener);
 
-  public enum Source {
+  void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count);
+
+  enum Source {
     REMOTE_API_GRPC,
     STREAMING,
     REMOTE_CDN,
