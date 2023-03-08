@@ -20,6 +20,16 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Accepts reports of logger usage by name, level and count and rolls them up for a time window.
+ * Flow is as follows
+ * 1) reportLoggerUsage is called, constructs a Logger instance and offers it to the queue for a limited time (10ms) to keep logging fast
+ * 2) An aggregator thread drains the queue and merges all the Logger instances
+ * 3) Merged logger instances (now one per logger name) are merged into the map in the current instance of LogCounts
+ * 4) When getAndResetStats is called, the current LogCounts instance is returned, and a new one replaces it with a new starting time set
+ * LogCounts contains a mutex so that if the instance is swapped while the aggregator thread is updating it, the caller of getAndResetStats will be blocked
+ * on reading it until the update is complete
+ */
 class LoggerStatsAggregator {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoggerStatsAggregator.class);
@@ -47,7 +57,7 @@ class LoggerStatsAggregator {
       100,
       TimeUnit.MILLISECONDS
     );
-    executorService.scheduleAtFixedRate(
+    executorService.scheduleWithFixedDelay(
       () -> {
         try {
           aggregate();
@@ -65,8 +75,7 @@ class LoggerStatsAggregator {
   void aggregate() {
     int drainSize = 10_000;
     List<Prefab.Logger> drain = new ArrayList<>(drainSize);
-    int drainCount = loggerCountQueue.drainTo(drain, drainSize);
-    if (drainCount > 0) {
+    while (loggerCountQueue.drainTo(drain, drainSize) > 0) {
       Map<String, Prefab.Logger> aggregates = drain
         .stream()
         .collect(
@@ -78,8 +87,8 @@ class LoggerStatsAggregator {
             )
           )
         );
-
       currentLogCollection.get().updateLoggerMap(aggregates.values());
+      drain.clear();
     }
   }
 
@@ -167,7 +176,7 @@ class LoggerStatsAggregator {
       loggerMap = new HashMap<>();
     }
 
-    public long getStartTime() {
+    long getStartTime() {
       return startTime;
     }
 
