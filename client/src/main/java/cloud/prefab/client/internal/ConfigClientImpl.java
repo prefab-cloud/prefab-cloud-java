@@ -250,7 +250,7 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private boolean loadCheckpointFromUrl(String url, Source source) {
-    LOG.debug("Loading from {} {}", url, source);
+    LOG.debug("Loading {} from  {}", source, url);
     try {
       HttpRequest request = HttpRequest
         .newBuilder()
@@ -276,7 +276,7 @@ public class ConfigClientImpl implements ConfigClient {
         return true;
       }
     } catch (Exception e) {
-      LOG.warn("Unexpected issue with CDN load {}", e.getMessage());
+      LOG.warn("Unexpected issue with loading {} via {}", source, url, e);
     }
     return false;
   }
