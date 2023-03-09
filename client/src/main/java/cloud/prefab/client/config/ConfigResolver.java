@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -386,14 +387,13 @@ public class ConfigResolver {
         configElement,
         new HashMap<>()
       );
-
       if (match.isPresent()) {
         sb.append(padded(key, 45));
         sb.append(padded(toS(match.get().getConfigValue()), 40));
         sb.append(padded(configElement.getProvenance().toString(), 40));
         sb.append(padded(match.get().getReason(), 40));
+        sb.append("\n");
       }
-      sb.append("\n");
     }
     return sb.toString();
   }
