@@ -16,6 +16,10 @@ nested:
     _: top level
     string: nested value
 
+
+nested2:
+  _: the value
+
 log-level:
   _: warn
   cloud.prefab.client: warn
@@ -26,3 +30,9 @@ log-level:
     nested:
       _: warn
       deeply: error
+
+example:
+  nested:
+    path: hello
+
+example2.nested.path: hello2
