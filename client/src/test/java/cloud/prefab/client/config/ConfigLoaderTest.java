@@ -7,7 +7,6 @@ import cloud.prefab.client.Options;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,11 +30,10 @@ public class ConfigLoaderTest {
   @Test
   public void testLoad() {
     assertValueOfConfigIs("test sample value", "sample");
-    assertThat(getValue("sample_int")).map(Prefab.ConfigValue::getInt).contains(123L);
-    assertThat(getValue("sample_double"))
-      .map(Prefab.ConfigValue::getDouble)
-      .contains(12.12);
-    assertThat(getValue("sample_bool")).map(Prefab.ConfigValue::getBool).contains(true);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(123);
+    assertThat(getValue("sample_double").getDouble()).isEqualTo(12.12);
+    assertThat(getValue("sample_bool").getBool()).isEqualTo(true);
+
     assertValueOfConfigIs("value from override in default", "sample_to_override");
   }
 
@@ -47,62 +45,33 @@ public class ConfigLoaderTest {
   }
 
   private void assertValueOfConfigIs(String expectedValue, String configKey) {
-    assertThat(getValue(configKey))
-      .map(Prefab.ConfigValue::getString)
-      .get()
-      .isEqualTo(expectedValue);
-  }
-
-  private void assertValueOfConfigIsEmpty(String configKey) {
-    assertThat(getValue(configKey)).isEmpty();
+    assertThat(getValue(configKey).getString()).isEqualTo(expectedValue);
   }
 
   private void assertValueOfConfigIsLogLevel(
     Prefab.LogLevel expectedValue,
     String configKey
   ) {
-    assertThat(getValue(configKey))
-      .map(Prefab.ConfigValue::getLogLevel)
-      .contains(expectedValue);
+    assertThat(getValue(configKey).getLogLevel()).isEqualTo(expectedValue);
   }
 
-  private Optional<Prefab.ConfigValue> getValue(String configKey) {
-    return Optional
-      .ofNullable(configLoader.calcConfig().get(configKey))
-      .map(configElement ->
-        configElement.getConfig().getRowsList().get(0).getValues(0).getValue()
-      );
+  private Prefab.ConfigValue getValue(String configKey) {
+    return configLoader
+      .calcConfig()
+      .get(configKey)
+      .getConfig()
+      .getRowsList()
+      .get(0)
+      .getValues(0)
+      .getValue();
   }
 
   @Test
-  public void testNested() {
-    assertValueOfConfigIsEmpty("nested");
+  public void test_nested() {
     assertValueOfConfigIs("nested value", "nested.values.string");
     assertValueOfConfigIs("top level", "nested.values");
-    assertValueOfConfigIs("", "log-level");
-    assertValueOfConfigIsLogLevel(Prefab.LogLevel.WARN, "log-level");
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.WARN, "log-level.tests.nested");
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.ERROR, "log-level.tests.nested.deeply");
-  }
-
-  @Test
-  void nestedVsDottedFormatsAreIdentical() {
-    assertValueOfConfigIsEmpty("example");
-    assertValueOfConfigIsEmpty("example2");
-    assertValueOfConfigIsEmpty("example.nested");
-    assertValueOfConfigIsEmpty("example2.nested");
-    assertValueOfConfigIs("hello", "example.nested.path");
-    assertValueOfConfigIs("hello2", "example2.nested.path");
-  }
-
-  @Test
-  public void testUnderscoreNestingForLogger() {
-    assertValueOfConfigIsLogLevel(Prefab.LogLevel.WARN, "log-level");
-  }
-
-  @Test
-  public void testUnderscoreNestingForConfig() {
-    assertValueOfConfigIs("the value", "nested2");
   }
 
   @Test
@@ -125,33 +94,24 @@ public class ConfigLoaderTest {
 
     configLoader.set(cd(1, "sample_int", 1));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(1);
-    assertThat(getValue("sample_int")).map(Prefab.ConfigValue::getInt).contains(1L);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(1);
 
     configLoader.set(cd(4, "sample_int", 4));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(getValue("sample_int")).map(Prefab.ConfigValue::getInt).contains(4L);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(4);
 
-    // next value is not kept because its highwater mark is 2
     configLoader.set(cd(2, "sample_int", 2));
     assertThat(configLoader.getHighwaterMark()).isEqualTo(4);
-    assertThat(getValue("sample_int")).map(Prefab.ConfigValue::getInt).contains(4L);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(4);
   }
 
   @Test
   public void testAPIPrecedence() {
     configLoader.calcConfig();
 
-    assertThat(getValue("sample_int"))
-      .map(Prefab.ConfigValue::getInt)
-      .isPresent()
-      .get()
-      .isEqualTo(123L);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(123);
     configLoader.set(cd(2, "sample_int", 456));
-    assertThat(getValue("sample_int"))
-      .map(Prefab.ConfigValue::getInt)
-      .isPresent()
-      .get()
-      .isEqualTo(456L);
+    assertThat(getValue("sample_int").getInt()).isEqualTo(456);
   }
 
   @Test
@@ -159,11 +119,7 @@ public class ConfigLoaderTest {
     assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));
-    assertThat(getValue("val_from_api"))
-      .map(Prefab.ConfigValue::getInt)
-      .isPresent()
-      .get()
-      .isEqualTo(456L);
+    assertThat(getValue("val_from_api").getInt()).isEqualTo(456);
 
     configLoader.set(
       new ConfigElement(

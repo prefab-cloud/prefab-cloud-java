@@ -177,6 +177,7 @@ public class ConfigLoader {
     Map<String, Object> obj = yaml.load(inputStream);
     obj.forEach((k, v) -> {
       loadKeyValue(k, v, builder, source, sourceLocation);
+      builder.put(k, toValue(k, v, source, sourceLocation));
     });
   }
 
