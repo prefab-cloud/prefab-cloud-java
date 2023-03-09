@@ -18,6 +18,11 @@ public class PrefabOptionsTest {
 
     assertThat(options.getCDNUrl())
       .isEqualTo("https://api-other-server-com.global.ssl.fastly.net");
+
+    options = new Options().setPrefabApiUrl("https://api.other-server.com/");
+
+    assertThat(options.getCDNUrl())
+      .isEqualTo("https://api-other-server-com.global.ssl.fastly.net");
   }
 
   @Test
