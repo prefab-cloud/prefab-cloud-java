@@ -435,13 +435,13 @@ public class ConfigClientImpl implements ConfigClient {
     final List<ConfigChangeEvent> changes = updatingConfigResolver.update();
     broadcastChanges(changes);
     if (initializedLatch.getCount() > 0) {
-      LOG.info(
-        "Initialized Prefab from {} at highwater {}",
-        source,
-        configLoader.getHighwaterMark()
-      );
-      LOG.info(updatingConfigResolver.contentsString());
       initializedLatch.countDown();
+      LOG.info(
+        "Initialized Prefab from {} at highwater {} with currently known configs\n {}",
+        source,
+        configLoader.getHighwaterMark(),
+        updatingConfigResolver.contentsString()
+      );
     }
   }
 

@@ -209,9 +209,8 @@ public class UpdatingConfigResolverTest {
   public void testContentsString() {
     resolver.update();
     String expected =
-      "\n" +
-      "key1                          value_no_env_default                    LOCAL_ONLY:unit test                                                            \n" +
-      "key2                          valueB2                                 LOCAL_ONLY:unit test                                                            \n";
+      "key1                                         value_no_env_default                    LOCAL_ONLY:unit test                                                            \n" +
+      "key2                                         valueB2                                 LOCAL_ONLY:unit test                                                            \n";
     assertThat(resolver.contentsString()).isEqualTo(expected);
   }
 

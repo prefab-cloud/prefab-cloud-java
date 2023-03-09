@@ -377,7 +377,7 @@ public class ConfigResolver {
   }
 
   public String contentsString() {
-    StringBuilder sb = new StringBuilder("\n");
+    StringBuilder sb = new StringBuilder("");
     List<String> sortedKeys = new ArrayList(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
@@ -388,7 +388,7 @@ public class ConfigResolver {
       );
 
       if (match.isPresent()) {
-        sb.append(padded(key, 30));
+        sb.append(padded(key, 45));
         sb.append(padded(toS(match.get().getConfigValue()), 40));
         sb.append(padded(configElement.getProvenance().toString(), 40));
         sb.append(padded(match.get().getReason(), 40));
