@@ -2,12 +2,10 @@ package cloud.prefab.client.config.logging;
 
 import static org.mockito.Mockito.verify;
 
-import cloud.prefab.client.Options;
-import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.config.TestData;
 import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -26,32 +24,14 @@ public class LogLevelEventsTest {
 
   @Test
   void itGetsSpecificLevelMessage() {
-    new ConfigClientImpl(clientWithSpecificLogLevel(), testListener);
+    new ConfigClientImpl(TestData.clientWithSpecificLogLevel(), testListener);
     verify(testListener).setLevel("test.logger", Optional.of(Level.WARNING));
   }
 
   @Test
   void itGetsDefaultLevelMessage() {
-    new ConfigClientImpl(clientWithDefaultLogLevel(), testListener);
+    new ConfigClientImpl(TestData.clientWithDefaultLogLevel(), testListener);
     verify(testListener).setDefaultLevel(Optional.of(Level.WARNING));
-  }
-
-  protected PrefabCloudClient clientWithSpecificLogLevel() {
-    return new PrefabCloudClient(
-      new Options()
-        .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("src/test/resources/override_directory")
-        .setPrefabEnvs(List.of("logging_specific"))
-    );
-  }
-
-  protected PrefabCloudClient clientWithDefaultLogLevel() {
-    return new PrefabCloudClient(
-      new Options()
-        .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("src/test/resources/override_directory")
-        .setPrefabEnvs(List.of("logging_default"))
-    );
   }
 
   private static class TestListener extends AbstractLoggingListener {

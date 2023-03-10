@@ -13,6 +13,7 @@ import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
+import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
@@ -35,8 +36,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -47,6 +50,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,6 +138,7 @@ public class ConfigClientImpl implements ConfigClient {
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
+    HashMap<String, Prefab.ConfigValue> mutableProperties = new HashMap<>(properties);
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
@@ -149,7 +154,7 @@ public class ConfigClientImpl implements ConfigClient {
         }
       }
       if (baseClient.getOptions().getNamespace().isPresent()) {
-        properties.put(
+        mutableProperties.put(
           NAMESPACE_KEY,
           Prefab.ConfigValue
             .newBuilder()
@@ -157,7 +162,7 @@ public class ConfigClientImpl implements ConfigClient {
             .build()
         );
       }
-      return updatingConfigResolver.getConfigValue(key, properties);
+      return updatingConfigResolver.getConfigValue(key, mutableProperties);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -198,6 +203,69 @@ public class ConfigClientImpl implements ConfigClient {
     if (logLevel != null && loggerStatsAggregator != null) {
       loggerStatsAggregator.reportLoggerUsage(loggerName, logLevel, count);
     }
+  }
+
+  @Override
+  public Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    Map<String, Prefab.ConfigValue> properties
+  ) {
+    for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
+      String configKey = it.next();
+      Optional<Prefab.LogLevel> logLevelMaybe = get(configKey, properties)
+        .filter(Prefab.ConfigValue::hasLogLevel)
+        .map(Prefab.ConfigValue::getLogLevel);
+      if (logLevelMaybe.isPresent()) {
+        return logLevelMaybe;
+      }
+    }
+    return Optional.empty();
+  }
+
+  @Override
+  public Optional<Prefab.LogLevel> getLogLevelFromStringMap(
+    String loggerName,
+    Map<String, String> properties
+  ) {
+    return getLogLevel(
+      loggerName,
+      properties
+        .entrySet()
+        .stream()
+        .collect(
+          Collectors.toMap(
+            Map.Entry::getKey,
+            entry -> Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
+          )
+        )
+    );
+  }
+
+  private Iterator<String> loggerNameLookupIterator(String loggerName) {
+    return new Iterator<>() {
+      String nextValue = AbstractLoggingListener.LOG_LEVEL_PREFIX + "." + loggerName;
+
+      @Override
+      public boolean hasNext() {
+        return nextValue != null;
+      }
+
+      @Override
+      public String next() {
+        if (nextValue == null) {
+          throw new NoSuchElementException();
+        }
+        String currentValue = nextValue;
+        int lastDotIndex = nextValue.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+          nextValue = nextValue.substring(0, lastDotIndex);
+          return currentValue;
+        } else {
+          nextValue = null;
+        }
+        return currentValue;
+      }
+    };
   }
 
   private void loadCheckpoint() {

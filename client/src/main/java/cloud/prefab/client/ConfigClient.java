@@ -35,6 +35,16 @@ public interface ConfigClient {
 
   void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count);
 
+  Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    Map<String, Prefab.ConfigValue> properties
+  );
+
+  Optional<Prefab.LogLevel> getLogLevelFromStringMap(
+    String loggerName,
+    Map<String, String> properties
+  );
+
   enum Source {
     REMOTE_API_GRPC,
     STREAMING,

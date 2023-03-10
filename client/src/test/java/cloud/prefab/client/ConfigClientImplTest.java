@@ -5,14 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.TestData;
 import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-class ConfigClientTest {
+class ConfigClientImplTest {
 
   @Test
   void localModeUnlocks() {
@@ -88,5 +90,66 @@ class ConfigClientTest {
           )
         )
       );
+  }
+
+  @Test
+  void itLooksUpLogLevelsViaStringMap() {
+    ConfigClient configClient = TestData
+      .clientWithEnv("logging_multilevel")
+      .configClient();
+
+    assertThat(
+      configClient.getLogLevelFromStringMap(
+        "com.example.p1.ClassOne",
+        Collections.emptyMap()
+      )
+    )
+      .contains(Prefab.LogLevel.TRACE);
+
+    assertThat(
+      configClient.getLogLevelFromStringMap(
+        "com.example.p1.ClassTwo",
+        Collections.emptyMap()
+      )
+    )
+      .contains(Prefab.LogLevel.DEBUG);
+
+    assertThat(
+      configClient.getLogLevelFromStringMap(
+        "com.example.AnotherClass",
+        Collections.emptyMap()
+      )
+    )
+      .contains(Prefab.LogLevel.ERROR);
+
+    assertThat(
+      configClient.getLogLevelFromStringMap("com.foo.ClipBoard", Collections.emptyMap())
+    )
+      .contains(Prefab.LogLevel.WARN);
+  }
+
+  @Test
+  void itLooksUpLogLevels() {
+    ConfigClient configClient = TestData
+      .clientWithEnv("logging_multilevel")
+      .configClient();
+
+    assertThat(
+      configClient.getLogLevel("com.example.p1.ClassOne", Collections.emptyMap())
+    )
+      .contains(Prefab.LogLevel.TRACE);
+
+    assertThat(
+      configClient.getLogLevel("com.example.p1.ClassTwo", Collections.emptyMap())
+    )
+      .contains(Prefab.LogLevel.DEBUG);
+
+    assertThat(
+      configClient.getLogLevel("com.example.AnotherClass", Collections.emptyMap())
+    )
+      .contains(Prefab.LogLevel.ERROR);
+
+    assertThat(configClient.getLogLevel("com.foo.ClipBoard", Collections.emptyMap()))
+      .contains(Prefab.LogLevel.WARN);
   }
 }
