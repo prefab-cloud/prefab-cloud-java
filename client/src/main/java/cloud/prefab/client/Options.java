@@ -161,7 +161,7 @@ public class Options {
     } else {
       return String.format(
         "%s.global.ssl.fastly.net",
-        prefabApiUrl.replaceAll("\\.", "-")
+        prefabApiUrl.replaceAll("/$", "").replaceAll("\\.", "-")
       );
     }
   }
