@@ -241,6 +241,11 @@ public class ConfigClientImpl implements ConfigClient {
     );
   }
 
+  @Override
+  public boolean isReady() {
+    return initializedLatch.getCount() == 0;
+  }
+
   private Iterator<String> loggerNameLookupIterator(String loggerName) {
     return new Iterator<>() {
       String nextValue = AbstractLoggingListener.LOG_LEVEL_PREFIX + "." + loggerName;

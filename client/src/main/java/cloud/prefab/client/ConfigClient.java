@@ -45,6 +45,8 @@ public interface ConfigClient {
     Map<String, String> properties
   );
 
+  boolean isReady();
+
   enum Source {
     REMOTE_API_GRPC,
     STREAMING,

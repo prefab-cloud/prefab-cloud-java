@@ -40,6 +40,9 @@ public class LogbackTurboFilter extends TurboFilter {
     Object[] objects,
     Throwable throwable
   ) {
+    if (!configClient.isReady()) {
+      return FilterReply.NEUTRAL;
+    }
     if (recursionCheck.get()) {
       return FilterReply.NEUTRAL;
     } else {

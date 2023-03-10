@@ -1,6 +1,10 @@
 package cloud.prefab.client.config.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -33,11 +37,9 @@ class LogbackTurboFilterTest {
     Logger logger = (Logger) LoggerFactory.getLogger(
       "com.example.factory.FactoryFactory"
     );
+    when(configClient.isReady()).thenReturn(true);
 
-    Mockito
-      .when(
-        configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap())
-      )
+    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
       .thenReturn(Optional.empty());
 
     assertThat(
@@ -55,11 +57,9 @@ class LogbackTurboFilterTest {
     Logger logger = (Logger) LoggerFactory.getLogger(
       "com.example.factory.FactoryFactory"
     );
+    when(configClient.isReady()).thenReturn(true);
 
-    Mockito
-      .when(
-        configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap())
-      )
+    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
       .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
     assertThat(
@@ -77,11 +77,9 @@ class LogbackTurboFilterTest {
     Logger logger = (Logger) LoggerFactory.getLogger(
       "com.example.factory.FactoryFactory"
     );
+    when(configClient.isReady()).thenReturn(true);
 
-    Mockito
-      .when(
-        configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap())
-      )
+    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
       .thenReturn(Optional.of(Prefab.LogLevel.WARN));
 
     assertThat(
@@ -99,14 +97,13 @@ class LogbackTurboFilterTest {
     Logger logger = (Logger) LoggerFactory.getLogger(
       "com.example.factory.FactoryFactory"
     );
-
+    when(configClient.isReady()).thenReturn(true);
     Map<String, String> contextData = Map.of("key1", "val1", "key2", "val2");
 
     try {
       MDC.setContextMap(contextData);
 
-      Mockito
-        .when(configClient.getLogLevelFromStringMap(logger.getName(), contextData))
+      when(configClient.getLogLevelFromStringMap(logger.getName(), contextData))
         .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
       assertThat(
@@ -120,5 +117,18 @@ class LogbackTurboFilterTest {
     } finally {
       MDC.clear();
     }
+  }
+
+  @Test
+  void itEarlyOutsIfClientUnready() {
+    Logger logger = (Logger) LoggerFactory.getLogger(
+      "com.example.factory.FactoryFactory"
+    );
+    when(configClient.isReady()).thenReturn(false);
+    assertThat(
+      logbackTurboFilter.decide(null, logger, Level.DEBUG, "", new Object[0], null)
+    )
+      .isEqualTo(FilterReply.NEUTRAL);
+    verifyNoMoreInteractions(configClient);
   }
 }
