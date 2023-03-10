@@ -1,6 +1,7 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.ConfigStore;
+import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
@@ -47,7 +48,10 @@ public class ConfigResolver {
     Map<String, Prefab.ConfigValue> properties
   ) {
     if (!configStore.containsKey(key)) {
-      LOG.warn("No config value found for key {}", key);
+      // logging lookups generate a lot of misses so skip those
+      if (!key.startsWith(AbstractLoggingListener.LOG_LEVEL_PREFIX)) {
+        LOG.debug("No config value found for key {}", key);
+      }
       return Optional.empty();
     }
     final ConfigElement configElement = configStore.getElement(key);
