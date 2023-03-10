@@ -102,19 +102,23 @@ class LogbackTurboFilterTest {
 
     Map<String, String> contextData = Map.of("key1", "val1", "key2", "val2");
 
-    MDC.setContextMap(contextData);
+    try {
+      MDC.setContextMap(contextData);
 
-    Mockito
-      .when(configClient.getLogLevelFromStringMap(logger.getName(), contextData))
-      .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
+      Mockito
+        .when(configClient.getLogLevelFromStringMap(logger.getName(), contextData))
+        .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
-    assertThat(
-      logbackTurboFilter.decide(null, logger, Level.DEBUG, "", new Object[0], null)
-    )
-      .isEqualTo(FilterReply.ACCEPT);
+      assertThat(
+        logbackTurboFilter.decide(null, logger, Level.DEBUG, "", new Object[0], null)
+      )
+        .isEqualTo(FilterReply.ACCEPT);
 
-    Mockito
-      .verify(configClient)
-      .reportLoggerUsage(logger.getName(), Prefab.LogLevel.DEBUG, 1);
+      Mockito
+        .verify(configClient)
+        .reportLoggerUsage(logger.getName(), Prefab.LogLevel.DEBUG, 1);
+    } finally {
+      MDC.clear();
+    }
   }
 }
