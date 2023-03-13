@@ -50,7 +50,7 @@ public class ConfigResolver {
     if (!configStore.containsKey(key)) {
       // logging lookups generate a lot of misses so skip those
       if (!key.startsWith(AbstractLoggingListener.LOG_LEVEL_PREFIX)) {
-        LOG.debug("No config value found for key {}", key);
+        LOG.trace("No config value found for key {}", key);
       }
       return Optional.empty();
     }
