@@ -439,18 +439,18 @@ public class ConfigClientImpl implements ConfigClient {
           long now = System.currentTimeMillis();
           LoggerStatsAggregator.LogCounts logCounts = loggerStatsAggregator.getAndResetStats();
 
-          Prefab.Loggers loggers = Prefab.Loggers
+          Prefab.Loggers.Builder loggersBuilder = Prefab.Loggers
             .newBuilder()
             .setStartAt(logCounts.getStartTime())
             .setEndAt(now)
             .addAllLoggers(logCounts.getLoggerMap().values())
-            .setInstanceHash(uniqueClientId)
-            .build();
+            .setInstanceHash(uniqueClientId);
+          options.getNamespace().ifPresent(loggersBuilder::setNamespace);
 
           LOG.debug("Uploading stats for {} loggers", logCounts.getLoggerMap().size());
           loggerReportingServiceStub()
             .send(
-              loggers,
+              loggersBuilder.build(),
               new StreamObserver<>() {
                 @Override
                 public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
