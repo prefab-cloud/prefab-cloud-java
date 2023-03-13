@@ -1,0 +1,5 @@
+log-level: WARN
+log-level.com.example: ERROR
+log-level.com.example.p1: DEBUG
+log-level.com.example.p1.ClassOne: TRACE
+log-level.com.example.p2: INFO

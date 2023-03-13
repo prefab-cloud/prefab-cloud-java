@@ -6,7 +6,12 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.turbo.TurboFilter;
 import ch.qos.logback.core.spi.FilterReply;
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.domain.Prefab;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.slf4j.Marker;
 
 public class LogbackTurboFilter extends TurboFilter {
@@ -16,7 +21,7 @@ public class LogbackTurboFilter extends TurboFilter {
 
   private final ConfigClient configClient;
 
-  private LogbackTurboFilter(ConfigClient configClient) {
+  LogbackTurboFilter(ConfigClient configClient) {
     this.configClient = configClient;
   }
 
@@ -35,6 +40,9 @@ public class LogbackTurboFilter extends TurboFilter {
     Object[] objects,
     Throwable throwable
   ) {
+    if (!configClient.isReady()) {
+      return FilterReply.NEUTRAL;
+    }
     if (recursionCheck.get()) {
       return FilterReply.NEUTRAL;
     } else {
@@ -47,6 +55,20 @@ public class LogbackTurboFilter extends TurboFilter {
     );
 
     try {
+      Map<String, String> mdcData = MDC.getCopyOfContextMap();
+      Optional<Prefab.LogLevel> loglevelMaybe = configClient.getLogLevelFromStringMap(
+        logger.getName(),
+        mdcData != null ? mdcData : new HashMap<>()
+      );
+      if (loglevelMaybe.isPresent()) {
+        Level calculatedMinLogLevelToAccept = LogbackLevelMapper.LEVEL_MAP.get(
+          loglevelMaybe.get()
+        );
+        if (level.isGreaterOrEqual(calculatedMinLogLevelToAccept)) {
+          return FilterReply.ACCEPT;
+        }
+        return FilterReply.DENY;
+      }
       return FilterReply.NEUTRAL;
     } finally {
       recursionCheck.set(false);
