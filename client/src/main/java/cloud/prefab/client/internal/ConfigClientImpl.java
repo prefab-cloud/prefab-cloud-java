@@ -23,6 +23,7 @@ import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -132,7 +133,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, new HashMap<>());
+    return get(key, Collections.emptyMap());
   }
 
   @Override
@@ -140,7 +141,19 @@ public class ConfigClientImpl implements ConfigClient {
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    HashMap<String, Prefab.ConfigValue> mutableProperties = new HashMap<>(properties);
+    HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
+      properties.size() + (baseClient.getOptions().getNamespace().isPresent() ? 1 : 0)
+    );
+    mutableProperties.putAll(properties);
+    if (baseClient.getOptions().getNamespace().isPresent()) {
+      mutableProperties.put(
+        NAMESPACE_KEY,
+        Prefab.ConfigValue
+          .newBuilder()
+          .setString(baseClient.getOptions().getNamespace().get())
+          .build()
+      );
+    }
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
@@ -154,15 +167,6 @@ public class ConfigClientImpl implements ConfigClient {
             options.getInitializationTimeoutSec()
           );
         }
-      }
-      if (baseClient.getOptions().getNamespace().isPresent()) {
-        mutableProperties.put(
-          NAMESPACE_KEY,
-          Prefab.ConfigValue
-            .newBuilder()
-            .setString(baseClient.getOptions().getNamespace().get())
-            .build()
-        );
       }
       return updatingConfigResolver.getConfigValue(key, mutableProperties);
     } catch (InterruptedException e) {
