@@ -6,10 +6,14 @@ import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -21,6 +25,13 @@ import org.yaml.snakeyaml.Yaml;
 public class ConfigLoader {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigLoader.class);
+
+  private static final ImmutableSet<Prefab.Criterion.CriterionOperator> PROPERTY_OPERATORS = Sets.immutableEnumSet(
+    Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF,
+    Prefab.Criterion.CriterionOperator.PROP_IS_NOT_ONE_OF,
+    Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF,
+    Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF
+  );
 
   private final Options options;
   private final ConcurrentMap<String, ConfigElement> apiConfig;
@@ -115,8 +126,101 @@ public class ConfigLoader {
       } else {
         valueBuilder.setString((String) obj);
       }
+    } else if (obj instanceof List) {
+      Prefab.StringList.Builder stringListBuilder = Prefab.StringList.newBuilder();
+      stringListBuilder.addAllValues((List<String>) obj);
+      valueBuilder.setStringList(stringListBuilder.build());
     }
     return valueBuilder.build();
+  }
+
+  private ConfigElement toFeatureFlag(
+    String key,
+    Map<String, Object> map,
+    ConfigClient.Source source,
+    String sourceLocation
+  ) {
+    Object value = map.get("value");
+    if (value == null) {
+      throw new IllegalArgumentException(
+        String.format("Feature flag with key '%s' must have a 'value' set", key)
+      );
+    }
+
+    Prefab.ConfigValue configValue = configValueFromObj(key, value);
+    Prefab.ConditionalValue.Builder conditionalValueBuilder = Prefab.ConditionalValue
+      .newBuilder()
+      .setValue(configValue);
+
+    Object criteria = map.get("criteria");
+    if (criteria instanceof Map) {
+      conditionalValueBuilder.addCriteria(
+        toCriterion(key, (Map<String, Object>) criteria)
+      );
+    } else if (criteria instanceof List) {
+      for (Object criterion : ((List) criteria)) {
+        if (criterion instanceof Map) {
+          conditionalValueBuilder.addCriteria(
+            toCriterion(key, (Map<String, Object>) criteria)
+          );
+        }
+      }
+    }
+
+    return new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .setConfigType(Prefab.ConfigType.FEATURE_FLAG)
+        .addRows(
+          Prefab.ConfigRow.newBuilder().addValues(conditionalValueBuilder.build()).build()
+        )
+        .build(),
+      new Provenance(source, sourceLocation)
+    );
+  }
+
+  private Prefab.Criterion toCriterion(String key, Map<String, Object> map) {
+    Prefab.Criterion.Builder builder = Prefab.Criterion.newBuilder();
+
+    String operatorValue = (String) map.get("operator");
+    if (operatorValue == null) {
+      throw new IllegalArgumentException(
+        String.format(
+          "Feature flag with key '%s' must have a 'operator' set in each criteria",
+          key
+        )
+      );
+    }
+    Prefab.Criterion.CriterionOperator operator = Prefab.Criterion.CriterionOperator.valueOf(
+      operatorValue
+    );
+    builder.setOperator(operator);
+    String property = (String) map.get("property");
+    if (PROPERTY_OPERATORS.contains(operator) && property == null) {
+      throw new IllegalArgumentException(
+        String.format(
+          "Feature flag with key '%s' must have a 'property' set in each criteria with a property operator",
+          key
+        )
+      );
+    }
+    if (property != null) {
+      builder.setPropertyName(property);
+    }
+
+    Object values = map.get("values");
+    if (values == null) {
+      throw new IllegalArgumentException(
+        String.format(
+          "Feature flag with key '%s' must have 'values' set in each criteria",
+          key
+        )
+      );
+    }
+    if (values != null) {
+      builder.setValueToMatch(configValueFromObj(key, values));
+    }
+    return builder.build();
   }
 
   private ConfigElement toValue(
@@ -162,7 +266,6 @@ public class ConfigLoader {
         }
       }
     }
-
     return builder.buildKeepingLast();
   }
 
@@ -189,13 +292,16 @@ public class ConfigLoader {
   ) {
     if (v instanceof Map) {
       Map<String, Object> map = (Map<String, Object>) v;
-
-      for (Map.Entry<String, Object> nest : map.entrySet()) {
-        String nestedKey = String.format("%s.%s", k, nest.getKey());
-        if (nest.getKey().equals("_")) {
-          nestedKey = k;
+      if (map.containsKey("feature_flag")) {
+        builder.put(k, toFeatureFlag(k, map, source, sourceLocation));
+      } else {
+        for (Map.Entry<String, Object> nest : map.entrySet()) {
+          String nestedKey = String.format("%s.%s", k, nest.getKey());
+          if (nest.getKey().equals("_")) {
+            nestedKey = k;
+          }
+          loadKeyValue(nestedKey, nest.getValue(), builder, source, sourceLocation);
         }
-        loadKeyValue(nestedKey, nest.getValue(), builder, source, sourceLocation);
       }
     } else {
       builder.put(k, toValue(k, v, source, sourceLocation));
