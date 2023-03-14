@@ -53,7 +53,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +79,8 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final String uniqueClientId;
 
+  private final Optional<Prefab.ConfigValue> namespaceMaybe;
+
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -98,6 +99,11 @@ public class ConfigClientImpl implements ConfigClient {
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
     configChangeListeners.addAll(Arrays.asList(listeners));
+    namespaceMaybe =
+      baseClient
+        .getOptions()
+        .getNamespace()
+        .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
@@ -142,18 +148,11 @@ public class ConfigClientImpl implements ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   ) {
     HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
-      properties.size() + (baseClient.getOptions().getNamespace().isPresent() ? 1 : 0)
+      properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
     );
     mutableProperties.putAll(properties);
-    if (baseClient.getOptions().getNamespace().isPresent()) {
-      mutableProperties.put(
-        NAMESPACE_KEY,
-        Prefab.ConfigValue
-          .newBuilder()
-          .setString(baseClient.getOptions().getNamespace().get())
-          .build()
-      );
-    }
+    namespaceMaybe.ifPresent(namespace -> mutableProperties.put(NAMESPACE_KEY, namespace)
+    );
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
