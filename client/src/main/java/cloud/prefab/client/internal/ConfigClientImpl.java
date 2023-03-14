@@ -66,6 +66,9 @@ public class ConfigClientImpl implements ConfigClient {
 
   private static final long BACKOFF_MILLIS = 3000;
 
+  private static final String LOG_LEVEL_PREFIX_WITH_DOT =
+    AbstractLoggingListener.LOG_LEVEL_PREFIX + ".";
+
   private final PrefabCloudClient baseClient;
   private final Options options;
 
@@ -256,7 +259,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {
     return new Iterator<>() {
-      String nextValue = AbstractLoggingListener.LOG_LEVEL_PREFIX + "." + loggerName;
+      String nextValue = LOG_LEVEL_PREFIX_WITH_DOT + loggerName;
 
       @Override
       public boolean hasNext() {
