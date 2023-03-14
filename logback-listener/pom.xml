@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.3.4pre1</version>
+    <version>0.3.4pre2</version>
   </parent>
 
   <artifactId>logback-listener</artifactId>
@@ -29,7 +29,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.3.4pre1</version>
+      <version>0.3.4pre2</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -43,7 +43,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.3.4pre1</version>
+      <version>0.3.4pre2</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
