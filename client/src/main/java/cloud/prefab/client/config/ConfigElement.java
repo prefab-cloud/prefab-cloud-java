@@ -1,12 +1,17 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ConfigElement {
 
   private Prefab.Config config;
   private Provenance provenance;
+
+  private ConcurrentHashMap<Long, List<Prefab.ConfigRow>> preProcessedRows = new ConcurrentHashMap<>();
 
   public ConfigElement(Prefab.Config config, Provenance provenance) {
     this.config = config;
@@ -22,10 +27,17 @@ public class ConfigElement {
   }
 
   public Stream<Prefab.ConfigRow> getRowsProjEnvFirst(long projectEnvId) {
-    return config
-      .getRowsList()
-      .stream()
-      .filter(cr -> !cr.hasProjectEnvId() || cr.getProjectEnvId() == projectEnvId)
-      .sorted((o1, o2) -> o1.hasProjectEnvId() ? -1 : 1);
+    return preProcessedRows
+      .computeIfAbsent(
+        projectEnvId,
+        key ->
+          config
+            .getRowsList()
+            .stream()
+            .filter(cr -> !cr.hasProjectEnvId() || cr.getProjectEnvId() == projectEnvId)
+            .sorted((o1, o2) -> o1.hasProjectEnvId() ? -1 : 1)
+            .collect(Collectors.toList())
+      )
+      .stream();
   }
 }
