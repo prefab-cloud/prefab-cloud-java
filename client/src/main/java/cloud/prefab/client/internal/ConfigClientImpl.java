@@ -22,6 +22,7 @@ import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -35,6 +36,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -227,18 +229,21 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     Map<String, String> properties
   ) {
-    return getLogLevel(
-      loggerName,
-      properties
-        .entrySet()
-        .stream()
-        .collect(
-          Collectors.toMap(
-            Map.Entry::getKey,
-            entry -> Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
-          )
-        )
-    );
+    Map<String, Prefab.ConfigValue> map;
+
+    if (properties.isEmpty()) {
+      map = Collections.emptyMap();
+    } else {
+      ImmutableMap.Builder<String, Prefab.ConfigValue> mapBuilder = ImmutableMap.builder();
+      for (Map.Entry<String, String> entry : properties.entrySet()) {
+        mapBuilder.put(
+          entry.getKey(),
+          Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
+        );
+      }
+      map = mapBuilder.build();
+    }
+    return getLogLevel(loggerName, map);
   }
 
   @Override
