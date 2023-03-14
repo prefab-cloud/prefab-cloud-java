@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 public class ConfigLoaderTest {
 
   private ConfigLoader configLoader;
-  private Map<String, ConfigElement> stringConfigDeltaMap;
 
   @BeforeEach
   public void setup() {
@@ -24,8 +23,6 @@ public class ConfigLoaderTest {
           .setConfigOverrideDir("src/test/resources/override_directory")
           .setPrefabEnvs(List.of("unit_tests"))
       );
-
-    stringConfigDeltaMap = configLoader.calcConfig();
   }
 
   @Test
@@ -44,6 +41,85 @@ public class ConfigLoaderTest {
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.INFO, "log-level.tests.capitalized");
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.INFO, "log-level.tests.uncapitalized");
     assertValueOfConfigIsLogLevel(Prefab.LogLevel.DEBUG, "log-level.tests");
+  }
+
+  @Test
+  void testSimpleFeatureFlagLoad() {
+    assertThat(getConfig("flag_with_a_value")).isPresent();
+
+    Prefab.Config ffWithValue = getConfig("flag_with_a_value").get();
+    assertThat(ffWithValue.getConfigType()).isEqualTo(Prefab.ConfigType.FEATURE_FLAG);
+    assertThat(ffWithValue.getRowsList().get(0).getValues(0).getValue().getString())
+      .isEqualTo("all-features");
+  }
+
+  @Test
+  void testFeatureFlagLoadWithCriteria() {
+    assertThat(getConfig("in_lookup_key")).isPresent();
+
+    Prefab.Config ffWithValue = getConfig("in_lookup_key").get();
+    assertThat(ffWithValue.getConfigType()).isEqualTo(Prefab.ConfigType.FEATURE_FLAG);
+    Prefab.ConditionalValue conditionalValue = ffWithValue
+      .getRowsList()
+      .get(0)
+      .getValues(0);
+    assertThat(conditionalValue.getValue().getBool()).isTrue();
+    assertThat(conditionalValue.getCriteriaCount()).isEqualTo(1);
+    Prefab.Criterion criteria = conditionalValue.getCriteria(0);
+    assertThat(criteria)
+      .isEqualTo(
+        Prefab.Criterion
+          .newBuilder()
+          .setOperator(Prefab.Criterion.CriterionOperator.LOOKUP_KEY_IN)
+          .setValueToMatch(
+            Prefab.ConfigValue
+              .newBuilder()
+              .setStringList(
+                Prefab.StringList
+                  .newBuilder()
+                  .addValues("abc123")
+                  .addValues("xyz987")
+                  .build()
+              )
+              .build()
+          )
+          .build()
+      );
+  }
+
+  @Test
+  void testFeatureFlagLoadWithCriteriaAndProperty() {
+    assertThat(getConfig("just_my_domain")).isPresent();
+
+    Prefab.Config ffWithValue = getConfig("just_my_domain").get();
+    assertThat(ffWithValue.getConfigType()).isEqualTo(Prefab.ConfigType.FEATURE_FLAG);
+    Prefab.ConditionalValue conditionalValue = ffWithValue
+      .getRowsList()
+      .get(0)
+      .getValues(0);
+    assertThat(conditionalValue.getValue().getString()).isEqualTo("new-version");
+    assertThat(conditionalValue.getCriteriaCount()).isEqualTo(1);
+    Prefab.Criterion criteria = conditionalValue.getCriteria(0);
+    assertThat(criteria)
+      .isEqualTo(
+        Prefab.Criterion
+          .newBuilder()
+          .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+          .setPropertyName("domain")
+          .setValueToMatch(
+            Prefab.ConfigValue
+              .newBuilder()
+              .setStringList(
+                Prefab.StringList
+                  .newBuilder()
+                  .addValues("prefab.cloud")
+                  .addValues("example.com")
+                  .build()
+              )
+              .build()
+          )
+          .build()
+      );
   }
 
   private void assertValueOfConfigIs(String expectedValue, String configKey) {
@@ -66,12 +142,15 @@ public class ConfigLoaderTest {
       .contains(expectedValue);
   }
 
-  private Optional<Prefab.ConfigValue> getValue(String configKey) {
+  private Optional<Prefab.Config> getConfig(String configKey) {
     return Optional
       .ofNullable(configLoader.calcConfig().get(configKey))
-      .map(configElement ->
-        configElement.getConfig().getRowsList().get(0).getValues(0).getValue()
-      );
+      .map(ConfigElement::getConfig);
+  }
+
+  private Optional<Prefab.ConfigValue> getValue(String configKey) {
+    return getConfig(configKey)
+      .map(config -> config.getRowsList().get(0).getValues(0).getValue());
   }
 
   @Test
