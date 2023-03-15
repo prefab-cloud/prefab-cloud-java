@@ -386,6 +386,10 @@ public class ConfigResolver {
     return configStore.getKeys();
   }
 
+  public boolean containsKey(String key) {
+    return configStore.containsKey(key);
+  }
+
   public String contentsString() {
     StringBuilder sb = new StringBuilder("");
     List<String> sortedKeys = new ArrayList(getKeys());

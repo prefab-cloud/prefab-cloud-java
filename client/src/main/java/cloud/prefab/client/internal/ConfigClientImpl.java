@@ -150,12 +150,6 @@ public class ConfigClientImpl implements ConfigClient {
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
-      properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
-    );
-    mutableProperties.putAll(properties);
-    namespaceMaybe.ifPresent(namespace -> mutableProperties.put(NAMESPACE_KEY, namespace)
-    );
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
@@ -170,6 +164,17 @@ public class ConfigClientImpl implements ConfigClient {
           );
         }
       }
+      if (!updatingConfigResolver.containsKey(key)) {
+        return Optional.empty();
+      }
+      HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
+        properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
+      );
+      mutableProperties.putAll(properties);
+      namespaceMaybe.ifPresent(namespace ->
+        mutableProperties.put(NAMESPACE_KEY, namespace)
+      );
+
       return updatingConfigResolver.getConfigValue(key, mutableProperties);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
