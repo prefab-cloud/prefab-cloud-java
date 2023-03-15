@@ -46,6 +46,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -83,6 +84,8 @@ public class ConfigClientImpl implements ConfigClient {
   private final String uniqueClientId;
 
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
+
+  private final ConcurrentHashMap<String, String> loggerNameLookup = new ConcurrentHashMap<>();
 
   @Override
   public ConfigResolver getResolver() {
@@ -277,13 +280,18 @@ public class ConfigClientImpl implements ConfigClient {
           throw new NoSuchElementException();
         }
         String currentValue = nextValue;
-        int lastDotIndex = nextValue.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-          nextValue = nextValue.substring(0, lastDotIndex);
-          return currentValue;
-        } else {
-          nextValue = null;
-        }
+        nextValue =
+          loggerNameLookup.computeIfAbsent(
+            currentValue,
+            k -> {
+              int lastDotIndex = nextValue.lastIndexOf('.');
+              if (lastDotIndex > 0) {
+                return nextValue.substring(0, lastDotIndex);
+              } else {
+                return null;
+              }
+            }
+          );
         return currentValue;
       }
     };
