@@ -38,14 +38,18 @@ class LoggerStatsAggregator {
 
   private final AtomicReference<LogCounts> currentLogCollection = new AtomicReference<>();
 
+  private static final int DRAIN_SIZE = 25_000;
+  private static final int QUEUE_SIZE = 1_000_000_000;
+  private final List<Prefab.Logger> drain = new ArrayList<>(DRAIN_SIZE); // don't allocate a new one every run
+
+  private final LinkedBlockingQueue<Prefab.Logger> loggerCountQueue = new LinkedBlockingQueue<>(
+    QUEUE_SIZE
+  );
+
   LoggerStatsAggregator(Clock clock) {
     this.clock = clock;
     currentLogCollection.set(new LogCounts(clock.millis()));
   }
-
-  private final LinkedBlockingQueue<Prefab.Logger> loggerCountQueue = new LinkedBlockingQueue<>(
-    100_000
-  );
 
   void start() {
     ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(
@@ -65,17 +69,16 @@ class LoggerStatsAggregator {
           LOG.debug("error in aggregator", e);
         }
       },
-      100,
-      100,
+      10,
+      50,
       TimeUnit.MILLISECONDS
     );
   }
 
   @VisibleForTesting
   void aggregate() {
-    int drainSize = 10_000;
-    List<Prefab.Logger> drain = new ArrayList<>(drainSize);
-    while (loggerCountQueue.drainTo(drain, drainSize) > 0) {
+    drain.clear();
+    while (loggerCountQueue.drainTo(drain, DRAIN_SIZE) > 0) {
       Map<String, Prefab.Logger> aggregates = drain
         .stream()
         .collect(
@@ -122,7 +125,7 @@ class LoggerStatsAggregator {
     }
 
     try {
-      loggerCountQueue.offer(loggerBuilder.build(), 10, TimeUnit.MILLISECONDS);
+      loggerCountQueue.offer(loggerBuilder.build(), 100, TimeUnit.NANOSECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
