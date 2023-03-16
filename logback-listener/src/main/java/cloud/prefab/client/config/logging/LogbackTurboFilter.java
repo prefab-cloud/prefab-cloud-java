@@ -7,7 +7,7 @@ import ch.qos.logback.classic.turbo.TurboFilter;
 import ch.qos.logback.core.spi.FilterReply;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.domain.Prefab;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.LoggerFactory;
@@ -58,7 +58,7 @@ public class LogbackTurboFilter extends TurboFilter {
       Map<String, String> mdcData = MDC.getCopyOfContextMap();
       Optional<Prefab.LogLevel> loglevelMaybe = configClient.getLogLevelFromStringMap(
         logger.getName(),
-        mdcData != null ? mdcData : new HashMap<>()
+        mdcData != null ? mdcData : Collections.emptyMap()
       );
       if (loglevelMaybe.isPresent()) {
         Level calculatedMinLogLevelToAccept = LogbackLevelMapper.LEVEL_MAP.get(

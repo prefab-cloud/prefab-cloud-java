@@ -119,6 +119,10 @@ public class UpdatingConfigResolver {
     return configResolver.getKeys();
   }
 
+  public boolean containsKey(String key) {
+    return configResolver.containsKey(key);
+  }
+
   public Optional<Prefab.ConfigValue> getConfigValue(
     String key,
     Map<String, Prefab.ConfigValue> properties

@@ -4,6 +4,7 @@ import cloud.prefab.client.ConfigStore;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -96,13 +97,17 @@ public class ConfigResolver {
     final Optional<Match> match = configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
-        Map<String, Prefab.ConfigValue> rowProperties = new HashMap<>(
-          properties.size() + configRow.getPropertiesMap().size()
-        );
-        rowProperties.putAll(properties);
+        Map<String, Prefab.ConfigValue> rowProperties = properties;
+        if (!configRow.getPropertiesMap().isEmpty()) {
+          rowProperties =
+            Maps.newHashMapWithExpectedSize(
+              properties.size() + configRow.getPropertiesMap().size()
+            );
+          rowProperties.putAll(properties);
+          // Add row properties like "active"
+          rowProperties.putAll(configRow.getPropertiesMap());
+        }
 
-        // Add row properties like "active"
-        rowProperties.putAll(configRow.getPropertiesMap());
         // Return the value of the first matching set of criteria
         for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
           Optional<Match> optionalMatch = evaluateConditionalValue(
@@ -379,6 +384,10 @@ public class ConfigResolver {
 
   public Collection<String> getKeys() {
     return configStore.getKeys();
+  }
+
+  public boolean containsKey(String key) {
+    return configStore.containsKey(key);
   }
 
   public String contentsString() {

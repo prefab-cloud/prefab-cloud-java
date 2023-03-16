@@ -22,6 +22,8 @@ import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
 import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.grpc.Status;
@@ -35,6 +37,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -43,6 +46,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,7 +54,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +67,9 @@ public class ConfigClientImpl implements ConfigClient {
 
   private static final long BACKOFF_MILLIS = 3000;
 
+  private static final String LOG_LEVEL_PREFIX_WITH_DOT =
+    AbstractLoggingListener.LOG_LEVEL_PREFIX + ".";
+
   private final PrefabCloudClient baseClient;
   private final Options options;
 
@@ -76,6 +82,10 @@ public class ConfigClientImpl implements ConfigClient {
   private final LoggerStatsAggregator loggerStatsAggregator;
 
   private final String uniqueClientId;
+
+  private final Optional<Prefab.ConfigValue> namespaceMaybe;
+
+  private final ConcurrentHashMap<String, String> loggerNameLookup = new ConcurrentHashMap<>();
 
   @Override
   public ConfigResolver getResolver() {
@@ -95,6 +105,11 @@ public class ConfigClientImpl implements ConfigClient {
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
     configChangeListeners.addAll(Arrays.asList(listeners));
+    namespaceMaybe =
+      baseClient
+        .getOptions()
+        .getNamespace()
+        .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
@@ -130,7 +145,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, new HashMap<>());
+    return get(key, Collections.emptyMap());
   }
 
   @Override
@@ -138,7 +153,6 @@ public class ConfigClientImpl implements ConfigClient {
     String key,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    HashMap<String, Prefab.ConfigValue> mutableProperties = new HashMap<>(properties);
     try {
       if (
         !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
@@ -153,15 +167,17 @@ public class ConfigClientImpl implements ConfigClient {
           );
         }
       }
-      if (baseClient.getOptions().getNamespace().isPresent()) {
-        mutableProperties.put(
-          NAMESPACE_KEY,
-          Prefab.ConfigValue
-            .newBuilder()
-            .setString(baseClient.getOptions().getNamespace().get())
-            .build()
-        );
+      if (!updatingConfigResolver.containsKey(key)) {
+        return Optional.empty();
       }
+      HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
+        properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
+      );
+      mutableProperties.putAll(properties);
+      namespaceMaybe.ifPresent(namespace ->
+        mutableProperties.put(NAMESPACE_KEY, namespace)
+      );
+
       return updatingConfigResolver.getConfigValue(key, mutableProperties);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
@@ -227,18 +243,21 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     Map<String, String> properties
   ) {
-    return getLogLevel(
-      loggerName,
-      properties
-        .entrySet()
-        .stream()
-        .collect(
-          Collectors.toMap(
-            Map.Entry::getKey,
-            entry -> Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
-          )
-        )
-    );
+    Map<String, Prefab.ConfigValue> map;
+
+    if (properties.isEmpty()) {
+      map = Collections.emptyMap();
+    } else {
+      ImmutableMap.Builder<String, Prefab.ConfigValue> mapBuilder = ImmutableMap.builder();
+      for (Map.Entry<String, String> entry : properties.entrySet()) {
+        mapBuilder.put(
+          entry.getKey(),
+          Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
+        );
+      }
+      map = mapBuilder.build();
+    }
+    return getLogLevel(loggerName, map);
   }
 
   @Override
@@ -248,7 +267,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {
     return new Iterator<>() {
-      String nextValue = AbstractLoggingListener.LOG_LEVEL_PREFIX + "." + loggerName;
+      String nextValue = LOG_LEVEL_PREFIX_WITH_DOT + loggerName;
 
       @Override
       public boolean hasNext() {
@@ -261,13 +280,18 @@ public class ConfigClientImpl implements ConfigClient {
           throw new NoSuchElementException();
         }
         String currentValue = nextValue;
-        int lastDotIndex = nextValue.lastIndexOf('.');
-        if (lastDotIndex > 0) {
-          nextValue = nextValue.substring(0, lastDotIndex);
-          return currentValue;
-        } else {
-          nextValue = null;
-        }
+        nextValue =
+          loggerNameLookup.computeIfAbsent(
+            currentValue,
+            k -> {
+              int lastDotIndex = nextValue.lastIndexOf('.');
+              if (lastDotIndex > 0) {
+                return nextValue.substring(0, lastDotIndex);
+              } else {
+                return null;
+              }
+            }
+          );
         return currentValue;
       }
     };
