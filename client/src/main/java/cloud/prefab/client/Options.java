@@ -33,6 +33,8 @@ public class Options {
   private int initializationTimeoutSec = 10;
   private OnInitializationFailure onInitializationFailure = OnInitializationFailure.RAISE;
 
+  private boolean reportLogStats = true;
+
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
     this.prefabGrpcUrl =
@@ -152,6 +154,14 @@ public class Options {
   ) {
     this.onInitializationFailure = onInitializationFailure;
     return this;
+  }
+
+  public boolean isReportLogStats() {
+    return reportLogStats;
+  }
+
+  public void setReportLogStats(boolean reportLogStats) {
+    this.reportLogStats = reportLogStats;
   }
 
   public String getCDNUrl() {
