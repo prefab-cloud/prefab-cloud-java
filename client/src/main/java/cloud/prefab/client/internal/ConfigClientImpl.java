@@ -111,15 +111,19 @@ public class ConfigClientImpl implements ConfigClient {
         .getNamespace()
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
-    if (options.isLocalOnly()) {
-      finishInit(Source.LOCAL_ONLY);
+    if (options.isLocalOnly() || !options.isReportLogStats()) {
       loggerStatsAggregator = null;
     } else {
-      startStreamingExecutor();
-      startCheckpointExecutor();
       loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
       loggerStatsAggregator.start();
       startLogStatsUploadExecutor();
+    }
+
+    if (options.isLocalOnly()) {
+      finishInit(Source.LOCAL_ONLY);
+    } else {
+      startStreamingExecutor();
+      startCheckpointExecutor();
     }
   }
 
