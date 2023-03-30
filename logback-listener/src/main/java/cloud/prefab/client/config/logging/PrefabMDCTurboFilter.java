@@ -14,19 +14,19 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.slf4j.Marker;
 
-public class LogbackTurboFilter extends TurboFilter {
+public class PrefabMDCTurboFilter extends TurboFilter {
 
   private final ThreadLocal<Boolean> recursionCheck = ThreadLocal.withInitial(() -> false
   );
 
   private final ConfigClient configClient;
 
-  LogbackTurboFilter(ConfigClient configClient) {
+  PrefabMDCTurboFilter(ConfigClient configClient) {
     this.configClient = configClient;
   }
 
   public static void install(ConfigClient configClient) {
-    LogbackTurboFilter filter = new LogbackTurboFilter(configClient);
+    PrefabMDCTurboFilter filter = new PrefabMDCTurboFilter(configClient);
     LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
     loggerContext.addTurboFilter(filter);
   }

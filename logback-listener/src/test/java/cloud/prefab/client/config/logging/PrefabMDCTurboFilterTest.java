@@ -1,8 +1,6 @@
 package cloud.prefab.client.config.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -24,13 +22,13 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 @ExtendWith(MockitoExtension.class)
-class LogbackTurboFilterTest {
+class PrefabMDCTurboFilterTest {
 
   @Mock
   ConfigClient configClient;
 
   @InjectMocks
-  LogbackTurboFilter logbackTurboFilter;
+  PrefabMDCTurboFilter logbackTurboFilter;
 
   @Test
   void itReportsLoggingAndAsksForLogLevelReturnsNeutral() {
