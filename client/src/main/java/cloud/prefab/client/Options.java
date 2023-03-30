@@ -160,8 +160,9 @@ public class Options {
     return reportLogStats;
   }
 
-  public void setReportLogStats(boolean reportLogStats) {
+  public Options setReportLogStats(boolean reportLogStats) {
     this.reportLogStats = reportLogStats;
+    return this;
   }
 
   public String getCDNUrl() {
