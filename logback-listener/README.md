@@ -3,15 +3,25 @@ Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
-## Logback Config Change Listener
+## Logback Logging Filter
+
+The filter will 
+* Capture information about your logger volume by logger name and level
+* Filter logs based on the dynamic configuration
+
 
 Maven
 ```xml
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>logback-listener</artifactId>
-    <version>0.3.4</version>
+    <version>0.3.5</version>
 </dependency>
+```
+
+Install
+```java
+PrefabMDCTurboFilter.install(client);
 ```
 
 ## Copyright
