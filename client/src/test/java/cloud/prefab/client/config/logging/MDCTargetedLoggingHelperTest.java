@@ -10,11 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-class TargetedLoggingHelperTest {
+class MDCTargetedLoggingHelperTest {
 
   // Note this won't work unless a logging backend is installed
 
-  Logger LOG = LoggerFactory.getLogger(TargetedLoggingHelperTest.class);
+  Logger LOG = LoggerFactory.getLogger(MDCTargetedLoggingHelperTest.class);
 
   @AfterEach
   void afterEach() {
@@ -27,7 +27,7 @@ class TargetedLoggingHelperTest {
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
-    TargetedLoggingHelper.logWithExclusiveContext(
+    MDCTargetedLoggingHelper.logWithExclusiveContext(
       newContext,
       () -> {
         assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
@@ -46,7 +46,7 @@ class TargetedLoggingHelperTest {
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
-    TargetedLoggingHelper.logWithExclusiveContext(
+    MDCTargetedLoggingHelper.logWithExclusiveContext(
       newContext,
       () -> {
         assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
@@ -62,7 +62,7 @@ class TargetedLoggingHelperTest {
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
     assertThat(
-      TargetedLoggingHelper.logWithExclusiveContext(
+      MDCTargetedLoggingHelper.logWithExclusiveContext(
         newContext,
         () -> {
           assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
@@ -85,7 +85,7 @@ class TargetedLoggingHelperTest {
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
     assertThat(
-      TargetedLoggingHelper.logWithExclusiveContext(
+      MDCTargetedLoggingHelper.logWithExclusiveContext(
         newContext,
         () -> {
           assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
@@ -103,7 +103,7 @@ class TargetedLoggingHelperTest {
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
-    TargetedLoggingHelper.logWithMergedContext(
+    MDCTargetedLoggingHelper.logWithMergedContext(
       newContext,
       () -> {
         assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
@@ -122,7 +122,7 @@ class TargetedLoggingHelperTest {
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
-    TargetedLoggingHelper.logWithMergedContext(
+    MDCTargetedLoggingHelper.logWithMergedContext(
       newContext,
       () -> {
         assertThat(MDC.getCopyOfContextMap())
@@ -133,21 +133,53 @@ class TargetedLoggingHelperTest {
   }
 
   @Test
-  void itCallsCallableWithMergedMdcStartingBlank() throws Exception {
+  void itWorksWithAutoClosableExclusiveContextForMdcStartingBlank() {
     assertThat(MDC.getCopyOfContextMap()).isNull();
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
 
-    assertThat(
-      TargetedLoggingHelper.logWithMergedContext(
-        newContext,
-        () -> {
-          assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
-          return 127;
-        }
+    try (
+      MDCTargetedLoggingHelper.TargetedLoggingContext ignored = MDCTargetedLoggingHelper.logWithExclusiveContext(
+        newContext
       )
-    )
-      .isEqualTo(127);
+    ) {
+      assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
+    }
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+  }
+
+  @Test
+  void itWorksWithAutoClosableExclusiveContextForMdcStartingWithValues() {
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+    Map<String, String> starterContext = Map.of("foo", "bar", "something", "else");
+    for (Map.Entry<String, String> entry : starterContext.entrySet()) {
+      MDC.put(entry.getKey(), entry.getValue());
+    }
+
+    Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
+
+    try (
+      MDCTargetedLoggingHelper.TargetedLoggingContext ignored = MDCTargetedLoggingHelper.logWithExclusiveContext(
+        newContext
+      )
+    ) {
+      assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
+    }
+    assertThat(MDC.getCopyOfContextMap()).isEqualTo(starterContext);
+  }
+
+  @Test
+  void itCallsCallableWithMergedMdcStartingBlank() throws Exception {
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+
+    Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
+    try (
+      MDCTargetedLoggingHelper.TargetedLoggingContext ignored = MDCTargetedLoggingHelper.logWithMergedContext(
+        newContext
+      )
+    ) {
+      assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
+    }
     assertThat(MDC.getCopyOfContextMap()).isNull();
   }
 
@@ -160,9 +192,8 @@ class TargetedLoggingHelperTest {
     }
 
     Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
-
     assertThat(
-      TargetedLoggingHelper.logWithMergedContext(
+      MDCTargetedLoggingHelper.logWithMergedContext(
         newContext,
         () -> {
           assertThat(MDC.getCopyOfContextMap())
@@ -172,6 +203,43 @@ class TargetedLoggingHelperTest {
       )
     )
       .isEqualTo(127);
+    assertThat(MDC.getCopyOfContextMap()).isEqualTo(starterContext);
+  }
+
+  @Test
+  void itWorksWithAutoClosableMergedContextForMdcStartingBlank() throws Exception {
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+
+    Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
+
+    try (
+      MDCTargetedLoggingHelper.TargetedLoggingContext ignored = MDCTargetedLoggingHelper.logWithMergedContext(
+        newContext
+      )
+    ) {
+      assertThat(MDC.getCopyOfContextMap()).isEqualTo(newContext);
+    }
+
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+  }
+
+  @Test
+  void itWorksWithAutoClosableMergedContextForMdcStartingWithContent() throws Exception {
+    assertThat(MDC.getCopyOfContextMap()).isNull();
+    Map<String, String> starterContext = Map.of("foo", "bar", "something", "else");
+    for (Map.Entry<String, String> entry : starterContext.entrySet()) {
+      MDC.put(entry.getKey(), entry.getValue());
+    }
+
+    Map<String, String> newContext = Map.of("portalId", "53", "userId", "abc123");
+    try (
+      MDCTargetedLoggingHelper.TargetedLoggingContext ignored = MDCTargetedLoggingHelper.logWithMergedContext(
+        newContext
+      )
+    ) {
+      assertThat(MDC.getCopyOfContextMap())
+        .isEqualTo(mergeMaps(starterContext, newContext));
+    }
     assertThat(MDC.getCopyOfContextMap()).isEqualTo(starterContext);
   }
 
