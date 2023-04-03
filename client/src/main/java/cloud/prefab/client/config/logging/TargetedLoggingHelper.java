@@ -26,7 +26,7 @@ public class TargetedLoggingHelper {
       MDC.setContextMap(context);
       runnable.run();
     } finally {
-      MDC.setContextMap(contextBackup);
+      resetMDC(contextBackup);
     }
   }
 
@@ -46,7 +46,7 @@ public class TargetedLoggingHelper {
       MDC.setContextMap(context);
       return callable.call();
     } finally {
-      MDC.setContextMap(contextBackup);
+      resetMDC(contextBackup);
     }
   }
 
@@ -65,7 +65,7 @@ public class TargetedLoggingHelper {
       mergeIntoMdc(context);
       runnable.run();
     } finally {
-      MDC.setContextMap(contextBackup);
+      resetMDC(contextBackup);
     }
   }
 
@@ -85,13 +85,21 @@ public class TargetedLoggingHelper {
       mergeIntoMdc(context);
       return callable.call();
     } finally {
-      MDC.setContextMap(contextBackup);
+      resetMDC(contextBackup);
     }
   }
 
   private static void mergeIntoMdc(Map<String, String> context) {
     for (Map.Entry<String, String> entry : context.entrySet()) {
       MDC.put(entry.getKey(), entry.getValue());
+    }
+  }
+
+  private static void resetMDC(Map<String, String> context) {
+    if (context != null) {
+      MDC.setContextMap(context);
+    } else {
+      MDC.clear();
     }
   }
 }
