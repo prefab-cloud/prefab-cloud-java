@@ -78,6 +78,9 @@ public class Options {
   }
 
   public Optional<String> getNamespace() {
+    if (namespace.isEmpty()) {
+      return Optional.empty();
+    }
     return Optional.ofNullable(namespace);
   }
 
