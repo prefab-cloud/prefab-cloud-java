@@ -109,19 +109,24 @@ public class ConfigResolver {
     final Optional<Match> match = configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
+        if (!configRow.getPropertiesMap().isEmpty()) {
+          rowPropertiesStack.push(configRow.getPropertiesMap());
+        }
         // Return the value of the first matching set of criteria
         for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
-          rowPropertiesStack.push(configRow.getPropertiesMap());
           Optional<Match> optionalMatch = evaluateConditionalValue(
             conditionalValue,
             lookupContext,
             rowPropertiesStack,
             configElement
           );
-          rowPropertiesStack.pop();
+
           if (optionalMatch.isPresent()) {
             return optionalMatch.get();
           }
+        }
+        if (!configRow.getPropertiesMap().isEmpty()) {
+          rowPropertiesStack.pop();
         }
         return null;
       })
