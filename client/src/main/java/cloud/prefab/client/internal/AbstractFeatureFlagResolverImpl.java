@@ -3,7 +3,6 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.FeatureFlagClient;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
-import cloud.prefab.client.config.LookupContext;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
