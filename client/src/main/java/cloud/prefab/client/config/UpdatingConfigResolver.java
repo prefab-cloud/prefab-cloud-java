@@ -125,9 +125,9 @@ public class UpdatingConfigResolver {
 
   public Optional<Prefab.ConfigValue> getConfigValue(
     String key,
-    Map<String, Prefab.ConfigValue> properties
+    LookupContext lookupContext
   ) {
-    return configResolver.getConfigValue(key, properties);
+    return configResolver.getConfigValue(key, lookupContext);
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {

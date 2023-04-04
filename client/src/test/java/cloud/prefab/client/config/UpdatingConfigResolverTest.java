@@ -165,35 +165,38 @@ public class UpdatingConfigResolverTest {
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectA"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectA"))
       ),
       "valueA"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB"))
       ),
       "valueB"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX"))
       ),
       "projectB.subprojectX"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX.subsubQ"))
+        singleValueLookupContext(
+          ConfigResolver.NAMESPACE_KEY,
+          sv("projectB.subprojectX.subsubQ")
+        )
       ),
       "projectB.subprojectX"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectC"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectC"))
       ),
       "value_none"
     );
@@ -259,5 +262,16 @@ public class UpdatingConfigResolverTest {
       .setKey("key2")
       .addRows(rowWithStringValue("valueB2"))
       .build();
+  }
+
+  public static LookupContext singleValueLookupContext(
+    String propName,
+    Prefab.ConfigValue configValue
+  ) {
+    return new LookupContext(
+      Optional.empty(),
+      Optional.empty(),
+      Map.of(propName, configValue)
+    );
   }
 }
