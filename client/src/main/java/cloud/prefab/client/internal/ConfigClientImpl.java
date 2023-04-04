@@ -377,7 +377,12 @@ public class ConfigClientImpl implements ConfigClient {
         return true;
       }
     } catch (Exception e) {
-      LOG.warn("Unexpected issue with loading {} via {}", source, url, e);
+      LOG.warn(
+        "Unexpected issue with loading {} via {} (stack trace available at DEBUG)",
+        source,
+        url
+      );
+      LOG.debug("Unexpected issue with loading {} via {}", source, url, e);
     }
     return false;
   }
