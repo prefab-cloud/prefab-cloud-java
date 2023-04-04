@@ -159,25 +159,28 @@ public class ConfigResolver {
     Deque<Map<String, Prefab.ConfigValue>> rowProperties,
     ConfigElement configElement
   ) {
-    final List<EvaluatedCriterion> evaluatedCriterionStream = conditionalValue
-      .getCriteriaList()
-      .stream()
-      .flatMap(criterion ->
-        evaluateCriterionMatch(criterion, lookupContext, rowProperties).stream()
-      )
-      .collect(Collectors.toList());
+    List<EvaluatedCriterion> evaluatedCriteria = new ArrayList<>();
 
-    if (evaluatedCriterionStream.stream().allMatch(EvaluatedCriterion::isMatch)) {
-      Prefab.ConfigValue simplified = simplify(
-        conditionalValue,
-        configElement.getConfig().getKey(),
-        lookupContext
-      );
-
-      return Optional.of(new Match(simplified, configElement, evaluatedCriterionStream));
-    } else {
-      return Optional.empty();
+    for (Prefab.Criterion criterion : conditionalValue.getCriteriaList()) {
+      for (EvaluatedCriterion evaluateCriterion : evaluateCriterionMatch(
+        criterion,
+        lookupContext,
+        rowProperties
+      )) {
+        if (!evaluateCriterion.isMatch()) {
+          return Optional.empty();
+        }
+        evaluatedCriteria.add(evaluateCriterion);
+      }
     }
+
+    Prefab.ConfigValue simplified = simplify(
+      conditionalValue,
+      configElement.getConfig().getKey(),
+      lookupContext
+    );
+
+    return Optional.of(new Match(simplified, configElement, evaluatedCriteria));
   }
 
   /**
