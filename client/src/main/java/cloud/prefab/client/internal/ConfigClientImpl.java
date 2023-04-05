@@ -20,12 +20,14 @@ import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.domain.ConfigServiceGrpc;
+import cloud.prefab.domain.GreetingServiceGrpc;
 import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -54,6 +56,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +67,7 @@ public class ConfigClientImpl implements ConfigClient {
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
 
   private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
+  private static final long INITIAL_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(1);
 
   private static final long BACKOFF_MILLIS = 3000;
 
@@ -86,6 +90,13 @@ public class ConfigClientImpl implements ConfigClient {
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
 
   private final ConcurrentHashMap<String, String> loggerNameLookup = new ConcurrentHashMap<>();
+
+  private final HttpClient httpClient;
+  private final ConnectivityTester connectivityTester;
+
+  private final PrefabHttpClient prefabHttpClient;
+
+  private final AtomicBoolean grpcAvailable = new AtomicBoolean(false);
 
   @Override
   public ConfigResolver getResolver() {
@@ -121,7 +132,30 @@ public class ConfigClientImpl implements ConfigClient {
 
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
+      httpClient = null;
+      connectivityTester = null;
+      prefabHttpClient = null;
     } else {
+      httpClient =
+        HttpClient
+          .newBuilder()
+          .executor(
+            MoreExecutors.getExitingExecutorService(
+              (ThreadPoolExecutor) Executors.newCachedThreadPool(
+                new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("prefab-http-client-pooled-thread-%d")
+                  .build()
+              )
+            )
+          )
+          .build();
+
+      connectivityTester =
+        new ConnectivityTester(greetingServiceFutureStub(), httpClient, options);
+      connectivityTester.testHttps();
+      grpcAvailable.set(options.isGrpcEnabled() && connectivityTester.testGrpc());
+      prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreamingExecutor();
       startCheckpointExecutor();
     }
@@ -312,10 +346,10 @@ public class ConfigClientImpl implements ConfigClient {
       .setStartAtId(configLoader.getHighwaterMark())
       .build();
 
-    loadGrpc(pointer);
+    loadAllConfigsViaGrpc(pointer);
   }
 
-  private void loadGrpc(Prefab.ConfigServicePointer pointer) {
+  private void loadAllConfigsViaGrpc(Prefab.ConfigServicePointer pointer) {
     configServiceStub()
       .getAllConfig(
         pointer,
@@ -388,14 +422,17 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void startStreamingExecutor() {
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
-
-    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
-      executor,
-      100,
-      TimeUnit.MILLISECONDS
-    );
-    executorService.execute(() -> startStreaming());
+    if (grpcAvailable.get()) {
+      ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+      ExecutorService executorService = MoreExecutors.getExitingExecutorService(
+        executor,
+        100,
+        TimeUnit.MILLISECONDS
+      );
+      executorService.execute(() -> startStreaming());
+    } else {
+      LOG.warn("Not starting GRPC streaming connection because GRPC is not available");
+    }
   }
 
   private void startStreaming() {
@@ -453,6 +490,7 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void startLogStatsUploadExecutor() {
+    LOG.info("Starting log stats uploader");
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(
       1,
       r -> new Thread(r, "prefab-logger-stats-uploader")
@@ -480,30 +518,41 @@ public class ConfigClientImpl implements ConfigClient {
             .setInstanceHash(uniqueClientId);
           options.getNamespace().ifPresent(loggersBuilder::setNamespace);
 
-          LOG.debug("Uploading stats for {} loggers", logCounts.getLoggerMap().size());
-          loggerReportingServiceStub()
-            .send(
-              loggersBuilder.build(),
-              new StreamObserver<>() {
-                @Override
-                public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
-
-                @Override
-                public void onError(Throwable throwable) {
-                  LOG.warn("log stats upload failed", throwable);
-                }
-
-                @Override
-                public void onCompleted() {
-                  LOG.debug("log stats upload completed");
-                }
-              }
+          if (grpcAvailable.get()) {
+            LOG.info(
+              "Uploading stats for {} loggers via GRPC",
+              logCounts.getLoggerMap().size()
             );
+            loggerReportingServiceStub()
+              .send(
+                loggersBuilder.build(),
+                new StreamObserver<>() {
+                  @Override
+                  public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
+
+                  @Override
+                  public void onError(Throwable throwable) {
+                    LOG.warn("log stats upload failed", throwable);
+                  }
+
+                  @Override
+                  public void onCompleted() {
+                    LOG.debug("log stats upload completed");
+                  }
+                }
+              );
+          } else {
+            LOG.info(
+              "Uploading stats for {} loggers via HTTP",
+              logCounts.getLoggerMap().size()
+            );
+            prefabHttpClient.reportLoggers(loggersBuilder.build());
+          }
         } catch (Exception e) {
           LOG.warn("Error setting up aggregated log stats transmission", e);
         }
       },
-      DEFAULT_LOG_STATS_UPLOAD_SEC,
+      INITIAL_LOG_STATS_UPLOAD_SEC,
       DEFAULT_LOG_STATS_UPLOAD_SEC,
       TimeUnit.SECONDS
     );
@@ -608,5 +657,9 @@ public class ConfigClientImpl implements ConfigClient {
 
   private LoggerReportingServiceGrpc.LoggerReportingServiceStub loggerReportingServiceStub() {
     return LoggerReportingServiceGrpc.newStub(baseClient.getChannel());
+  }
+
+  private GreetingServiceGrpc.GreetingServiceFutureStub greetingServiceFutureStub() {
+    return GreetingServiceGrpc.newFutureStub(baseClient.getChannel());
   }
 }
