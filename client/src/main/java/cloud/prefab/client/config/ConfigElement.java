@@ -27,6 +27,10 @@ public class ConfigElement {
   }
 
   public Stream<Prefab.ConfigRow> getRowsProjEnvFirst(long projectEnvId) {
+    List<Prefab.ConfigRow> configRows = preProcessedRows.get(projectEnvId);
+    if (configRows != null) {
+      return configRows.stream();
+    }
     return preProcessedRows
       .computeIfAbsent(
         projectEnvId,

@@ -306,18 +306,23 @@ public class ConfigClientImpl implements ConfigClient {
           throw new NoSuchElementException();
         }
         String currentValue = nextValue;
-        nextValue =
-          loggerNameLookup.computeIfAbsent(
-            currentValue,
-            k -> {
-              int lastDotIndex = nextValue.lastIndexOf('.');
-              if (lastDotIndex > 0) {
-                return nextValue.substring(0, lastDotIndex);
-              } else {
-                return null;
+        String temp = loggerNameLookup.get(currentValue);
+        if (temp == null) {
+          nextValue =
+            loggerNameLookup.computeIfAbsent(
+              currentValue,
+              k -> {
+                int lastDotIndex = nextValue.lastIndexOf('.');
+                if (lastDotIndex > 0) {
+                  return nextValue.substring(0, lastDotIndex);
+                } else {
+                  return null;
+                }
               }
-            }
-          );
+            );
+        } else {
+          nextValue = temp;
+        }
         return currentValue;
       }
     };
