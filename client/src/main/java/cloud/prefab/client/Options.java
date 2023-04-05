@@ -35,6 +35,8 @@ public class Options {
 
   private boolean reportLogStats = true;
 
+  private boolean grpcEnabled = true;
+
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
     this.prefabGrpcUrl =
@@ -182,5 +184,14 @@ public class Options {
     envs.add(DEFAULT_ENV);
     envs.addAll(prefabEnvs);
     return envs;
+  }
+
+  public boolean isGrpcEnabled() {
+    return grpcEnabled;
+  }
+
+  public Options setGrpcEnabled(boolean grpcEnabled) {
+    this.grpcEnabled = grpcEnabled;
+    return this;
   }
 }
