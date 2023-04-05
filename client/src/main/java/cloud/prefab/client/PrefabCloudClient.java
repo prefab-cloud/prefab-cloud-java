@@ -32,9 +32,7 @@ public class PrefabCloudClient implements AutoCloseable {
       if (options.getApikey() == null || options.getApikey().isEmpty()) {
         throw new RuntimeException("PREFAB_API_KEY not set");
       }
-
-      long apiKeyId = Long.parseLong(options.getApikey().split("\\-")[0]);
-      LOG.info("Initializing Prefab for apiKeyId {}", apiKeyId);
+      LOG.info("Initializing Prefab for apiKeyId {}", options.getApiKeyId());
     }
 
     this.closed = new AtomicBoolean(false);

@@ -37,7 +37,7 @@ public class PrefabHttpClient {
       .header("Accept", PROTO_MEDIA_TYPE)
       .header(
         "Authorization",
-        getBasicAuthenticationHeader("ignored", options.getApikey())
+        getBasicAuthenticationHeader(options.getApiKeyId(), options.getApikey())
       )
       .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/known-loggers"))
       .POST(HttpRequest.BodyPublishers.ofByteArray(loggers.toByteArray()))
@@ -49,7 +49,7 @@ public class PrefabHttpClient {
       );
 
       if (!isSuccess(response.statusCode())) {
-        LOG.info("Uploading logger stats returned code {}", response.statusCode());
+        LOG.debug("Uploading logger stats returned code {}", response.statusCode());
       }
     } catch (IOException e) {
       LOG.warn("Error uploading logger stats via http {}", e.getMessage());

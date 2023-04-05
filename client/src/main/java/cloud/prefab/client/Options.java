@@ -194,4 +194,8 @@ public class Options {
     this.grpcEnabled = grpcEnabled;
     return this;
   }
+
+  public String getApiKeyId() {
+    return getApikey().split("\\-")[0];
+  }
 }
