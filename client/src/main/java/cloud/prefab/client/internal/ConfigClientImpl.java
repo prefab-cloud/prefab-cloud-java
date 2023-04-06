@@ -506,7 +506,7 @@ public class ConfigClientImpl implements ConfigClient {
               Prefab.Configs configs = Prefab.Configs.parseFrom(
                 Base64.getDecoder().decode(item.getData().trim())
               );
-              loadConfigs(configs, Source.REMOTE_API);
+              loadConfigs(configs, Source.STREAMING_SSE);
             } catch (InvalidProtocolBufferException e) {
               LOG.warn(
                 "Error parsing configs from event type {} - error message {}",
