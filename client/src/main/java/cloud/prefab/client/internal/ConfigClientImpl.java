@@ -28,6 +28,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.grpc.ManagedChannelProvider;
+import io.grpc.ManagedChannelRegistry;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -445,48 +447,52 @@ public class ConfigClientImpl implements ConfigClient {
       .setStartAtId(highwaterMark)
       .build();
 
-    configServiceStub()
-      .getConfig(
-        pointer,
-        new StreamObserver<>() {
-          @Override
-          public void onNext(Prefab.Configs configs) {
-            loadConfigs(configs, Source.STREAMING);
-          }
+    try {
+      configServiceStub()
+        .getConfig(
+          pointer,
+          new StreamObserver<>() {
+            @Override
+            public void onNext(Prefab.Configs configs) {
+              loadConfigs(configs, Source.STREAMING);
+            }
 
-          @Override
-          public void onError(Throwable throwable) {
-            if (
-              throwable instanceof StatusRuntimeException &&
-              ((StatusRuntimeException) throwable).getStatus().getCode() ==
-              Status.PERMISSION_DENIED.getCode()
-            ) {
-              LOG.info("Not restarting the stream: {}", throwable.getMessage());
-            } else {
-              LOG.warn("Error from streaming API will restart streaming connection");
-              LOG.debug("Details of streaming API failure are", throwable);
+            @Override
+            public void onError(Throwable throwable) {
+              if (
+                throwable instanceof StatusRuntimeException &&
+                ((StatusRuntimeException) throwable).getStatus().getCode() ==
+                Status.PERMISSION_DENIED.getCode()
+              ) {
+                LOG.info("Not restarting the stream: {}", throwable.getMessage());
+              } else {
+                LOG.warn("Error from streaming API will restart streaming connection");
+                LOG.debug("Details of streaming API failure are", throwable);
+                try {
+                  Thread.sleep(BACKOFF_MILLIS);
+                } catch (InterruptedException e) {
+                  LOG.warn("Interruption Backing Off");
+                  Thread.currentThread().interrupt();
+                }
+                startStreaming();
+              }
+            }
+
+            @Override
+            public void onCompleted() {
+              LOG.warn("Unexpected stream completion");
               try {
-                Thread.sleep(BACKOFF_MILLIS);
+                Thread.sleep(10000);
               } catch (InterruptedException e) {
-                LOG.warn("Interruption Backing Off");
-                Thread.currentThread().interrupt();
+                e.printStackTrace();
               }
               startStreaming();
             }
           }
-
-          @Override
-          public void onCompleted() {
-            LOG.warn("Unexpected stream completion");
-            try {
-              Thread.sleep(10000);
-            } catch (InterruptedException e) {
-              e.printStackTrace();
-            }
-            startStreaming();
-          }
-        }
-      );
+        );
+    } catch (ManagedChannelProvider.ProviderNotFoundException e) {
+      LOG.warn("GRPC implementation missing {}", e.getMessage());
+    }
   }
 
   private void startLogStatsUploadExecutor() {
