@@ -152,7 +152,7 @@ public class ConfigClientImpl implements ConfigClient {
           .build();
 
       connectivityTester =
-        new ConnectivityTester(greetingServiceFutureStub(), httpClient, options);
+        new ConnectivityTester(() -> greetingServiceFutureStub(), httpClient, options);
       connectivityTester.testHttps();
       grpcAvailable.set(options.isGrpcEnabled() && connectivityTester.testGrpc());
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
