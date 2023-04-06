@@ -49,6 +49,7 @@ public interface ConfigClient {
 
   enum Source {
     REMOTE_API_GRPC,
+    REMOTE_API,
     STREAMING,
     REMOTE_CDN,
     LOCAL_ONLY,
