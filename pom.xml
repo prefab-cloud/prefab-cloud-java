@@ -24,6 +24,7 @@
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
     <dep.grpc.version>1.48.0</dep.grpc.version>
     <dep.jackson.version>2.14.1</dep.jackson.version>
+    <dep.junit.version>5.9.1</dep.junit.version>
     <dep.protobuf.version>3.21.7</dep.protobuf.version>
     <dep.protoc.version>3.21.7</dep.protoc.version>
   </properties>
@@ -104,9 +105,27 @@
       <dependency>
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
-        <version>5.8.2</version>
+        <version>${dep.junit.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${dep.junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>${dep.junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-params</artifactId>
+        <version>${dep.junit.version}</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
@@ -118,6 +137,7 @@
         <artifactId>mockito-junit-jupiter</artifactId>
         <version>4.6.1</version>
       </dependency>
+
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
