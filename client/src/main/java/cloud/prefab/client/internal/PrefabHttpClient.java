@@ -1,7 +1,7 @@
 package cloud.prefab.client.internal;
 
-import cloud.prefab.client.ClientAuthenticationInterceptor;
 import cloud.prefab.client.Options;
+import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +21,14 @@ import org.slf4j.LoggerFactory;
 public class PrefabHttpClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrefabHttpClient.class);
+
+  public static final String CLIENT_HEADER_KEY = "client";
+
+  public static final String CLIENT_HEADER_VALUE = String.format(
+    "%s.%s",
+    MavenInfo.getInstance().getArtifactId(),
+    MavenInfo.getInstance().getVersion()
+  );
   private static final String PROTO_MEDIA_TYPE = "application/x-protobuf";
   private static final String EVENT_STREAM_MEDIA_TYPE = "text/event-stream";
   private static final String START_AT_HEADER = "x-prefab-start-at-id";
@@ -125,10 +133,7 @@ public class PrefabHttpClient {
   private HttpRequest.Builder getClientBuilderWithStandardHeaders() {
     return HttpRequest
       .newBuilder()
-      .header(
-        ClientAuthenticationInterceptor.CLIENT_HEADER_KEY,
-        ClientAuthenticationInterceptor.CLIENT_HEADER_VALUE
-      )
+      .header(CLIENT_HEADER_KEY, CLIENT_HEADER_VALUE)
       .header(
         "Authorization",
         getBasicAuthenticationHeader(options.getApiKeyId(), options.getApikey())

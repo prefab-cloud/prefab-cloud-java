@@ -22,7 +22,6 @@
   <properties>
     <basepom.check.skip-license>true</basepom.check.skip-license>
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
-    <dep.grpc.version>1.48.0</dep.grpc.version>
     <dep.jackson.version>2.14.1</dep.jackson.version>
     <dep.junit.version>5.9.1</dep.junit.version>
     <dep.protobuf.version>3.21.7</dep.protobuf.version>
@@ -65,32 +64,6 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java-util</artifactId>
         <version>${dep.protobuf.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-api</artifactId>
-        <version>${dep.grpc.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty-shaded</artifactId>
-        <version>${dep.grpc.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf</artifactId>
-        <version>${dep.grpc.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-stub</artifactId>
-        <version>${dep.grpc.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>2.0.54.Final</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>

@@ -32,25 +32,8 @@
       <artifactId>protobuf-java-util</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-protobuf</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-stub</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty-shaded</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>javax.annotation</groupId>
@@ -61,12 +44,6 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <!-- TODO is this needed? -->
-      <groupId>io.netty</groupId>
-      <artifactId>netty-tcnative-boringssl-static</artifactId>
-      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -216,15 +193,12 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${dep.protoc.version}:exe:${os.detected.classifier}</protocArtifact>
-          <pluginId>grpc-java</pluginId>
-          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${dep.grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
           <protoSourceRoot>prefab-cloud</protoSourceRoot>
         </configuration>
         <executions>
           <execution>
             <goals>
               <goal>compile</goal>
-              <goal>compile-custom</goal>
               <goal>test-compile</goal>
             </goals>
           </execution>

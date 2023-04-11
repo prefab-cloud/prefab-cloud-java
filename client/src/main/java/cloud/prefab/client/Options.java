@@ -18,7 +18,6 @@ public class Options {
   }
 
   private static final String DEFAULT_ENV = "default";
-  private String prefabGrpcUrl;
 
   private String prefabApiUrl;
   private boolean ssl = true;
@@ -35,14 +34,8 @@ public class Options {
 
   private boolean reportLogStats = true;
 
-  private boolean grpcEnabled = true;
-
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
-    this.prefabGrpcUrl =
-      Optional
-        .ofNullable(System.getenv("PREFAB_GRPC_URL"))
-        .orElse("grpc.prefab.cloud:443");
     this.prefabApiUrl =
       Optional
         .ofNullable(System.getenv("PREFAB_API_URL"))
@@ -90,15 +83,6 @@ public class Options {
 
   public Options setNamespace(String namespace) {
     this.namespace = namespace;
-    return this;
-  }
-
-  public String getPrefabGrpcUrl() {
-    return prefabGrpcUrl;
-  }
-
-  public Options setPrefabGrpcUrl(String prefabGrpcUrl) {
-    this.prefabGrpcUrl = prefabGrpcUrl;
     return this;
   }
 
@@ -184,15 +168,6 @@ public class Options {
     envs.add(DEFAULT_ENV);
     envs.addAll(prefabEnvs);
     return envs;
-  }
-
-  public boolean isGrpcEnabled() {
-    return grpcEnabled;
-  }
-
-  public Options setGrpcEnabled(boolean grpcEnabled) {
-    this.grpcEnabled = grpcEnabled;
-    return this;
   }
 
   public String getApiKeyId() {

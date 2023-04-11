@@ -19,16 +19,12 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
-import cloud.prefab.domain.ConfigServiceGrpc;
-import cloud.prefab.domain.GreetingServiceGrpc;
-import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.stub.StreamObserver;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -53,7 +49,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,12 +62,9 @@ public class ConfigClientImpl implements ConfigClient {
   private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
   private static final long INITIAL_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(1);
 
-  private static final long BACKOFF_MILLIS = 10000;
-
   private static final String LOG_LEVEL_PREFIX_WITH_DOT =
     AbstractLoggingListener.LOG_LEVEL_PREFIX + ".";
 
-  private final PrefabCloudClient baseClient;
   private final Options options;
 
   private final UpdatingConfigResolver updatingConfigResolver;
@@ -91,8 +83,6 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final PrefabHttpClient prefabHttpClient;
 
-  private final AtomicBoolean grpcAvailable = new AtomicBoolean(false);
-
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -103,7 +93,6 @@ public class ConfigClientImpl implements ConfigClient {
     ConfigChangeListener... listeners
   ) {
     this.uniqueClientId = UUID.randomUUID().toString();
-    this.baseClient = baseClient;
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
@@ -148,10 +137,8 @@ public class ConfigClientImpl implements ConfigClient {
           )
           .build();
 
-      connectivityTester =
-        new ConnectivityTester(this::greetingServiceFutureStub, httpClient, options);
+      connectivityTester = new ConnectivityTester(httpClient, options);
       connectivityTester.testHttps();
-      grpcAvailable.set(options.isGrpcEnabled() && connectivityTester.testGrpc());
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
       startCheckpointExecutor();
@@ -217,26 +204,6 @@ public class ConfigClientImpl implements ConfigClient {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  @Override
-  public void upsert(String key, Prefab.ConfigValue configValue) {
-    Prefab.Config upsertRequest = Prefab.Config
-      .newBuilder()
-      .setKey(key)
-      .addRows(
-        Prefab.ConfigRow
-          .newBuilder()
-          .addValues(Prefab.ConditionalValue.newBuilder().setValue(configValue).build())
-      )
-      .build();
-
-    configServiceBlockingStub().upsert(upsertRequest);
-  }
-
-  @Override
-  public void upsert(Prefab.Config config) {
-    configServiceBlockingStub().upsert(config);
   }
 
   @Override
@@ -338,41 +305,7 @@ public class ConfigClientImpl implements ConfigClient {
       return;
     }
 
-    if (grpcAvailable.get()) {
-      Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-        .newBuilder()
-        .setStartAtId(configLoader.getHighwaterMark())
-        .build();
-
-      loadAllConfigsViaGrpc(pointer);
-    } else {
-      loadAPI();
-    }
-  }
-
-  private void loadAllConfigsViaGrpc(Prefab.ConfigServicePointer pointer) {
-    configServiceStub()
-      .getAllConfig(
-        pointer,
-        new StreamObserver<>() {
-          @Override
-          public void onNext(Prefab.Configs configs) {
-            loadConfigs(configs, Source.REMOTE_API_GRPC);
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            LOG.warn(
-              "{} Issue getting checkpoint config",
-              Source.REMOTE_API_GRPC,
-              throwable
-            );
-          }
-
-          @Override
-          public void onCompleted() {}
-        }
-      );
+    loadAPI();
   }
 
   boolean loadCDN() {
@@ -472,25 +405,15 @@ public class ConfigClientImpl implements ConfigClient {
 
   private void startStreaming() {
     ScheduledExecutorService scheduledExecutorService = startStreamingExecutor();
-    if (grpcAvailable.get()) {
-      LOG.info("Starting GRPC config subscriber");
-      GrpcConfigStreamingSubscriber grpcConfigStreamingSubscriber = new GrpcConfigStreamingSubscriber(
-        () -> baseClient.getChannel(),
-        () -> configLoader.getHighwaterMark(),
-        configs -> loadConfigs(configs, Source.STREAMING),
-        scheduledExecutorService
-      );
-      grpcConfigStreamingSubscriber.start();
-    } else {
-      LOG.info("Starting SSE config subscriber");
-      SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
-        prefabHttpClient,
-        () -> configLoader.getHighwaterMark(),
-        configs -> loadConfigs(configs, Source.STREAMING),
-        scheduledExecutorService
-      );
-      sseConfigStreamingSubscriber.start();
-    }
+
+    LOG.info("Starting SSE config subscriber");
+    SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
+      prefabHttpClient,
+      () -> configLoader.getHighwaterMark(),
+      configs -> loadConfigs(configs, Source.STREAMING),
+      scheduledExecutorService
+    );
+    sseConfigStreamingSubscriber.start();
   }
 
   private void startLogStatsUploadExecutor() {
@@ -522,36 +445,11 @@ public class ConfigClientImpl implements ConfigClient {
             .setInstanceHash(uniqueClientId);
           options.getNamespace().ifPresent(loggersBuilder::setNamespace);
 
-          if (grpcAvailable.get()) {
-            LOG.info(
-              "Uploading stats for {} loggers via GRPC",
-              logCounts.getLoggerMap().size()
-            );
-            loggerReportingServiceStub()
-              .send(
-                loggersBuilder.build(),
-                new StreamObserver<>() {
-                  @Override
-                  public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
-
-                  @Override
-                  public void onError(Throwable throwable) {
-                    LOG.warn("log stats upload failed", throwable);
-                  }
-
-                  @Override
-                  public void onCompleted() {
-                    LOG.debug("log stats upload completed");
-                  }
-                }
-              );
-          } else {
-            LOG.info(
-              "Uploading stats for {} loggers via HTTP",
-              logCounts.getLoggerMap().size()
-            );
-            prefabHttpClient.reportLoggers(loggersBuilder.build());
-          }
+          LOG.info(
+            "Uploading stats for {} loggers via HTTP",
+            logCounts.getLoggerMap().size()
+          );
+          prefabHttpClient.reportLoggers(loggersBuilder.build());
         } catch (Exception e) {
           LOG.warn("Error setting up aggregated log stats transmission", e);
         }
@@ -649,21 +547,5 @@ public class ConfigClientImpl implements ConfigClient {
         listener.onChange(changeEvent);
       }
     }
-  }
-
-  private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {
-    return ConfigServiceGrpc.newBlockingStub(baseClient.getChannel());
-  }
-
-  private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
-    return ConfigServiceGrpc.newStub(baseClient.getChannel());
-  }
-
-  private LoggerReportingServiceGrpc.LoggerReportingServiceStub loggerReportingServiceStub() {
-    return LoggerReportingServiceGrpc.newStub(baseClient.getChannel());
-  }
-
-  private GreetingServiceGrpc.GreetingServiceFutureStub greetingServiceFutureStub() {
-    return GreetingServiceGrpc.newFutureStub(baseClient.getChannel());
   }
 }

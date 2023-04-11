@@ -25,10 +25,6 @@ public interface ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   );
 
-  void upsert(String key, Prefab.ConfigValue configValue);
-
-  void upsert(Prefab.Config config);
-
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
   boolean removeConfigChangeListener(ConfigChangeListener configChangeListener);
