@@ -52,7 +52,6 @@ public class PrefabCloudClient implements AutoCloseable {
     return featureFlagClient;
   }
 
-
   public Options getOptions() {
     return options;
   }
