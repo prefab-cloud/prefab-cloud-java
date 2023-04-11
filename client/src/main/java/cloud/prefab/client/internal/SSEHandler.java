@@ -82,7 +82,7 @@ public class SSEHandler
 
   @Override
   public void onError(Throwable throwable) {
-    LOG.warn("Error in SSE handler {}", throwable.getMessage());
+    LOG.debug("Error in SSE handler {}", throwable.getMessage());
     closeExceptionally(throwable);
   }
 

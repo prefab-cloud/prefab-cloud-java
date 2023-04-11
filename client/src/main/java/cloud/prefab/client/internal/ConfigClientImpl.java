@@ -158,7 +158,7 @@ public class ConfigClientImpl implements ConfigClient {
       connectivityTester.testHttps();
       grpcAvailable.set(options.isGrpcEnabled() && connectivityTester.testGrpc());
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
-      startStreamingExecutor();
+      startStreaming();
       startCheckpointExecutor();
     }
   }
@@ -427,122 +427,39 @@ public class ConfigClientImpl implements ConfigClient {
     return false;
   }
 
-  private void startStreamingExecutor() {
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
-    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
-      executor,
+  private ScheduledExecutorService startStreamingExecutor() {
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+      1,
+      r -> new Thread(r, "prefab-streaming-callback-executor")
+    );
+
+    return MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
       100,
       TimeUnit.MILLISECONDS
     );
-    executorService.execute(this::startStreaming);
   }
 
   private void startStreaming() {
-    startStreaming(configLoader.getHighwaterMark());
-  }
-
-  private void startStreaming(long highwaterMark) {
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-      .newBuilder()
-      .setStartAtId(highwaterMark)
-      .build();
-    //TODO clean this up - split into two separate handlers
-    // improve error handling
+    ScheduledExecutorService scheduledExecutorService = startStreamingExecutor();
     if (grpcAvailable.get()) {
       LOG.info("Starting GRPC config subscriber");
-      try {
-        configServiceStub()
-          .getConfig(
-            pointer,
-            new StreamObserver<>() {
-              @Override
-              public void onNext(Prefab.Configs configs) {
-                loadConfigs(configs, Source.STREAMING);
-              }
-
-              @Override
-              public void onError(Throwable throwable) {
-                if (
-                  throwable instanceof StatusRuntimeException &&
-                  ((StatusRuntimeException) throwable).getStatus().getCode() ==
-                  Status.PERMISSION_DENIED.getCode()
-                ) {
-                  LOG.info("Not restarting the stream: {}", throwable.getMessage());
-                } else {
-                  LOG.warn("Error from streaming API will restart streaming connection");
-                  LOG.debug("Details of streaming API failure are", throwable);
-                  sleepQuietly(BACKOFF_MILLIS);
-                  startStreaming();
-                }
-              }
-
-              @Override
-              public void onCompleted() {
-                LOG.warn("Unexpected stream completion");
-                sleepQuietly(BACKOFF_MILLIS);
-                startStreaming();
-              }
-            }
-          );
-      } catch (ManagedChannelProvider.ProviderNotFoundException e) {
-        LOG.warn("GRPC implementation missing {}", e.getMessage());
-      }
+      GrpcConfigStreamingSubscriber grpcConfigStreamingSubscriber = new GrpcConfigStreamingSubscriber(
+        () -> baseClient.getChannel(),
+        () -> configLoader.getHighwaterMark(),
+        configs -> loadConfigs(configs, Source.STREAMING),
+        scheduledExecutorService
+      );
+      grpcConfigStreamingSubscriber.start();
     } else {
       LOG.info("Starting SSE config subscriber");
-      SSEHandler sseHandler = new SSEHandler();
-      sseHandler.subscribe(
-        new Flow.Subscriber<SSEHandler.Event>() {
-          private Flow.Subscription subscription;
-
-          @Override
-          public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
-            subscription.request(1);
-          }
-
-          @Override
-          public void onNext(SSEHandler.Event item) {
-            try {
-              Prefab.Configs configs = Prefab.Configs.parseFrom(
-                Base64.getDecoder().decode(item.getData().trim())
-              );
-              loadConfigs(configs, Source.STREAMING_SSE);
-            } catch (InvalidProtocolBufferException e) {
-              LOG.warn(
-                "Error parsing configs from event type {} - error message {}",
-                item.getEventName(),
-                e.getMessage()
-              );
-            }
-            subscription.request(1);
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            LOG.warn("Error processing SSE config stream", throwable);
-            sleepQuietly(BACKOFF_MILLIS);
-            startStreaming();
-          }
-
-          @Override
-          public void onComplete() {
-            LOG.warn("Config stream closed, will restart");
-            sleepQuietly(BACKOFF_MILLIS);
-            startStreaming();
-          }
-        }
+      SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
+        prefabHttpClient,
+        () -> configLoader.getHighwaterMark(),
+        configs -> loadConfigs(configs, Source.STREAMING),
+        scheduledExecutorService
       );
-
-      // ignore the future, the handler gets the events
-      prefabHttpClient.requestConfigSSE(highwaterMark, sseHandler);
-    }
-  }
-
-  private void sleepQuietly(long millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+      sseConfigStreamingSubscriber.start();
     }
   }
 
