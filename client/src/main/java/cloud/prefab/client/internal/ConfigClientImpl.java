@@ -28,10 +28,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.ManagedChannelProvider;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -52,14 +48,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Flow;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,7 +346,7 @@ public class ConfigClientImpl implements ConfigClient {
 
       loadAllConfigsViaGrpc(pointer);
     } else {
-      LOG.debug("No fallback from CDN is available now w/o GRPC");
+      loadAPI();
     }
   }
 
@@ -381,8 +376,43 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   boolean loadCDN() {
-    final String url = String.format("%s/api/v1/configs/0", options.getCDNUrl());
-    return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
+    try {
+      HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
+        .requestConfigsFromCDN(0)
+        .get(5, TimeUnit.SECONDS);
+      if (PrefabHttpClient.isSuccess(response.statusCode())) {
+        loadConfigs(response.body().get(), Source.REMOTE_CDN);
+        return true;
+      }
+      LOG.info(
+        "Got {} loading configs from CDN url {}",
+        response.statusCode(),
+        response.request().uri()
+      );
+    } catch (Exception e) {
+      LOG.info("Got exception with message {} loading configs from CDN", e.getMessage());
+    }
+    return false;
+  }
+
+  boolean loadAPI() {
+    try {
+      HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
+        .requestConfigsFromApi(0)
+        .get(5, TimeUnit.SECONDS);
+      if (PrefabHttpClient.isSuccess(response.statusCode())) {
+        loadConfigs(response.body().get(), Source.REMOTE_API);
+        return true;
+      }
+      LOG.info(
+        "Got {} loading configs from API url {}",
+        response.statusCode(),
+        response.request().uri()
+      );
+    } catch (Exception e) {
+      LOG.info("Got exception with message {} loading configs from API", e.getMessage());
+    }
+    return false;
   }
 
   private static String getBasicAuthenticationHeader(String username, String password) {

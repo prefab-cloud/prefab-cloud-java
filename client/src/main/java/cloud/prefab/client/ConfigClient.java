@@ -48,6 +48,7 @@ public interface ConfigClient {
   boolean isReady();
 
   enum Source {
+    REMOTE_API,
     REMOTE_API_GRPC,
     STREAMING_SSE,
     STREAMING,

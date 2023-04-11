@@ -4,6 +4,8 @@ import cloud.prefab.client.ClientAuthenticationInterceptor;
 import cloud.prefab.client.Options;
 import cloud.prefab.domain.Prefab;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -12,6 +14,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +76,50 @@ public class PrefabHttpClient {
       request,
       HttpResponse.BodyHandlers.fromLineSubscriber(lineSubscriber)
     );
+  }
+
+  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromApi(
+    long offset
+  ) {
+    return requestConfigsFromURI(
+      URI.create(options.getPrefabApiUrl() + "/api/v1/configs/" + offset)
+    );
+  }
+
+  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromCDN(
+    long offset
+  ) {
+    return requestConfigsFromURI(
+      URI.create(options.getPrefabApiUrl() + "/api/v1/configs/" + offset)
+    );
+  }
+
+  private CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromURI(
+    URI uri
+  ) {
+    HttpRequest request = getClientBuilderWithStandardHeaders()
+      .header("Accept", PROTO_MEDIA_TYPE)
+      .timeout(Duration.ofSeconds(5))
+      .uri(uri)
+      .build();
+
+    HttpResponse.BodySubscriber<InputStream> upstream = HttpResponse.BodySubscribers.ofInputStream();
+    HttpResponse.BodySubscriber<Supplier<Prefab.Configs>> mapper = HttpResponse.BodySubscribers.mapping(
+      upstream,
+      this::configsSupplier
+    );
+
+    return httpClient.sendAsync(request, resp -> mapper);
+  }
+
+  private Supplier<Prefab.Configs> configsSupplier(InputStream inputStream) {
+    return () -> {
+      try {
+        return Prefab.Configs.parseFrom(inputStream);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    };
   }
 
   private HttpRequest.Builder getClientBuilderWithStandardHeaders() {
