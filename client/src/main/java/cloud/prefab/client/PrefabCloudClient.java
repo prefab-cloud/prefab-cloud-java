@@ -2,8 +2,6 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.client.internal.FeatureFlagClientImpl;
-import cloud.prefab.client.util.Cache;
-import cloud.prefab.client.util.NoopCache;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +13,6 @@ public class PrefabCloudClient implements AutoCloseable {
   private final Options options;
   private ConfigClient configClient;
   private FeatureFlagClient featureFlagClient;
-  private Cache noopCache;
   private final AtomicBoolean closed;
 
   public PrefabCloudClient(Options options) {
@@ -55,16 +52,6 @@ public class PrefabCloudClient implements AutoCloseable {
     return featureFlagClient;
   }
 
-  public Cache getDistributedCache() {
-    if (options.getDistributedCache().isPresent()) {
-      return options.getDistributedCache().get();
-    } else {
-      if (noopCache == null) {
-        noopCache = new NoopCache();
-      }
-      return noopCache;
-    }
-  }
 
   public Options getOptions() {
     return options;
