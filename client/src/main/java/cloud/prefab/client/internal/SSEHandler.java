@@ -34,47 +34,50 @@ public class SSEHandler
   }
 
   @Override
-  public void onNext(String line) {
-    LOG.debug("got line `{}`", line);
-    String noBom = line;
-    if (line.startsWith(UTF8_BOM)) {
-      noBom = line.substring(UTF8_BOM.length());
-    }
+  public void onNext(String input) {
+    LOG.debug("got line `{}`", input);
+    String line = removeTrailingNewline(removeLeadingBom(input));
 
-    if (noBom.startsWith(":")) {
-      // ignore - these are comments/keepalives
-    } else if (noBom.isBlank()) {
+    if (line.startsWith(":")) {
+      submit(new CommentEvent(line.substring(1).trim()));
+    } else if (line.isBlank()) {
       LOG.debug(
         "broadcasting new event named {} lastEventId is {}",
         currentEventName,
         lastEventId
       );
-      submit(new Event(currentEventName, dataBuffer.toString(), lastEventId));
+      submit(new DataEvent(currentEventName, dataBuffer.toString(), lastEventId));
       //reset things
       dataBuffer.setLength(0);
       currentEventName = DEFAULT_EVENT_NAME;
-    } else {
-      List<String> lineParts = COLON_SPLITTER.splitToList(noBom);
+    } else if (line.contains(":")) {
+      List<String> lineParts = COLON_SPLITTER.splitToList(line);
       if (lineParts.size() == 2) {
-        String fieldName = lineParts.get(0);
-        String value = stripLeadingSpaceIfPresent(lineParts.get(1));
-        switch (fieldName) {
-          case "event":
-            currentEventName = value;
-            break;
-          case "data":
-            dataBuffer.append(value).append("\n");
-            break;
-          case "id":
-            lastEventId = value;
-            break;
-          case "retry":
-            // ignored
-            break;
-        }
+        handleFieldValue(lineParts.get(0), stripLeadingSpaceIfPresent(lineParts.get(1)));
       }
+    } else {
+      handleFieldValue(line, "");
     }
     subscription.request(1);
+  }
+
+  private void handleFieldValue(String fieldName, String value) {
+    switch (fieldName) {
+      case "event":
+        currentEventName = value;
+        break;
+      case "data":
+        dataBuffer.append(value).append("\n");
+        break;
+      case "id":
+        if (!value.contains("\0")) {
+          lastEventId = value;
+        }
+        break;
+      case "retry":
+        // ignored
+        break;
+    }
   }
 
   @Override
@@ -89,16 +92,71 @@ public class SSEHandler
     close();
   }
 
-  public static class Event {
+  public abstract static class Event {
+
+    enum Type {
+      COMMENT,
+      DATA,
+    }
+
+    abstract Type getType();
+  }
+
+  public static class CommentEvent extends Event {
+
+    private final String comment;
+
+    @Override
+    Type getType() {
+      return Type.COMMENT;
+    }
+
+    public CommentEvent(String comment) {
+      this.comment = comment;
+    }
+
+    public String getComment() {
+      return comment;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      CommentEvent that = (CommentEvent) o;
+      return Objects.equals(comment, that.comment);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(comment);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("comment", comment).toString();
+    }
+  }
+
+  public static class DataEvent extends Event {
 
     private final String eventName;
     private final String data;
-    private final String lastEventId1;
+    private final String lastEventId;
 
-    public Event(String eventName, String data, String lastEventId) {
+    public DataEvent(String eventName, String data, String lastEventId) {
       this.eventName = eventName;
       this.data = data;
-      lastEventId1 = lastEventId;
+      this.lastEventId = lastEventId;
+    }
+
+    @Override
+    Type getType() {
+      return Type.DATA;
     }
 
     public String getEventName() {
@@ -110,7 +168,7 @@ public class SSEHandler
     }
 
     public String getLastEventId() {
-      return lastEventId1;
+      return lastEventId;
     }
 
     @Override
@@ -119,7 +177,7 @@ public class SSEHandler
         .toStringHelper(this)
         .add("eventName", eventName)
         .add("data", data)
-        .add("lastEventId1", lastEventId1)
+        .add("lastEventId1", lastEventId)
         .toString();
     }
 
@@ -131,17 +189,18 @@ public class SSEHandler
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      Event event = (Event) o;
+      DataEvent event = (DataEvent) o;
       return (
+        Objects.equals(getType(), event.getType()) &&
         Objects.equals(eventName, event.eventName) &&
         Objects.equals(data, event.data) &&
-        Objects.equals(lastEventId1, event.lastEventId1)
+        Objects.equals(lastEventId, event.lastEventId)
       );
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(eventName, data, lastEventId1);
+      return Objects.hash(getType(), eventName, data, lastEventId);
     }
   }
 
@@ -150,5 +209,19 @@ public class SSEHandler
       return field.substring(1);
     }
     return field;
+  }
+
+  private String removeLeadingBom(String input) {
+    if (input.startsWith(UTF8_BOM)) {
+      return input.substring(UTF8_BOM.length());
+    }
+    return input;
+  }
+
+  private String removeTrailingNewline(String input) {
+    if (input.endsWith("\n")) {
+      return input.substring(0, input.length() - 1);
+    }
+    return input;
   }
 }
