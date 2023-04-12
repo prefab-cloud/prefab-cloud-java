@@ -115,30 +115,24 @@ public class ConfigClientImpl implements ConfigClient {
       startLogStatsUploadExecutor();
     }
 
-    HttpClient httpClient;
-    ConnectivityTester connectivityTester;
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
-      httpClient = null;
-      connectivityTester = null;
       prefabHttpClient = null;
     } else {
-      httpClient =
-        HttpClient
-          .newBuilder()
-          .executor(
-            MoreExecutors.getExitingExecutorService(
-              (ThreadPoolExecutor) Executors.newCachedThreadPool(
-                new ThreadFactoryBuilder()
-                  .setDaemon(true)
-                  .setNameFormat("prefab-http-client-pooled-thread-%d")
-                  .build()
-              )
+      HttpClient httpClient = HttpClient
+        .newBuilder()
+        .executor(
+          MoreExecutors.getExitingExecutorService(
+            (ThreadPoolExecutor) Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("prefab-http-client-pooled-thread-%d")
+                .build()
             )
           )
-          .build();
-
-      connectivityTester = new ConnectivityTester(httpClient, options);
+        )
+        .build();
+      ConnectivityTester connectivityTester = new ConnectivityTester(httpClient, options);
       connectivityTester.testHttps();
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
