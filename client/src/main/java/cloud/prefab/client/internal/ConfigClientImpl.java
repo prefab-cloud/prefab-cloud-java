@@ -19,16 +19,12 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
-import cloud.prefab.domain.ConfigServiceGrpc;
-import cloud.prefab.domain.LoggerReportingServiceGrpc;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.stub.StreamObserver;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -48,12 +44,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,13 +60,11 @@ public class ConfigClientImpl implements ConfigClient {
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
 
   private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
-
-  private static final long BACKOFF_MILLIS = 3000;
+  private static final long INITIAL_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(1);
 
   private static final String LOG_LEVEL_PREFIX_WITH_DOT =
     AbstractLoggingListener.LOG_LEVEL_PREFIX + ".";
 
-  private final PrefabCloudClient baseClient;
   private final Options options;
 
   private final UpdatingConfigResolver updatingConfigResolver;
@@ -87,6 +81,8 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final ConcurrentHashMap<String, String> loggerNameLookup = new ConcurrentHashMap<>();
 
+  private final PrefabHttpClient prefabHttpClient;
+
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -97,7 +93,6 @@ public class ConfigClientImpl implements ConfigClient {
     ConfigChangeListener... listeners
   ) {
     this.uniqueClientId = UUID.randomUUID().toString();
-    this.baseClient = baseClient;
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
@@ -119,10 +114,33 @@ public class ConfigClientImpl implements ConfigClient {
       startLogStatsUploadExecutor();
     }
 
+    HttpClient httpClient;
+    ConnectivityTester connectivityTester;
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
+      httpClient = null;
+      connectivityTester = null;
+      prefabHttpClient = null;
     } else {
-      startStreamingExecutor();
+      httpClient =
+        HttpClient
+          .newBuilder()
+          .executor(
+            MoreExecutors.getExitingExecutorService(
+              (ThreadPoolExecutor) Executors.newCachedThreadPool(
+                new ThreadFactoryBuilder()
+                  .setDaemon(true)
+                  .setNameFormat("prefab-http-client-pooled-thread-%d")
+                  .build()
+              )
+            )
+          )
+          .build();
+
+      connectivityTester = new ConnectivityTester(httpClient, options);
+      connectivityTester.testHttps();
+      prefabHttpClient = new PrefabHttpClient(httpClient, options);
+      startStreaming();
       startCheckpointExecutor();
     }
   }
@@ -186,26 +204,6 @@ public class ConfigClientImpl implements ConfigClient {
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  @Override
-  public void upsert(String key, Prefab.ConfigValue configValue) {
-    Prefab.Config upsertRequest = Prefab.Config
-      .newBuilder()
-      .setKey(key)
-      .addRows(
-        Prefab.ConfigRow
-          .newBuilder()
-          .addValues(Prefab.ConditionalValue.newBuilder().setValue(configValue).build())
-      )
-      .build();
-
-    configServiceBlockingStub().upsert(upsertRequest);
-  }
-
-  @Override
-  public void upsert(Prefab.Config config) {
-    configServiceBlockingStub().upsert(config);
   }
 
   @Override
@@ -307,42 +305,47 @@ public class ConfigClientImpl implements ConfigClient {
       return;
     }
 
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-      .newBuilder()
-      .setStartAtId(configLoader.getHighwaterMark())
-      .build();
-
-    loadGrpc(pointer);
-  }
-
-  private void loadGrpc(Prefab.ConfigServicePointer pointer) {
-    configServiceStub()
-      .getAllConfig(
-        pointer,
-        new StreamObserver<>() {
-          @Override
-          public void onNext(Prefab.Configs configs) {
-            loadConfigs(configs, Source.REMOTE_API_GRPC);
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            LOG.warn(
-              "{} Issue getting checkpoint config",
-              Source.REMOTE_API_GRPC,
-              throwable
-            );
-          }
-
-          @Override
-          public void onCompleted() {}
-        }
-      );
+    loadAPI();
   }
 
   boolean loadCDN() {
-    final String url = String.format("%s/api/v1/configs/0", options.getCDNUrl());
-    return loadCheckpointFromUrl(url, Source.REMOTE_CDN);
+    try {
+      HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
+        .requestConfigsFromCDN(0)
+        .get(5, TimeUnit.SECONDS);
+      if (PrefabHttpClient.isSuccess(response.statusCode())) {
+        loadConfigs(response.body().get(), Source.REMOTE_CDN);
+        return true;
+      }
+      LOG.info(
+        "Got {} loading configs from CDN url {}",
+        response.statusCode(),
+        response.request().uri()
+      );
+    } catch (Exception e) {
+      LOG.info("Got exception with message {} loading configs from CDN", e.getMessage());
+    }
+    return false;
+  }
+
+  boolean loadAPI() {
+    try {
+      HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
+        .requestConfigsFromApi(0)
+        .get(5, TimeUnit.SECONDS);
+      if (PrefabHttpClient.isSuccess(response.statusCode())) {
+        loadConfigs(response.body().get(), Source.REMOTE_API);
+        return true;
+      }
+      LOG.info(
+        "Got {} loading configs from API url {}",
+        response.statusCode(),
+        response.request().uri()
+      );
+    } catch (Exception e) {
+      LOG.info("Got exception with message {} loading configs from API", e.getMessage());
+    }
+    return false;
   }
 
   private static String getBasicAuthenticationHeader(String username, String password) {
@@ -387,72 +390,34 @@ public class ConfigClientImpl implements ConfigClient {
     return false;
   }
 
-  private void startStreamingExecutor() {
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+  private ScheduledExecutorService startStreamingExecutor() {
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
+      1,
+      r -> new Thread(r, "prefab-streaming-callback-executor")
+    );
 
-    ExecutorService executorService = MoreExecutors.getExitingExecutorService(
-      executor,
+    return MoreExecutors.getExitingScheduledExecutorService(
+      (ScheduledThreadPoolExecutor) executor,
       100,
       TimeUnit.MILLISECONDS
     );
-    executorService.execute(() -> startStreaming());
   }
 
   private void startStreaming() {
-    startStreaming(configLoader.getHighwaterMark());
-  }
+    ScheduledExecutorService scheduledExecutorService = startStreamingExecutor();
 
-  private void startStreaming(long highwaterMark) {
-    Prefab.ConfigServicePointer pointer = Prefab.ConfigServicePointer
-      .newBuilder()
-      .setStartAtId(highwaterMark)
-      .build();
-
-    configServiceStub()
-      .getConfig(
-        pointer,
-        new StreamObserver<>() {
-          @Override
-          public void onNext(Prefab.Configs configs) {
-            loadConfigs(configs, Source.STREAMING);
-          }
-
-          @Override
-          public void onError(Throwable throwable) {
-            if (
-              throwable instanceof StatusRuntimeException &&
-              ((StatusRuntimeException) throwable).getStatus().getCode() ==
-              Status.PERMISSION_DENIED.getCode()
-            ) {
-              LOG.info("Not restarting the stream: {}", throwable.getMessage());
-            } else {
-              LOG.warn("Error from streaming API will restart streaming connection");
-              LOG.debug("Details of streaming API failure are", throwable);
-              try {
-                Thread.sleep(BACKOFF_MILLIS);
-              } catch (InterruptedException e) {
-                LOG.warn("Interruption Backing Off");
-                Thread.currentThread().interrupt();
-              }
-              startStreaming();
-            }
-          }
-
-          @Override
-          public void onCompleted() {
-            LOG.warn("Unexpected stream completion");
-            try {
-              Thread.sleep(10000);
-            } catch (InterruptedException e) {
-              e.printStackTrace();
-            }
-            startStreaming();
-          }
-        }
-      );
+    LOG.info("Starting SSE config subscriber");
+    SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
+      prefabHttpClient,
+      () -> configLoader.getHighwaterMark(),
+      configs -> loadConfigs(configs, Source.STREAMING),
+      scheduledExecutorService
+    );
+    sseConfigStreamingSubscriber.start();
   }
 
   private void startLogStatsUploadExecutor() {
+    LOG.info("Starting log stats uploader");
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(
       1,
       r -> new Thread(r, "prefab-logger-stats-uploader")
@@ -480,30 +445,16 @@ public class ConfigClientImpl implements ConfigClient {
             .setInstanceHash(uniqueClientId);
           options.getNamespace().ifPresent(loggersBuilder::setNamespace);
 
-          LOG.debug("Uploading stats for {} loggers", logCounts.getLoggerMap().size());
-          loggerReportingServiceStub()
-            .send(
-              loggersBuilder.build(),
-              new StreamObserver<>() {
-                @Override
-                public void onNext(Prefab.LoggerReportResponse loggerReportResponse) {}
-
-                @Override
-                public void onError(Throwable throwable) {
-                  LOG.warn("log stats upload failed", throwable);
-                }
-
-                @Override
-                public void onCompleted() {
-                  LOG.debug("log stats upload completed");
-                }
-              }
-            );
+          LOG.info(
+            "Uploading stats for {} loggers via HTTP",
+            logCounts.getLoggerMap().size()
+          );
+          prefabHttpClient.reportLoggers(loggersBuilder.build());
         } catch (Exception e) {
           LOG.warn("Error setting up aggregated log stats transmission", e);
         }
       },
-      DEFAULT_LOG_STATS_UPLOAD_SEC,
+      INITIAL_LOG_STATS_UPLOAD_SEC,
       DEFAULT_LOG_STATS_UPLOAD_SEC,
       TimeUnit.SECONDS
     );
@@ -596,17 +547,5 @@ public class ConfigClientImpl implements ConfigClient {
         listener.onChange(changeEvent);
       }
     }
-  }
-
-  private ConfigServiceGrpc.ConfigServiceBlockingStub configServiceBlockingStub() {
-    return ConfigServiceGrpc.newBlockingStub(baseClient.getChannel());
-  }
-
-  private ConfigServiceGrpc.ConfigServiceStub configServiceStub() {
-    return ConfigServiceGrpc.newStub(baseClient.getChannel());
-  }
-
-  private LoggerReportingServiceGrpc.LoggerReportingServiceStub loggerReportingServiceStub() {
-    return LoggerReportingServiceGrpc.newStub(baseClient.getChannel());
   }
 }
