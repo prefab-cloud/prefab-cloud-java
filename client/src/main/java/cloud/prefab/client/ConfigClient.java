@@ -25,10 +25,6 @@ public interface ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   );
 
-  void upsert(String key, Prefab.ConfigValue configValue);
-
-  void upsert(Prefab.Config config);
-
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
   boolean removeConfigChangeListener(ConfigChangeListener configChangeListener);
@@ -48,7 +44,9 @@ public interface ConfigClient {
   boolean isReady();
 
   enum Source {
+    REMOTE_API,
     REMOTE_API_GRPC,
+    STREAMING_SSE,
     STREAMING,
     REMOTE_CDN,
     LOCAL_ONLY,
