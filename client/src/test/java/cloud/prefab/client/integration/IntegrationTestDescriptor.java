@@ -78,7 +78,6 @@ public class IntegrationTestDescriptor {
 
     Options options = new Options()
       .setApikey(apiKey)
-      .setPrefabGrpcUrl("grpc.staging-prefab.cloud:443")
       .setPrefabApiUrl("https://api.staging-prefab.cloud");
 
     clientOverrides.getNamespace().ifPresent(options::setNamespace);
