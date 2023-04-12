@@ -4,14 +4,14 @@ import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Context {
+public class PrefabContext {
 
   private final String contextType;
 
   private final String key;
   private final Map<String, Prefab.ConfigValue> properties;
 
-  private Context(
+  private PrefabContext(
     String contextType,
     String key,
     Map<String, Prefab.ConfigValue> properties
@@ -73,8 +73,8 @@ public class Context {
       return this;
     }
 
-    public Context build() {
-      return new Context(contextType, key, properties);
+    public PrefabContext build() {
+      return new PrefabContext(contextType, key, properties);
     }
   }
 

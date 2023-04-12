@@ -8,11 +8,9 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.core.spi.FilterReply;
 import cloud.prefab.client.ConfigClient;
-import cloud.prefab.context.Context;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextHelper;
 import cloud.prefab.domain.Prefab;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 @ExtendWith(MockitoExtension.class)
 class PrefabContextTurboFilterTest {
@@ -98,7 +95,7 @@ class PrefabContextTurboFilterTest {
       "com.example.factory.FactoryFactory"
     );
     when(configClient.isReady()).thenReturn(true);
-    Context context = Context
+    PrefabContext prefabContext = PrefabContext
       .newBuilder("User")
       .withKey("user1")
       .set("key1", "val1")
@@ -106,9 +103,9 @@ class PrefabContextTurboFilterTest {
       .build();
 
     try {
-      PrefabContextHelper.saveContextToThreadLocal(context);
+      PrefabContextHelper.saveContextToThreadLocal(prefabContext);
 
-      when(configClient.getLogLevel(logger.getName(), Optional.of(context)))
+      when(configClient.getLogLevel(logger.getName(), Optional.of(prefabContext)))
         .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
       assertThat(

@@ -6,7 +6,7 @@ import cloud.prefab.domain.Prefab;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class ContextTest {
+class PrefabContextTest {
 
   @Test
   void itBuildsWithExpectedProperties() {
@@ -18,7 +18,7 @@ class ContextTest {
     double pi = 3.14;
     boolean customer = true;
 
-    Context context = Context
+    PrefabContext prefabContext = PrefabContext
       .newBuilder(type)
       .withKey(key)
       .set("firstname", firstname)
@@ -28,9 +28,9 @@ class ContextTest {
       .set("isCustomer", customer)
       .build();
 
-    assertThat(context.getContextType()).isEqualTo(type);
-    assertThat(context.getKey()).isEqualTo(key);
-    assertThat(context.getProperties())
+    assertThat(prefabContext.getContextType()).isEqualTo(type);
+    assertThat(prefabContext.getKey()).isEqualTo(key);
+    assertThat(prefabContext.getProperties())
       .isEqualTo(
         Map.of(
           "firstname",

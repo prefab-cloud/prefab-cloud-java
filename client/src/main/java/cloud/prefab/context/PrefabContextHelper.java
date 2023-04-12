@@ -4,17 +4,17 @@ import java.util.Optional;
 
 public class PrefabContextHelper {
 
-  private static final ThreadLocal<Context> contextThreadLocal = new ThreadLocal<>();
+  private static final ThreadLocal<PrefabContext> contextThreadLocal = new ThreadLocal<>();
 
-  public static void saveContextToThreadLocal(Context context) {
-    contextThreadLocal.set(context);
+  public static void saveContextToThreadLocal(PrefabContext prefabContext) {
+    contextThreadLocal.set(prefabContext);
   }
 
   public static void clearContextThreadLocal() {
     contextThreadLocal.remove();
   }
 
-  public static Optional<Context> getContextFromThreadLocal() {
+  public static Optional<PrefabContext> getContextFromThreadLocal() {
     return Optional.ofNullable(contextThreadLocal.get());
   }
 }

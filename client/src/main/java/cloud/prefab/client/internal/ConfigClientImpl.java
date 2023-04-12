@@ -20,7 +20,7 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
-import cloud.prefab.context.Context;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -185,21 +185,21 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public Optional<Prefab.ConfigValue> get(String configKey, Context context) {
-    return get(configKey, Optional.of(context));
+  public Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext) {
+    return get(configKey, Optional.of(prefabContext));
   }
 
   @Override
   public Optional<Prefab.ConfigValue> get(
     String configKey,
-    Optional<Context> contextMaybe
+    Optional<PrefabContext> contextMaybe
   ) {
     return getInternal(
       configKey,
       new LookupContext(
-        contextMaybe.map(Context::getKey),
+        contextMaybe.map(PrefabContext::getKey),
         namespaceMaybe,
-        contextMaybe.map(Context::getProperties).orElse(Collections.emptyMap())
+        contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
       )
     );
   }
@@ -256,14 +256,17 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context) {
-    return getLogLevel(loggerName, toProperties(context));
+  public Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    PrefabContext prefabContext
+  ) {
+    return getLogLevel(loggerName, toProperties(prefabContext));
   }
 
   @Override
   public Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
-    Optional<Context> contextMaybe
+    Optional<PrefabContext> contextMaybe
   ) {
     return getLogLevel(
       loggerName,
@@ -271,15 +274,15 @@ public class ConfigClientImpl implements ConfigClient {
     );
   }
 
-  private Map<String, Prefab.ConfigValue> toProperties(Context context) {
+  private Map<String, Prefab.ConfigValue> toProperties(PrefabContext prefabContext) {
     Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
-      context.getProperties().size() + 1
+      prefabContext.getProperties().size() + 1
     );
     contextProperties.put(
       LOOKUP_KEY,
-      Prefab.ConfigValue.newBuilder().setString(context.getKey()).build()
+      Prefab.ConfigValue.newBuilder().setString(prefabContext.getKey()).build()
     );
-    contextProperties.putAll(context.getProperties());
+    contextProperties.putAll(prefabContext.getProperties());
     return contextProperties;
   }
 
