@@ -186,12 +186,20 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String configKey, Context context) {
+    return get(configKey, Optional.of(context));
+  }
+
+  @Override
+  public Optional<Prefab.ConfigValue> get(
+    String configKey,
+    Optional<Context> contextMaybe
+  ) {
     return getInternal(
       configKey,
       new LookupContext(
-        Optional.of(context.getKey()),
+        contextMaybe.map(Context::getKey),
         namespaceMaybe,
-        context.getProperties()
+        contextMaybe.map(Context::getProperties).orElse(Collections.emptyMap())
       )
     );
   }
@@ -250,6 +258,17 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context) {
     return getLogLevel(loggerName, toProperties(context));
+  }
+
+  @Override
+  public Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    Optional<Context> contextMaybe
+  ) {
+    return getLogLevel(
+      loggerName,
+      contextMaybe.map(this::toProperties).orElse(Collections.emptyMap())
+    );
   }
 
   private Map<String, Prefab.ConfigValue> toProperties(Context context) {
