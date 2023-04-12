@@ -28,6 +28,8 @@ public interface ConfigClient {
 
   Optional<Prefab.ConfigValue> get(String configKey, Context context);
 
+  Optional<Prefab.ConfigValue> get(String configKey, Optional<Context> context);
+
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
   boolean removeConfigChangeListener(ConfigChangeListener configChangeListener);
@@ -40,6 +42,7 @@ public interface ConfigClient {
   );
 
   Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context);
+  Optional<Prefab.LogLevel> getLogLevel(String loggerName, Optional<Context> context);
 
   Optional<Prefab.LogLevel> getLogLevelFromStringMap(
     String loggerName,
