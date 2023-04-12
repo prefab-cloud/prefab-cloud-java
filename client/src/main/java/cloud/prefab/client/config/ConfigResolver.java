@@ -245,6 +245,7 @@ public class ConfigResolver {
       lookupContext,
       rowPropertiesStack
     );
+    Optional<String> propStringValue = prop.flatMap(this::coerceToString);
 
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
@@ -332,34 +333,35 @@ public class ConfigResolver {
           );
         }
       case PROP_IS_ONE_OF:
-        if (!prop.isPresent()) {
+        if (!propStringValue.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
         // assumption that property is a String
         return List.of(
           new EvaluatedCriterion(
             criterion,
-            prop.get().getString(),
+            propStringValue.get(),
             criterion
               .getValueToMatch()
               .getStringList()
               .getValuesList()
-              .contains(prop.get().getString())
+              .contains(propStringValue.get())
           )
         );
       case PROP_IS_NOT_ONE_OF:
-        if (!prop.isPresent()) {
+        if (!propStringValue.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
+
         return List.of(
           new EvaluatedCriterion(
             criterion,
-            prop.get().getString(),
+            propStringValue.get(),
             !criterion
               .getValueToMatch()
               .getStringList()
               .getValuesList()
-              .contains(prop.get().getString())
+              .contains(propStringValue.get())
           )
         );
       case PROP_ENDS_WITH_ONE_OF:
@@ -405,6 +407,25 @@ public class ConfigResolver {
     return propertyString.startsWith(valueToMatch);
   }
 
+  private Optional<String> coerceToString(Prefab.ConfigValue configValue) {
+    switch (configValue.getTypeCase()) {
+      case STRING:
+        return Optional.of(configValue.getString());
+      case DOUBLE:
+        return Optional.of(String.valueOf(configValue.getDouble()));
+      case INT:
+        return Optional.of(String.valueOf(configValue.getInt()));
+      case BOOL:
+        return Optional.of(String.valueOf(configValue.getBool()));
+      default:
+        LOG.debug(
+          "Encountered unexpected type {} of configValue to coerce to string",
+          configValue.getTypeCase()
+        );
+        return Optional.empty();
+    }
+  }
+
   public boolean setProjectEnvId(Prefab.Configs configs) {
     if (configs.hasConfigServicePointer()) {
       this.projectEnvId = configs.getConfigServicePointer().getProjectEnvId();
@@ -422,7 +443,7 @@ public class ConfigResolver {
   }
 
   public String contentsString() {
-    StringBuilder sb = new StringBuilder("");
+    StringBuilder sb = new StringBuilder();
     List<String> sortedKeys = new ArrayList(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {

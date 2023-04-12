@@ -313,6 +313,94 @@ public class ConfigResolverTest {
     assertThat(alphaEval.get(0).isMatch()).isFalse();
   }
 
+  @Test
+  public void testIntInStringListMatches() {
+    final Prefab.Criterion numberCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("number")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+      .build();
+
+    final EvaluatedCriterion positiveEval = resolver
+      .evaluateCriterionMatch(
+        numberCriterion,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(10).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(positiveEval.isMatch()).isTrue();
+    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
+
+    final EvaluatedCriterion negativeEval = resolver
+      .evaluateCriterionMatch(
+        numberCriterion,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(13).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(negativeEval.isMatch()).isFalse();
+    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
+  }
+
+  @Test
+  public void testIntNotInStringListMatches() {
+    final Prefab.Criterion numberCriteria = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("number")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_NOT_ONE_OF)
+      .build();
+
+    final EvaluatedCriterion positiveEval = resolver
+      .evaluateCriterionMatch(
+        numberCriteria,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(13).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(positiveEval.isMatch()).isTrue();
+    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
+
+    final EvaluatedCriterion negativeEval = resolver
+      .evaluateCriterionMatch(
+        numberCriteria,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(10).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(negativeEval.isMatch()).isFalse();
+    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
+  }
+
   private Prefab.ConfigValue sv(String s) {
     return Prefab.ConfigValue.newBuilder().setString(s).build();
   }
