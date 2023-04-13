@@ -7,10 +7,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 public class LookupContext {
 
   public static final LookupContext EMPTY = new LookupContext(
+    Optional.empty(),
     Optional.empty(),
     Optional.empty(),
     Collections.emptyMap()
@@ -20,14 +22,17 @@ public class LookupContext {
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
 
   private final Map<String, Prefab.ConfigValue> properties;
+  private final Optional<String> contextTypeMaybe;
 
   private Map<String, Prefab.ConfigValue> expandedProperties = null;
 
   public LookupContext(
+    Optional<String> contextType,
     Optional<String> contextKey,
     Optional<Prefab.ConfigValue> namespace,
     Map<String, Prefab.ConfigValue> properties
   ) {
+    this.contextTypeMaybe = contextType.map(String::toLowerCase);
     this.contextKey = contextKey;
     this.namespaceMaybe = namespace;
     this.properties = properties;
@@ -82,7 +87,13 @@ public class LookupContext {
           Prefab.ConfigValue.newBuilder().setString(c).build()
         )
       );
-      newMap.putAll(properties);
+      String prefix = contextTypeMaybe
+        .filter(Predicate.not(String::isEmpty))
+        .map(contextType -> contextType + ".")
+        .orElse("");
+      for (Map.Entry<String, Prefab.ConfigValue> keyValueEntry : properties.entrySet()) {
+        newMap.put(prefix + keyValueEntry.getKey(), keyValueEntry.getValue());
+      }
       expandedProperties = ImmutableMap.copyOf(newMap);
     }
     return expandedProperties;

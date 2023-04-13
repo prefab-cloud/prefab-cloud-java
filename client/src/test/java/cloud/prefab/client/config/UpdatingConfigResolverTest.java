@@ -271,6 +271,7 @@ public class UpdatingConfigResolverTest {
     return new LookupContext(
       Optional.empty(),
       Optional.empty(),
+      Optional.empty(),
       Map.of(propName, configValue)
     );
   }
