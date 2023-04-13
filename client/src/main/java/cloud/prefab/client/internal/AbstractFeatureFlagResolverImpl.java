@@ -101,7 +101,6 @@ public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClie
       if (featureFlagVariant.get().hasBool()) {
         return featureFlagVariant.get().getBool();
       } else {
-        // TODO log
         return false;
       }
     } else {

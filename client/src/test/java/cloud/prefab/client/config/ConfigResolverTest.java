@@ -7,8 +7,10 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,10 +45,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
+          keyOnlyLookupContext("very high hash")
         )
         .get()
         .getConfigValue()
@@ -60,10 +59,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
+          keyOnlyLookupContext("hashes low")
         )
         .get()
         .getConfigValue()
@@ -82,10 +78,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
+          keyOnlyLookupContext("very high hash")
         )
         .get()
         .getConfigValue()
@@ -99,10 +92,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
+          keyOnlyLookupContext("hashes low")
         )
         .get()
         .getConfigValue()
@@ -121,10 +111,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
+          keyOnlyLookupContext("very high hash")
         )
         .get()
         .getConfigValue()
@@ -138,10 +125,7 @@ public class ConfigResolverTest {
             flag,
             new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
           ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
+          keyOnlyLookupContext("hashes low")
         )
         .get()
         .getConfigValue()
@@ -209,7 +193,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion bobEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("bob@example.com"))
+        singleValueLookupContext("email", sv("bob@example.com"))
       )
       .stream()
       .findFirst()
@@ -221,7 +205,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion yahooEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@yahoo.com"))
+        singleValueLookupContext("email", sv("alice@yahoo.com"))
       )
       .stream()
       .findFirst()
@@ -233,7 +217,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion gmailEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@gmail.com"))
+        singleValueLookupContext("email", sv("alice@gmail.com"))
       )
       .stream()
       .findFirst()
@@ -265,7 +249,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion bobEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("bob@example.com"))
+        singleValueLookupContext("email", sv("bob@example.com"))
       )
       .stream()
       .findFirst()
@@ -277,7 +261,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion yahooEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@yahoo.com"))
+        singleValueLookupContext("email", sv("alice@yahoo.com"))
       )
       .stream()
       .findFirst()
@@ -289,7 +273,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion gmailEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@gmail.com"))
+        singleValueLookupContext("email", sv("alice@gmail.com"))
       )
       .stream()
       .findFirst()
@@ -311,7 +295,10 @@ public class ConfigResolverTest {
       .build();
 
     final EvaluatedCriterion betaEval = resolver
-      .evaluateCriterionMatch(segmentCriteria, ImmutableMap.of("group", sv("beta")))
+      .evaluateCriterionMatch(
+        segmentCriteria,
+        singleValueLookupContext("group", sv("beta"))
+      )
       .stream()
       .findFirst()
       .get();
@@ -319,7 +306,7 @@ public class ConfigResolverTest {
     assertThat(betaEval.isMatch()).isTrue();
     final List<EvaluatedCriterion> alphaEval = resolver.evaluateCriterionMatch(
       segmentCriteria,
-      ImmutableMap.of("group", sv("alpha"))
+      singleValueLookupContext("group", sv("alpha"))
     );
     System.out.println(alphaEval);
     assertThat(alphaEval).hasSize(1);
@@ -368,6 +355,21 @@ public class ConfigResolverTest {
     return new ConfigElement(
       segment,
       new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
+    );
+  }
+
+  public static LookupContext keyOnlyLookupContext(String key) {
+    return new LookupContext(Optional.of(key), Optional.empty(), Collections.emptyMap());
+  }
+
+  public static LookupContext singleValueLookupContext(
+    String propName,
+    Prefab.ConfigValue configValue
+  ) {
+    return new LookupContext(
+      Optional.empty(),
+      Optional.empty(),
+      Map.of(propName, configValue)
     );
   }
 }

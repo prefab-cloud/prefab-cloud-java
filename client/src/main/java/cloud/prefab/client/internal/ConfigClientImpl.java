@@ -1,6 +1,6 @@
 package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.config.ConfigResolver.NAMESPACE_KEY;
+import static cloud.prefab.client.config.ConfigResolver.LOOKUP_KEY;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
@@ -11,6 +11,7 @@ import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.client.config.LookupContext;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
@@ -19,6 +20,7 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
+import cloud.prefab.context.Context;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -34,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -172,38 +173,38 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(
-    String key,
+    String configKey,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    try {
-      if (
-        !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
-      ) {
-        if (
-          options.getOnInitializationFailure() == Options.OnInitializationFailure.UNLOCK
-        ) {
-          finishInit(Source.INIT_TIMEOUT);
-        } else {
-          throw new PrefabInitializationTimeoutException(
-            options.getInitializationTimeoutSec()
-          );
-        }
-      }
-      if (!updatingConfigResolver.containsKey(key)) {
-        return Optional.empty();
-      }
-      HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
-        properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
-      );
-      mutableProperties.putAll(properties);
-      namespaceMaybe.ifPresent(namespace ->
-        mutableProperties.put(NAMESPACE_KEY, namespace)
-      );
+    LookupContext lookupContext = new LookupContext(
+      Optional.ofNullable(properties.get(LOOKUP_KEY)).map(Prefab.ConfigValue::getString),
+      namespaceMaybe,
+      properties
+    );
+    return getInternal(configKey, lookupContext);
+  }
 
-      return updatingConfigResolver.getConfigValue(key, mutableProperties);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+  @Override
+  public Optional<Prefab.ConfigValue> get(String configKey, Context context) {
+    return getInternal(
+      configKey,
+      new LookupContext(
+        Optional.of(context.getKey()),
+        namespaceMaybe,
+        context.getProperties()
+      )
+    );
+  }
+
+  private Optional<Prefab.ConfigValue> getInternal(
+    String configKey,
+    LookupContext lookupContext
+  ) {
+    waitForInitialization();
+    if (!updatingConfigResolver.containsKey(configKey)) {
+      return Optional.empty();
     }
+    return updatingConfigResolver.getConfigValue(configKey, lookupContext);
   }
 
   @Override
@@ -228,9 +229,15 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     Map<String, Prefab.ConfigValue> properties
   ) {
+    LookupContext lookupContext = new LookupContext(
+      Optional.empty(),
+      namespaceMaybe,
+      properties
+    );
+
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
-      Optional<Prefab.LogLevel> logLevelMaybe = get(configKey, properties)
+      Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)
         .filter(Prefab.ConfigValue::hasLogLevel)
         .map(Prefab.ConfigValue::getLogLevel);
       if (logLevelMaybe.isPresent()) {
@@ -238,6 +245,23 @@ public class ConfigClientImpl implements ConfigClient {
       }
     }
     return Optional.empty();
+  }
+
+  @Override
+  public Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context) {
+    return getLogLevel(loggerName, toProperties(context));
+  }
+
+  private Map<String, Prefab.ConfigValue> toProperties(Context context) {
+    Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
+      context.getProperties().size() + 1
+    );
+    contextProperties.put(
+      LOOKUP_KEY,
+      Prefab.ConfigValue.newBuilder().setString(context.getKey()).build()
+    );
+    contextProperties.putAll(context.getProperties());
+    return contextProperties;
   }
 
   @Override
@@ -282,18 +306,23 @@ public class ConfigClientImpl implements ConfigClient {
           throw new NoSuchElementException();
         }
         String currentValue = nextValue;
-        nextValue =
-          loggerNameLookup.computeIfAbsent(
-            currentValue,
-            k -> {
-              int lastDotIndex = nextValue.lastIndexOf('.');
-              if (lastDotIndex > 0) {
-                return nextValue.substring(0, lastDotIndex);
-              } else {
-                return null;
+        String temp = loggerNameLookup.get(currentValue);
+        if (temp == null) {
+          nextValue =
+            loggerNameLookup.computeIfAbsent(
+              currentValue,
+              k -> {
+                int lastDotIndex = nextValue.lastIndexOf('.');
+                if (lastDotIndex > 0) {
+                  return nextValue.substring(0, lastDotIndex);
+                } else {
+                  return null;
+                }
               }
-            }
-          );
+            );
+        } else {
+          nextValue = temp;
+        }
         return currentValue;
       }
     };
@@ -546,6 +575,26 @@ public class ConfigClientImpl implements ConfigClient {
         LOG.debug("Broadcasting change {} to {}", changeEvent, listener);
         listener.onChange(changeEvent);
       }
+    }
+  }
+
+  private void waitForInitialization() {
+    try {
+      if (
+        !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
+      ) {
+        if (
+          options.getOnInitializationFailure() == Options.OnInitializationFailure.UNLOCK
+        ) {
+          finishInit(Source.INIT_TIMEOUT);
+        } else {
+          throw new PrefabInitializationTimeoutException(
+            options.getInitializationTimeoutSec()
+          );
+        }
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
     }
   }
 }
