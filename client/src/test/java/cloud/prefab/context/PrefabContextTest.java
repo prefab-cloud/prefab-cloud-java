@@ -29,7 +29,7 @@ class PrefabContextTest {
       .build();
 
     assertThat(prefabContext.getContextType()).isEqualTo(type);
-    assertThat(prefabContext.getKey()).isEqualTo(key);
+    assertThat(prefabContext.getKey().get()).isEqualTo(key);
     assertThat(prefabContext.getProperties())
       .isEqualTo(
         Map.of(

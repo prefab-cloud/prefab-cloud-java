@@ -193,7 +193,7 @@ public class ConfigClientImpl implements ConfigClient {
       configKey,
       new LookupContext(
         contextMaybe.map(PrefabContext::getContextType),
-        contextMaybe.map(PrefabContext::getKey),
+        contextMaybe.flatMap(PrefabContext::getKey),
         namespaceMaybe,
         contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
       )
@@ -275,10 +275,15 @@ public class ConfigClientImpl implements ConfigClient {
     Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
       prefabContext.getProperties().size() + 1
     );
-    contextProperties.put(
-      LOOKUP_KEY,
-      Prefab.ConfigValue.newBuilder().setString(prefabContext.getKey()).build()
-    );
+    prefabContext
+      .getKey()
+      .ifPresent(key ->
+        contextProperties.put(
+          LOOKUP_KEY,
+          Prefab.ConfigValue.newBuilder().setString(key).build()
+        )
+      );
+
     contextProperties.putAll(prefabContext.getProperties());
     return contextProperties;
   }

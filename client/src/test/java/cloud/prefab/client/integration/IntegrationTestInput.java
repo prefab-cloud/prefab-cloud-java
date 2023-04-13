@@ -1,6 +1,7 @@
 package cloud.prefab.client.integration;
 
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.context.PrefabContext;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
@@ -45,13 +46,37 @@ public class IntegrationTestInput {
   public boolean featureIsOnFor(PrefabCloudClient client) {
     return client
       .featureFlagClient()
-      .featureIsOnFor(getFlag().get(), getResolvedLookupKey(), getResolvedProperties());
+      .featureIsOn(
+        getFlag().get(),
+        contextFrom(getResolvedLookupKey(), getResolvedProperties())
+      );
+  }
+
+  private PrefabContext contextFrom(
+    Optional<String> lookupKey,
+    Map<String, String> resolvedProperties
+  ) {
+    PrefabContext.Builder prefabContextBuilder = PrefabContext
+      .newBuilder("")
+      .withKey(lookupKey);
+    for (Map.Entry<String, String> stringStringEntry : resolvedProperties.entrySet()) {
+      prefabContextBuilder.set(stringStringEntry.getKey(), stringStringEntry.getValue());
+    }
+    return prefabContextBuilder.build();
   }
 
   public long getFeatureFor(PrefabCloudClient client) {
+    PrefabContext.Builder prefabContextBuilder = PrefabContext
+      .newBuilder("")
+      .withKey(getResolvedLookupKey());
+    for (Map.Entry<String, String> stringStringEntry : getResolvedProperties()
+      .entrySet()) {
+      prefabContextBuilder.set(stringStringEntry.getKey(), stringStringEntry.getValue());
+    }
+
     return client
       .featureFlagClient()
-      .get(getFlag().get(), getResolvedLookupKey(), getResolvedProperties())
+      .get(getFlag().get(), contextFrom(getResolvedLookupKey(), getResolvedProperties()))
       .get()
       .getInt();
   }
