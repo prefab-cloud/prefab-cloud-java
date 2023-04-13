@@ -3,7 +3,7 @@ package cloud.prefab.client;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.value.Value;
-import cloud.prefab.context.Context;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +26,9 @@ public interface ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   );
 
-  Optional<Prefab.ConfigValue> get(String configKey, Context context);
+  Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext);
+
+  Optional<Prefab.ConfigValue> get(String configKey, Optional<PrefabContext> context);
 
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
@@ -39,7 +41,11 @@ public interface ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   );
 
-  Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context);
+  Optional<Prefab.LogLevel> getLogLevel(String loggerName, PrefabContext prefabContext);
+  Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    Optional<PrefabContext> context
+  );
 
   Optional<Prefab.LogLevel> getLogLevelFromStringMap(
     String loggerName,

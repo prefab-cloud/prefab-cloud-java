@@ -20,7 +20,7 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
-import cloud.prefab.context.Context;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -115,30 +115,24 @@ public class ConfigClientImpl implements ConfigClient {
       startLogStatsUploadExecutor();
     }
 
-    HttpClient httpClient;
-    ConnectivityTester connectivityTester;
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
-      httpClient = null;
-      connectivityTester = null;
       prefabHttpClient = null;
     } else {
-      httpClient =
-        HttpClient
-          .newBuilder()
-          .executor(
-            MoreExecutors.getExitingExecutorService(
-              (ThreadPoolExecutor) Executors.newCachedThreadPool(
-                new ThreadFactoryBuilder()
-                  .setDaemon(true)
-                  .setNameFormat("prefab-http-client-pooled-thread-%d")
-                  .build()
-              )
+      HttpClient httpClient = HttpClient
+        .newBuilder()
+        .executor(
+          MoreExecutors.getExitingExecutorService(
+            (ThreadPoolExecutor) Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("prefab-http-client-pooled-thread-%d")
+                .build()
             )
           )
-          .build();
-
-      connectivityTester = new ConnectivityTester(httpClient, options);
+        )
+        .build();
+      ConnectivityTester connectivityTester = new ConnectivityTester(httpClient, options);
       connectivityTester.testHttps();
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
@@ -185,13 +179,21 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public Optional<Prefab.ConfigValue> get(String configKey, Context context) {
+  public Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext) {
+    return get(configKey, Optional.of(prefabContext));
+  }
+
+  @Override
+  public Optional<Prefab.ConfigValue> get(
+    String configKey,
+    Optional<PrefabContext> contextMaybe
+  ) {
     return getInternal(
       configKey,
       new LookupContext(
-        Optional.of(context.getKey()),
+        contextMaybe.map(PrefabContext::getKey),
         namespaceMaybe,
-        context.getProperties()
+        contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
       )
     );
   }
@@ -248,19 +250,33 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public Optional<Prefab.LogLevel> getLogLevel(String loggerName, Context context) {
-    return getLogLevel(loggerName, toProperties(context));
+  public Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    PrefabContext prefabContext
+  ) {
+    return getLogLevel(loggerName, toProperties(prefabContext));
   }
 
-  private Map<String, Prefab.ConfigValue> toProperties(Context context) {
+  @Override
+  public Optional<Prefab.LogLevel> getLogLevel(
+    String loggerName,
+    Optional<PrefabContext> contextMaybe
+  ) {
+    return getLogLevel(
+      loggerName,
+      contextMaybe.map(this::toProperties).orElse(Collections.emptyMap())
+    );
+  }
+
+  private Map<String, Prefab.ConfigValue> toProperties(PrefabContext prefabContext) {
     Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
-      context.getProperties().size() + 1
+      prefabContext.getProperties().size() + 1
     );
     contextProperties.put(
       LOOKUP_KEY,
-      Prefab.ConfigValue.newBuilder().setString(context.getKey()).build()
+      Prefab.ConfigValue.newBuilder().setString(prefabContext.getKey()).build()
     );
-    contextProperties.putAll(context.getProperties());
+    contextProperties.putAll(prefabContext.getProperties());
     return contextProperties;
   }
 
