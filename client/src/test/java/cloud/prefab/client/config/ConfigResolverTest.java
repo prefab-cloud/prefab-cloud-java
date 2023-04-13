@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -447,7 +446,12 @@ public class ConfigResolverTest {
   }
 
   public static LookupContext keyOnlyLookupContext(String key) {
-    return new LookupContext(Optional.of(key), Optional.empty(), Collections.emptyMap());
+    return new LookupContext(
+      Optional.empty(),
+      Optional.of(key),
+      Optional.empty(),
+      Collections.emptyMap()
+    );
   }
 
   public static LookupContext singleValueLookupContext(
@@ -455,6 +459,7 @@ public class ConfigResolverTest {
     Prefab.ConfigValue configValue
   ) {
     return new LookupContext(
+      Optional.empty(),
       Optional.empty(),
       Optional.empty(),
       Map.of(propName, configValue)
