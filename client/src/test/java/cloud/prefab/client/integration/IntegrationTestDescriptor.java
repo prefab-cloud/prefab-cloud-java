@@ -78,7 +78,8 @@ public class IntegrationTestDescriptor {
 
     Options options = new Options()
       .setApikey(apiKey)
-      .setPrefabApiUrl("https://api.staging-prefab.cloud");
+      .setPrefabApiUrl("https://api.staging-prefab.cloud")
+      .setInitializationTimeoutSec(1000);
 
     clientOverrides.getNamespace().ifPresent(options::setNamespace);
 

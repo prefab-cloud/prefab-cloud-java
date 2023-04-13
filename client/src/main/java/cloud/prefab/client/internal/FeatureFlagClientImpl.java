@@ -1,6 +1,7 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.Map;
 import java.util.Optional;
@@ -15,8 +16,8 @@ public class FeatureFlagClientImpl extends AbstractFeatureFlagResolverImpl {
 
   protected Optional<Prefab.ConfigValue> getConfigValue(
     String feature,
-    Map<String, Prefab.ConfigValue> attributes
+    Optional<PrefabContext> prefabContextOptional
   ) {
-    return configClient.get(feature, attributes);
+    return configClient.get(feature, prefabContextOptional);
   }
 }

@@ -3,17 +3,18 @@ package cloud.prefab.context;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class PrefabContext {
 
   private final String contextType;
 
-  private final String key;
+  private final Optional<String> key;
   private final Map<String, Prefab.ConfigValue> properties;
 
   private PrefabContext(
     String contextType,
-    String key,
+    Optional<String> key,
     Map<String, Prefab.ConfigValue> properties
   ) {
     this.contextType = contextType;
@@ -25,7 +26,7 @@ public class PrefabContext {
     return contextType;
   }
 
-  public String getKey() {
+  public Optional<String> getKey() {
     return key;
   }
 
@@ -37,9 +38,9 @@ public class PrefabContext {
 
     private final String contextType;
     private final Map<String, Prefab.ConfigValue> properties = new HashMap<>();
-    private final String key;
+    private final Optional<String> key;
 
-    private Builder(String contextType, String key) {
+    private Builder(String contextType, Optional<String> key) {
       this.contextType = contextType;
       this.key = key;
     }
@@ -87,7 +88,15 @@ public class PrefabContext {
     }
 
     public Builder withKey(String key) {
+      return new Builder(contextType, Optional.of(key));
+    }
+
+    public Builder withKey(Optional<String> key) {
       return new Builder(contextType, key);
+    }
+
+    public Builder withoutKey() {
+      return new Builder(contextType, Optional.empty());
     }
   }
 
