@@ -1,9 +1,12 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.util.Cache;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextHelper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public class Options {
 
@@ -31,8 +34,10 @@ public class Options {
   private Datasources prefabDatasources = Datasources.ALL;
   private int initializationTimeoutSec = 10;
   private OnInitializationFailure onInitializationFailure = OnInitializationFailure.RAISE;
-
   private boolean reportLogStats = true;
+
+  private Supplier<Optional<PrefabContext>> contextSupplier =
+    PrefabContextHelper::getContextFromThreadLocal;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -175,5 +180,14 @@ public class Options {
 
   public String getApiKeyId() {
     return getApikey().split("\\-")[0];
+  }
+
+  public Options setContextSupplier(Supplier<Optional<PrefabContext>> supplier) {
+    this.contextSupplier = supplier;
+    return this;
+  }
+
+  public Supplier<Optional<PrefabContext>> getContextSupplier() {
+    return contextSupplier;
   }
 }
