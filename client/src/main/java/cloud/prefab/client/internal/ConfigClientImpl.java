@@ -171,6 +171,7 @@ public class ConfigClientImpl implements ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   ) {
     LookupContext lookupContext = new LookupContext(
+      Optional.empty(),
       Optional.ofNullable(properties.get(LOOKUP_KEY)).map(Prefab.ConfigValue::getString),
       namespaceMaybe,
       properties
@@ -191,6 +192,7 @@ public class ConfigClientImpl implements ConfigClient {
     return getInternal(
       configKey,
       new LookupContext(
+        contextMaybe.map(PrefabContext::getContextType),
         contextMaybe.map(PrefabContext::getKey),
         namespaceMaybe,
         contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
@@ -232,6 +234,7 @@ public class ConfigClientImpl implements ConfigClient {
     Map<String, Prefab.ConfigValue> properties
   ) {
     LookupContext lookupContext = new LookupContext(
+      Optional.empty(),
       Optional.empty(),
       namespaceMaybe,
       properties
