@@ -239,7 +239,6 @@ public class ConfigResolver {
     LookupContext lookupContext,
     Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
-    Optional<String> lookupKey = lookupContext.getContextKey();
     final Optional<Prefab.ConfigValue> prop = prop(
       criterion.getPropertyName(),
       lookupContext,
@@ -250,26 +249,6 @@ public class ConfigResolver {
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
         return List.of(new EvaluatedCriterion(criterion, true));
-      case LOOKUP_KEY_IN:
-        if (lookupKey.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean match = criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), match));
-      case LOOKUP_KEY_NOT_IN:
-        if (lookupKey.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean notMatch = !criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), notMatch));
       case HIERARCHICAL_MATCH:
         if (prop.isPresent()) {
           if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
