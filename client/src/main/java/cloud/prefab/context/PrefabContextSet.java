@@ -27,6 +27,14 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     return ImmutableList.copyOf(contextByNameMap.values());
   }
 
+  public static PrefabContextSet from(PrefabContext... contexts) {
+    PrefabContextSet set = new PrefabContextSet();
+    for (PrefabContext context : contexts) {
+      set.addContext(context);
+    }
+    return set;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
