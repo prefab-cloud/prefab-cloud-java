@@ -12,10 +12,20 @@ public interface ContextStore {
   void addContext(PrefabContext prefabContext);
 
   /**
+   * Overwrites any existing context with the provided context
+   * @param prefabContextSetReadable
+   * @return existing context, if present
+   */
+  Optional<PrefabContextSetReadable> setContext(
+    PrefabContextSetReadable prefabContextSetReadable
+  );
+
+  /**
    * Removes all prefab contexts the current context session scope
    * (By default, this is stored in a ThreadLocal)
+   * @return existing context, if present
    */
-  void clearContexts();
+  Optional<PrefabContextSetReadable> clearContexts();
 
   /**
    *

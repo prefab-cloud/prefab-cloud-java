@@ -13,6 +13,10 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     contextByNameMap.put(prefabContext.getContextType().toLowerCase(), prefabContext);
   }
 
+  public boolean isEmpty() {
+    return contextByNameMap.isEmpty();
+  }
+
   @Override
   public Optional<PrefabContext> getByType(String contextType) {
     return Optional.ofNullable(contextByNameMap.get(contextType.toLowerCase()));

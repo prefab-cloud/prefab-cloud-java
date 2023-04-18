@@ -8,25 +8,41 @@ import java.util.Optional;
 
 public class ThreadLocalContextStore implements ContextStore {
 
-  static final ThreadLocal<PrefabContextSet> PREFAB_CONTEXT_SET_THREAD_LOCAL = new ThreadLocal<>();
+  static final ThreadLocal<PrefabContextSet> PREFAB_CONTEXT_SET_THREAD_LOCAL = ThreadLocal.withInitial(
+    PrefabContextSet::new
+  );
   public static final ThreadLocalContextStore INSTANCE = new ThreadLocalContextStore();
 
   private ThreadLocalContextStore() {}
 
   @Override
   public void addContext(PrefabContext prefabContext) {
-    PrefabContextSet prefabContextSet = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
-
-    if (PREFAB_CONTEXT_SET_THREAD_LOCAL.get() == null) {
-      prefabContextSet = new PrefabContextSet();
-      PREFAB_CONTEXT_SET_THREAD_LOCAL.set(prefabContextSet);
-    }
-    prefabContextSet.addContext(prefabContext);
+    PREFAB_CONTEXT_SET_THREAD_LOCAL.get().addContext(prefabContext);
   }
 
   @Override
-  public void clearContexts() {
+  public Optional<PrefabContextSetReadable> setContext(
+    PrefabContextSetReadable prefabContextSetReadable
+  ) {
+    PrefabContextSet previousContext = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
+    if (prefabContextSetReadable instanceof PrefabContextSet) {
+      PREFAB_CONTEXT_SET_THREAD_LOCAL.set((PrefabContextSet) prefabContextSetReadable);
+    } else {
+      PrefabContextSet prefabContextSet = new PrefabContextSet();
+      for (PrefabContext context : prefabContextSetReadable.getContexts()) {
+        prefabContextSet.addContext(context);
+      }
+      PREFAB_CONTEXT_SET_THREAD_LOCAL.set(prefabContextSet);
+    }
+
+    return Optional.ofNullable(previousContext);
+  }
+
+  @Override
+  public Optional<PrefabContextSetReadable> clearContexts() {
+    PrefabContextSetReadable previousContext = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
     PREFAB_CONTEXT_SET_THREAD_LOCAL.remove();
+    return Optional.of(previousContext);
   }
 
   @Override

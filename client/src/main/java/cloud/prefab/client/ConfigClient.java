@@ -5,31 +5,72 @@ import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 public interface ConfigClient extends ContextStore {
   ConfigResolver getResolver();
 
+  /**
+   * Evaluates a configuration based on context set in the environment
+   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a value that will be evaluated at runtime based on the context from the current scope
+   */
   Value<String> liveString(String key);
 
+  /**
+   * Evaluates a configuration based on context set in the environment
+   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a value that will be evaluated at runtime based on the context from the current scope
+   */
   Value<Boolean> liveBoolean(String key);
 
+  /**
+   * Evaluates a configuration based on context set in the environment
+   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a value that will be evaluated at runtime based on the context from the current scope
+   */
   Value<Long> liveLong(String key);
 
+  /**
+   * Evaluates a configuration based on context set in the environment
+   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a value that will be evaluated at runtime based on the context from the current scope
+   */
   Value<Double> liveDouble(String key);
 
+  /**
+   * Evaluates a configuration based on context set in the environment
+   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return
+   */
   Optional<Prefab.ConfigValue> get(String key);
 
+  /**
+   * Evaluates a configuration based on the arguments
+   * @param key name of the config
+   * @param properties context to use to evaluate the config. Use {@link PrefabContextSetReadable#EMPTY EMPTY} to evaluate with no context
+   * @return the evaluated context
+   * @see ConfigClient#get(String, PrefabContextSetReadable)
+   */
+  @Deprecated
   Optional<Prefab.ConfigValue> get(
     String key,
     Map<String, Prefab.ConfigValue> properties
   );
 
-  Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext);
-
-  Optional<Prefab.ConfigValue> get(String configKey, Optional<PrefabContext> context);
+  Optional<Prefab.ConfigValue> get(
+    String configKey,
+    @Nullable PrefabContextSetReadable prefabContext
+  );
 
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
@@ -39,14 +80,10 @@ public interface ConfigClient extends ContextStore {
 
   Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
-    Map<String, Prefab.ConfigValue> properties
+    @Nullable PrefabContextSetReadable prefabContext
   );
 
-  Optional<Prefab.LogLevel> getLogLevel(String loggerName, PrefabContext prefabContext);
-  Optional<Prefab.LogLevel> getLogLevel(
-    String loggerName,
-    Optional<PrefabContext> context
-  );
+  Optional<Prefab.LogLevel> getLogLevel(String loggerName);
 
   boolean isReady();
 

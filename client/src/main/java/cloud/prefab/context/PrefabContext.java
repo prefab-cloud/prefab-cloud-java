@@ -3,7 +3,6 @@ package cloud.prefab.context;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,6 +20,11 @@ public class PrefabContext implements PrefabContextSetReadable {
 
   public String getContextType() {
     return contextType;
+  }
+
+  @Override
+  public boolean isEmpty() {
+    return properties.isEmpty();
   }
 
   public Map<String, Prefab.ConfigValue> getProperties() {
@@ -61,8 +65,17 @@ public class PrefabContext implements PrefabContextSetReadable {
     return Objects.hash(contextType, properties);
   }
 
-  public static PrefabContext fromMap(Map<String, Prefab.ConfigValue> configValueMap) {
+  public static PrefabContext unnamedFromMap(
+    Map<String, Prefab.ConfigValue> configValueMap
+  ) {
     return new PrefabContext("", configValueMap);
+  }
+
+  public static PrefabContext fromMap(
+    String name,
+    Map<String, Prefab.ConfigValue> configValueMap
+  ) {
+    return new PrefabContext(name, configValueMap);
   }
 
   public static class Builder {
