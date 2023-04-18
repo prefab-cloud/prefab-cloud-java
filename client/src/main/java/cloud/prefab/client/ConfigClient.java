@@ -3,12 +3,13 @@ package cloud.prefab.client;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.value.Value;
+import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.Map;
 import java.util.Optional;
 
-public interface ConfigClient {
+public interface ConfigClient extends ContextStore {
   ConfigResolver getResolver();
 
   Value<String> liveString(String key);

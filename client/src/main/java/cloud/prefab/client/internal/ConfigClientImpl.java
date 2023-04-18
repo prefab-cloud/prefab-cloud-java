@@ -20,6 +20,7 @@ import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
+import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
@@ -84,6 +85,8 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final PrefabHttpClient prefabHttpClient;
 
+  private final ContextStore contextStore;
+
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -107,6 +110,7 @@ public class ConfigClientImpl implements ConfigClient {
         .getNamespace()
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
+    contextStore = new DelegatingContextStore(options.getContextStore());
     if (options.isLocalOnly() || !options.isReportLogStats()) {
       loggerStatsAggregator = null;
     } else {
@@ -313,6 +317,21 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public boolean isReady() {
     return initializedLatch.getCount() == 0;
+  }
+
+  @Override
+  public void addContext(PrefabContext prefabContext) {
+    contextStore.addContext(prefabContext);
+  }
+
+  @Override
+  public void clearContexts() {
+    contextStore.clearContexts();
+  }
+
+  @Override
+  public Optional<PrefabContextSetReadable> getContexts() {
+    return contextStore.getContexts();
   }
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {
