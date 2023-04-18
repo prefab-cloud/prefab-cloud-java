@@ -30,7 +30,7 @@ public class PrefabMDCTurboFilter extends BaseTurboFilter {
     Map<String, String> mdcData = MDC.getCopyOfContextMap();
     return configClient.getLogLevel(
       logger.getName(),
-      PrefabContext.fromMap(
+      PrefabContext.unnamedFromMap(
         ConfigValueFactory.fromStringMap(
           mdcData != null ? mdcData : Collections.emptyMap()
         )

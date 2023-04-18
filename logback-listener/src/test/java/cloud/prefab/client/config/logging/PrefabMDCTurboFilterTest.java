@@ -8,6 +8,9 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.core.spi.FilterReply;
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.config.ConfigValueFactory;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
 import java.util.Map;
@@ -37,7 +40,12 @@ class PrefabMDCTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
+    when(
+      configClient.getLogLevel(
+        logger.getName(),
+        PrefabContext.unnamedFromMap(Collections.emptyMap())
+      )
+    )
       .thenReturn(Optional.empty());
 
     assertThat(
@@ -57,7 +65,12 @@ class PrefabMDCTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
+    when(
+      configClient.getLogLevel(
+        logger.getName(),
+        PrefabContext.unnamedFromMap(Collections.emptyMap())
+      )
+    )
       .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
     assertThat(
@@ -77,7 +90,12 @@ class PrefabMDCTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevelFromStringMap(logger.getName(), Collections.emptyMap()))
+    when(
+      configClient.getLogLevel(
+        logger.getName(),
+        PrefabContext.unnamedFromMap(Collections.emptyMap())
+      )
+    )
       .thenReturn(Optional.of(Prefab.LogLevel.WARN));
 
     assertThat(
@@ -101,7 +119,12 @@ class PrefabMDCTurboFilterTest {
     try {
       MDC.setContextMap(contextData);
 
-      when(configClient.getLogLevelFromStringMap(logger.getName(), contextData))
+      when(
+        configClient.getLogLevel(
+          logger.getName(),
+          PrefabContext.unnamedFromMap(ConfigValueFactory.fromStringMap(contextData))
+        )
+      )
         .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
       assertThat(

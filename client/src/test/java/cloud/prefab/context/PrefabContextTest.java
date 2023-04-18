@@ -27,7 +27,7 @@ class PrefabContextTest {
       .put("isCustomer", customer)
       .build();
 
-    assertThat(prefabContext.getContextType()).isEqualTo(type);
+    assertThat(prefabContext.getName()).isEqualTo(type);
     assertThat(prefabContext.getProperties())
       .isEqualTo(
         Map.of(

@@ -5,26 +5,29 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import java.util.Optional;
 
-public class DelegatingContextStore implements ContextStore {
+public abstract class DelegatingContextStore implements ContextStore {
 
-  private final ContextStore delegate;
-
-  public DelegatingContextStore(ContextStore contextStore) {
-    this.delegate = contextStore;
-  }
+  abstract ContextStore getContextStore();
 
   @Override
   public void addContext(PrefabContext prefabContext) {
-    delegate.addContext(prefabContext);
+    getContextStore().addContext(prefabContext);
   }
 
   @Override
-  public void clearContexts() {
-    delegate.clearContexts();
+  public Optional<PrefabContextSetReadable> clearContexts() {
+    return getContextStore().clearContexts();
+  }
+
+  @Override
+  public Optional<PrefabContextSetReadable> setContext(
+    PrefabContextSetReadable prefabContextSetReadable
+  ) {
+    return Optional.empty();
   }
 
   @Override
   public Optional<PrefabContextSetReadable> getContexts() {
-    return delegate.getContexts();
+    return getContextStore().getContexts();
   }
 }

@@ -71,9 +71,9 @@ public class LookupContext {
         expandedProperties.put(ConfigResolver.NAMESPACE_KEY, namespace)
       );
       for (PrefabContext context : prefabContextSetReadable.getContexts()) {
-        String prefix = context.getContextType().isBlank()
+        String prefix = context.getName().isBlank()
           ? ""
-          : context.getContextType().toLowerCase() + ".";
+          : context.getName().toLowerCase() + ".";
         for (Map.Entry<String, Prefab.ConfigValue> stringConfigValueEntry : context
           .getProperties()
           .entrySet()) {

@@ -11,12 +11,12 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
-public interface ConfigClient extends ContextStore {
+public interface ConfigClient {
   ConfigResolver getResolver();
 
   /**
    * Evaluates a configuration based on context set in the environment
-   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
    * @param key name of the config to evaluate
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
@@ -24,7 +24,7 @@ public interface ConfigClient extends ContextStore {
 
   /**
    * Evaluates a configuration based on context set in the environment
-   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
    * @param key name of the config to evaluate
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
@@ -32,7 +32,7 @@ public interface ConfigClient extends ContextStore {
 
   /**
    * Evaluates a configuration based on context set in the environment
-   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
    * @param key name of the config to evaluate
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
@@ -40,7 +40,7 @@ public interface ConfigClient extends ContextStore {
 
   /**
    * Evaluates a configuration based on context set in the environment
-   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
    * @param key name of the config to evaluate
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
@@ -48,7 +48,7 @@ public interface ConfigClient extends ContextStore {
 
   /**
    * Evaluates a configuration based on context set in the environment
-   * ie set via {@link ConfigClient#addContext(PrefabContext) addContext}
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
    * @param key name of the config to evaluate
    * @return
    */
@@ -86,6 +86,8 @@ public interface ConfigClient extends ContextStore {
   Optional<Prefab.LogLevel> getLogLevel(String loggerName);
 
   boolean isReady();
+
+  public ContextStore getContextStore();
 
   enum Source {
     REMOTE_API,

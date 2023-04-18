@@ -10,7 +10,7 @@ public class PrefabContextSet implements PrefabContextSetReadable {
   private ConcurrentSkipListMap<String, PrefabContext> contextByNameMap = new ConcurrentSkipListMap();
 
   public void addContext(PrefabContext prefabContext) {
-    contextByNameMap.put(prefabContext.getContextType().toLowerCase(), prefabContext);
+    contextByNameMap.put(prefabContext.getName().toLowerCase(), prefabContext);
   }
 
   public boolean isEmpty() {
@@ -18,7 +18,7 @@ public class PrefabContextSet implements PrefabContextSetReadable {
   }
 
   @Override
-  public Optional<PrefabContext> getByType(String contextType) {
+  public Optional<PrefabContext> getByName(String contextType) {
     return Optional.ofNullable(contextByNameMap.get(contextType.toLowerCase()));
   }
 

@@ -1,7 +1,5 @@
 package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.config.ConfigResolver.LOOKUP_KEY;
-
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
@@ -22,9 +20,8 @@ import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,7 +33,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +48,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +107,7 @@ public class ConfigClientImpl implements ConfigClient {
         .getNamespace()
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
-    contextStore = new DelegatingContextStore(options.getContextStore());
+    contextStore = options.getContextStore();
     if (options.isLocalOnly() || !options.isReportLogStats()) {
       loggerStatsAggregator = null;
     } else {
@@ -166,7 +163,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, Collections.emptyMap());
+    return get(key, (PrefabContextSetReadable) null);
   }
 
   @Override
@@ -174,34 +171,20 @@ public class ConfigClientImpl implements ConfigClient {
     String configKey,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    LookupContext lookupContext = new LookupContext(
-      Optional.empty(),
-      Optional.ofNullable(properties.get(LOOKUP_KEY)).map(Prefab.ConfigValue::getString),
-      namespaceMaybe,
-      properties
-    );
-    return getInternal(configKey, lookupContext);
-  }
-
-  @Override
-  public Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext) {
-    return get(configKey, Optional.of(prefabContext));
+    return get(configKey, PrefabContext.unnamedFromMap(properties));
   }
 
   @Override
   public Optional<Prefab.ConfigValue> get(
     String configKey,
-    Optional<PrefabContext> contextMaybe
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
-    return getInternal(
-      configKey,
-      new LookupContext(
-        contextMaybe.map(PrefabContext::getContextType),
-        contextMaybe.flatMap(PrefabContext::getKey),
-        namespaceMaybe,
-        contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
-      )
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
     );
+
+    return getInternal(configKey, lookupContext);
   }
 
   private Optional<Prefab.ConfigValue> getInternal(
@@ -233,17 +216,19 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
+  public Optional<Prefab.LogLevel> getLogLevel(String loggerName) {
+    return getLogLevel(loggerName, null);
+  }
+
+  @Override
   public Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
-    Map<String, Prefab.ConfigValue> properties
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
     LookupContext lookupContext = new LookupContext(
-      Optional.empty(),
-      Optional.empty(),
       namespaceMaybe,
-      properties
+      resolveContext(prefabContext)
     );
-
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
       Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)
@@ -256,40 +241,14 @@ public class ConfigClientImpl implements ConfigClient {
     return Optional.empty();
   }
 
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevel(
-    String loggerName,
-    PrefabContext prefabContext
+  private PrefabContextSetReadable resolveContext(
+    @Nullable PrefabContextSetReadable prefabContextSetReadable
   ) {
-    return getLogLevel(loggerName, toProperties(prefabContext));
-  }
-
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevel(
-    String loggerName,
-    Optional<PrefabContext> contextMaybe
-  ) {
-    return getLogLevel(
-      loggerName,
-      contextMaybe.map(this::toProperties).orElse(Collections.emptyMap())
-    );
-  }
-
-  private Map<String, Prefab.ConfigValue> toProperties(PrefabContext prefabContext) {
-    Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
-      prefabContext.getProperties().size() + 1
-    );
-    prefabContext
-      .getKey()
-      .ifPresent(key ->
-        contextProperties.put(
-          LOOKUP_KEY,
-          Prefab.ConfigValue.newBuilder().setString(key).build()
-        )
+    return Optional
+      .ofNullable(prefabContextSetReadable)
+      .orElseGet(() ->
+        getContextStore().getContexts().orElse(PrefabContextSetReadable.EMPTY)
       );
-
-    contextProperties.putAll(prefabContext.getProperties());
-    return contextProperties;
   }
 
   @Override
@@ -298,18 +257,8 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public void addContext(PrefabContext prefabContext) {
-    contextStore.addContext(prefabContext);
-  }
-
-  @Override
-  public void clearContexts() {
-    contextStore.clearContexts();
-  }
-
-  @Override
-  public Optional<PrefabContextSetReadable> getContexts() {
-    return contextStore.getContexts();
+  public ContextStore getContextStore() {
+    return contextStore;
   }
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {

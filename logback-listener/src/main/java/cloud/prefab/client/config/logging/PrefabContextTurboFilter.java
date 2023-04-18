@@ -23,9 +23,6 @@ public class PrefabContextTurboFilter extends BaseTurboFilter {
 
   @Override
   Optional<Prefab.LogLevel> getLogLevel(Logger logger, Level level) {
-    return configClient.getLogLevel(
-      logger.getName(),
-      PrefabContextHelper.getContextFromThreadLocal()
-    );
+    return configClient.getLogLevel(logger.getName());
   }
 }

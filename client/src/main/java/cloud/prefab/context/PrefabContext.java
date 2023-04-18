@@ -9,17 +9,17 @@ import java.util.Optional;
 
 public class PrefabContext implements PrefabContextSetReadable {
 
-  private final String contextType;
+  private final String name;
 
   private final Map<String, Prefab.ConfigValue> properties;
 
-  private PrefabContext(String contextType, Map<String, Prefab.ConfigValue> properties) {
-    this.contextType = contextType;
+  private PrefabContext(String name, Map<String, Prefab.ConfigValue> properties) {
+    this.name = name;
     this.properties = Map.copyOf(properties);
   }
 
-  public String getContextType() {
-    return contextType;
+  public String getName() {
+    return name;
   }
 
   @Override
@@ -33,8 +33,8 @@ public class PrefabContext implements PrefabContextSetReadable {
 
   // implementation of PrefabContextSetReadable so one context is interchangable with many
   @Override
-  public Optional<PrefabContext> getByType(String contextType) {
-    if (contextType.equals(this.contextType)) {
+  public Optional<PrefabContext> getByName(String contextType) {
+    if (contextType.equals(this.name)) {
       return Optional.of(this);
     }
     return Optional.empty();
@@ -55,14 +55,13 @@ public class PrefabContext implements PrefabContextSetReadable {
     }
     PrefabContext that = (PrefabContext) o;
     return (
-      Objects.equals(contextType, that.contextType) &&
-      Objects.equals(properties, that.properties)
+      Objects.equals(name, that.name) && Objects.equals(properties, that.properties)
     );
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(contextType, properties);
+    return Objects.hash(name, properties);
   }
 
   public static PrefabContext unnamedFromMap(
