@@ -4,6 +4,8 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.config.ConfigValueFactory;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
 import java.util.Map;
@@ -26,9 +28,13 @@ public class PrefabMDCTurboFilter extends BaseTurboFilter {
   @Override
   Optional<Prefab.LogLevel> getLogLevel(Logger logger, Level level) {
     Map<String, String> mdcData = MDC.getCopyOfContextMap();
-    return configClient.getLogLevelFromStringMap(
+    return configClient.getLogLevel(
       logger.getName(),
-      mdcData != null ? mdcData : Collections.emptyMap()
+      PrefabContext.fromMap(
+        ConfigValueFactory.fromStringMap(
+          mdcData != null ? mdcData : Collections.emptyMap()
+        )
+      )
     );
   }
 }

@@ -293,28 +293,6 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
-  public Optional<Prefab.LogLevel> getLogLevelFromStringMap(
-    String loggerName,
-    Map<String, String> properties
-  ) {
-    Map<String, Prefab.ConfigValue> map;
-
-    if (properties.isEmpty()) {
-      map = Collections.emptyMap();
-    } else {
-      ImmutableMap.Builder<String, Prefab.ConfigValue> mapBuilder = ImmutableMap.builder();
-      for (Map.Entry<String, String> entry : properties.entrySet()) {
-        mapBuilder.put(
-          entry.getKey(),
-          Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
-        );
-      }
-      map = mapBuilder.build();
-    }
-    return getLogLevel(loggerName, map);
-  }
-
-  @Override
   public boolean isReady() {
     return initializedLatch.getCount() == 0;
   }

@@ -48,11 +48,6 @@ public interface ConfigClient extends ContextStore {
     Optional<PrefabContext> context
   );
 
-  Optional<Prefab.LogLevel> getLogLevelFromStringMap(
-    String loggerName,
-    Map<String, String> properties
-  );
-
   boolean isReady();
 
   enum Source {
