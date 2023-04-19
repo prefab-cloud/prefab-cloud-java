@@ -28,12 +28,19 @@ public class ConfigResolver {
 
   private long projectEnvId = 0;
 
-  public ConfigResolver(ConfigStore configStoreImpl) {
-    this(configStoreImpl, 0L);
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this(configStoreImpl, 0L, weightedValueEvaluator);
   }
 
-  public ConfigResolver(ConfigStore configStoreImpl, long projectEnvId) {
-    this.weightedValueEvaluator = new WeightedValueEvaluator();
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    long projectEnvId,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this.weightedValueEvaluator = weightedValueEvaluator;
     this.projectEnvId = projectEnvId;
     this.configStore = configStoreImpl;
   }
@@ -195,7 +202,7 @@ public class ConfigResolver {
       return weightedValueEvaluator.toValue(
         conditionalValue.getValue().getWeightedValues(),
         key,
-        lookupContext.getContextKey()
+        lookupContext
       );
     } else {
       return conditionalValue.getValue();
@@ -244,7 +251,7 @@ public class ConfigResolver {
       lookupContext,
       rowPropertiesStack
     );
-    Optional<String> propStringValue = prop.flatMap(this::coerceToString);
+    Optional<String> propStringValue = prop.flatMap(ConfigValueUtils::coerceToString);
 
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
@@ -384,25 +391,6 @@ public class ConfigResolver {
    */
   boolean hierarchicalMatch(String propertyString, String valueToMatch) {
     return propertyString.startsWith(valueToMatch);
-  }
-
-  private Optional<String> coerceToString(Prefab.ConfigValue configValue) {
-    switch (configValue.getTypeCase()) {
-      case STRING:
-        return Optional.of(configValue.getString());
-      case DOUBLE:
-        return Optional.of(String.valueOf(configValue.getDouble()));
-      case INT:
-        return Optional.of(String.valueOf(configValue.getInt()));
-      case BOOL:
-        return Optional.of(String.valueOf(configValue.getBool()));
-      default:
-        LOG.debug(
-          "Encountered unexpected type {} of configValue to coerce to string",
-          configValue.getTypeCase()
-        );
-        return Optional.empty();
-    }
   }
 
   public boolean setProjectEnvId(Prefab.Configs configs) {

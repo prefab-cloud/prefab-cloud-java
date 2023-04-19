@@ -5,8 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.internal.ConfigClientImpl;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,7 +21,7 @@ public class ConfigResolverTest {
 
   @BeforeEach
   public void setup() {
-    resolver = new ConfigResolver(mockConfigStoreImpl);
+    resolver = new ConfigResolver(mockConfigStoreImpl, new WeightedValueEvaluator());
   }
 
   @Test
@@ -31,143 +31,6 @@ public class ConfigResolverTest {
     assertThat(resolver.hierarchicalMatch("a.b.c.d.e", "a.b.c")).isEqualTo(true);
     assertThat(resolver.hierarchicalMatch("a.z.c", "a.b.c")).isEqualTo(false);
     assertThat(resolver.hierarchicalMatch("a.b", "a")).isEqualTo(true);
-  }
-
-  @Test
-  public void testPct() {
-    Prefab.Config flag = getTrueFalseConfig(500, 500);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("very high hash")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("hashes low")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-  }
-
-  @Test
-  public void testOff() {
-    Prefab.Config flag = getTrueFalseConfig(0, 1000);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("very high hash")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("hashes low")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-  }
-
-  @Test
-  public void testOn() {
-    Prefab.Config flag = getTrueFalseConfig(1000, 0);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("very high hash")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          keyOnlyLookupContext("hashes low")
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-  }
-
-  private static Prefab.Config getTrueFalseConfig(int trueWeight, int falseWeight) {
-    Prefab.WeightedValues wvs = Prefab.WeightedValues
-      .newBuilder()
-      .addWeightedValues(
-        Prefab.WeightedValue
-          .newBuilder()
-          .setWeight(trueWeight)
-          .setValue(Prefab.ConfigValue.newBuilder().setBool(true).build())
-          .build()
-      )
-      .addWeightedValues(
-        Prefab.WeightedValue
-          .newBuilder()
-          .setWeight(falseWeight)
-          .setValue(Prefab.ConfigValue.newBuilder().setBool(false).build())
-          .build()
-      )
-      .build();
-
-    Prefab.Config flag = Prefab.Config
-      .newBuilder()
-      .setKey("FlagName")
-      .addAllowableValues(Prefab.ConfigValue.newBuilder().setBool(true))
-      .addAllowableValues(Prefab.ConfigValue.newBuilder().setBool(false))
-      .addRows(
-        Prefab.ConfigRow
-          .newBuilder()
-          .addValues(
-            Prefab.ConditionalValue
-              .newBuilder()
-              .setValue(Prefab.ConfigValue.newBuilder().setWeightedValues(wvs))
-              .build()
-          )
-      )
-      .build();
-    return flag;
   }
 
   @Test
@@ -445,24 +308,13 @@ public class ConfigResolverTest {
     );
   }
 
-  public static LookupContext keyOnlyLookupContext(String key) {
-    return new LookupContext(
-      Optional.empty(),
-      Optional.of(key),
-      Optional.empty(),
-      Collections.emptyMap()
-    );
-  }
-
   public static LookupContext singleValueLookupContext(
     String propName,
     Prefab.ConfigValue configValue
   ) {
     return new LookupContext(
       Optional.empty(),
-      Optional.empty(),
-      Optional.empty(),
-      Map.of(propName, configValue)
+      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
     );
   }
 }
