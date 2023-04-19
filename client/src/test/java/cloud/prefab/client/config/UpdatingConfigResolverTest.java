@@ -33,7 +33,12 @@ public class UpdatingConfigResolverTest {
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
-    resolver = new UpdatingConfigResolver(mockBaseClient, mockLoader);
+    resolver =
+      new UpdatingConfigResolver(
+        mockBaseClient,
+        mockLoader,
+        new WeightedValueEvaluator()
+      );
   }
 
   @Test

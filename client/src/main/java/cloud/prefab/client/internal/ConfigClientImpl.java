@@ -12,6 +12,7 @@ import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LookupContext;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
+import cloud.prefab.client.config.WeightedValueEvaluator;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
@@ -96,7 +97,8 @@ public class ConfigClientImpl implements ConfigClient {
     this.uniqueClientId = UUID.randomUUID().toString();
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
-    updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
+    updatingConfigResolver =
+      new UpdatingConfigResolver(baseClient, configLoader, new WeightedValueEvaluator());
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
