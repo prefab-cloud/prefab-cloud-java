@@ -8,9 +8,8 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.core.spi.FilterReply;
 import cloud.prefab.client.ConfigClient;
-import cloud.prefab.client.config.ConfigValueFactory;
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.context.PrefabContext;
-import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
 import java.util.Map;
@@ -122,7 +121,7 @@ class PrefabMDCTurboFilterTest {
       when(
         configClient.getLogLevel(
           logger.getName(),
-          PrefabContext.unnamedFromMap(ConfigValueFactory.fromStringMap(contextData))
+          PrefabContext.unnamedFromMap(ConfigValueUtils.fromStringMap(contextData))
         )
       )
         .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
