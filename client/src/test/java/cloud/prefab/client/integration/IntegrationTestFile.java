@@ -36,7 +36,13 @@ public class IntegrationTestFile {
           .map(testCaseDescriptor -> {
             String displayName = Joiner
               .on(" : ")
-              .join(version, function, testCaseDescriptor.getName());
+              .useForNull("")
+              .join(
+                version,
+                function,
+                testDescriptor.getName().orElse(null),
+                testCaseDescriptor.getName()
+              );
             return DynamicTest.dynamicTest(
               displayName,
               testCaseDescriptor.asExecutable(contextSetReadable)

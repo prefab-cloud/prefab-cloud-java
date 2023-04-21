@@ -1,10 +1,9 @@
 package cloud.prefab.client.integration;
 
 import cloud.prefab.client.PrefabCloudClient;
-import cloud.prefab.context.PrefabContext;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -50,7 +49,6 @@ public class IntegrationTestInput {
   }
 
   public long getFeatureFor(PrefabCloudClient client) {
-    PrefabContext.Builder prefabContextBuilder = PrefabContext.newBuilder("");
     return client
       .featureFlagClient()
       .get(getFlag().get(), PrefabContextFactory.from(getContext()))
