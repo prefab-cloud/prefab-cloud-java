@@ -56,17 +56,24 @@ public interface ConfigClient {
 
   /**
    * Evaluates a configuration based on the arguments
-   * @param key name of the config
-   * @param properties context to use to evaluate the config. Use {@link PrefabContextSetReadable#EMPTY EMPTY} to evaluate with no context
+   * @param configKey name of the config
+   * @param properties additional context to use to evaluate the config. Will be added to existing context as documented in {@link ContextStore#addContext(PrefabContext) addcontext}
    * @return the evaluated context
    * @see ConfigClient#get(String, PrefabContextSetReadable)
    */
   @Deprecated
   Optional<Prefab.ConfigValue> get(
-    String key,
+    String configKey,
     Map<String, Prefab.ConfigValue> properties
   );
 
+  /**
+   * Evaluates a configuration based on the arguments
+   * @param configKey name of the config eg `cloud.prefab.client.ConfigClient`
+   * @param prefabContext additional context to use to evaluate the config. Will be added to existing context as documented in {@link ContextStore#addContext(PrefabContext) addcontext} Pass Null or {@link PrefabContextSetReadable#EMPTY} to keep context as is
+   * @return the evaluated context
+   * @see ConfigClient#get(String, PrefabContextSetReadable)
+   */
   Optional<Prefab.ConfigValue> get(
     String configKey,
     @Nullable PrefabContextSetReadable prefabContext
@@ -78,6 +85,13 @@ public interface ConfigClient {
 
   void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count);
 
+  /**
+   * Evaluates a configuration based on the arguments
+   * @param loggerName name of the logger eg
+   * @param prefabContext additional context to use to evaluate the config. Will be added to existing context as documented in {@link ContextStore#addContext(PrefabContext) addcontext}
+   * @return the evaluated context
+   * @see ConfigClient#get(String, PrefabContextSetReadable)
+   */
   Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
     @Nullable PrefabContextSetReadable prefabContext
