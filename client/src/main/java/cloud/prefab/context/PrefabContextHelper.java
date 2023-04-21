@@ -47,7 +47,7 @@ public class PrefabContextHelper {
     if (oldContext.isPresent()) {
       configClient.getContextStore().setContext(oldContext.get());
     } else {
-      configClient.getContextStore().clearContexts();
+      configClient.getContextStore().clearContext();
     }
   }
 

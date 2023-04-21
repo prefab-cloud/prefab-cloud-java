@@ -3,7 +3,6 @@ package cloud.prefab.client.integration;
 import cloud.prefab.client.PrefabCloudClient;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Map;
 import java.util.Optional;
 

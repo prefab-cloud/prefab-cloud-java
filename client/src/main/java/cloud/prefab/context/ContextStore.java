@@ -25,11 +25,11 @@ public interface ContextStore {
    * (By default, this is stored in a ThreadLocal)
    * @return existing context, if present
    */
-  Optional<PrefabContextSetReadable> clearContexts();
+  Optional<PrefabContextSetReadable> clearContext();
 
   /**
    *
    * @return unmodifiable PrefabContextSetReadable view
    */
-  Optional<PrefabContextSetReadable> getContexts();
+  Optional<PrefabContextSetReadable> getContext();
 }

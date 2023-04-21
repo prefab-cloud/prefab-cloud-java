@@ -39,14 +39,14 @@ public class ThreadLocalContextStore implements ContextStore {
   }
 
   @Override
-  public Optional<PrefabContextSetReadable> clearContexts() {
+  public Optional<PrefabContextSetReadable> clearContext() {
     PrefabContextSetReadable previousContext = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
     PREFAB_CONTEXT_SET_THREAD_LOCAL.remove();
     return Optional.of(previousContext);
   }
 
   @Override
-  public Optional<PrefabContextSetReadable> getContexts() {
+  public Optional<PrefabContextSetReadable> getContext() {
     return Optional.ofNullable(PREFAB_CONTEXT_SET_THREAD_LOCAL.get());
   }
 }

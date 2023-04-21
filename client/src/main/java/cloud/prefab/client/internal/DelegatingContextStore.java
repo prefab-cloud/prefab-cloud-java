@@ -15,8 +15,8 @@ public abstract class DelegatingContextStore implements ContextStore {
   }
 
   @Override
-  public Optional<PrefabContextSetReadable> clearContexts() {
-    return getContextStore().clearContexts();
+  public Optional<PrefabContextSetReadable> clearContext() {
+    return getContextStore().clearContext();
   }
 
   @Override
@@ -27,7 +27,7 @@ public abstract class DelegatingContextStore implements ContextStore {
   }
 
   @Override
-  public Optional<PrefabContextSetReadable> getContexts() {
-    return getContextStore().getContexts();
+  public Optional<PrefabContextSetReadable> getContext() {
+    return getContextStore().getContext();
   }
 }
