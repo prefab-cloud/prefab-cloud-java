@@ -1,5 +1,6 @@
 package cloud.prefab.client.integration;
 
+import cloud.prefab.context.PrefabContextSetReadable;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
@@ -27,12 +28,20 @@ public class IntegrationTestFile {
   public Stream<DynamicTest> buildDynamicTests() {
     return tests
       .stream()
-      .map(testDescriptor -> {
-        String displayName = Joiner
-          .on(" : ")
-          .join(version, function, testDescriptor.getName());
-
-        return DynamicTest.dynamicTest(displayName, testDescriptor.asExecutable());
+      .flatMap(testDescriptor -> {
+        PrefabContextSetReadable contextSetReadable = testDescriptor.getPrefabContext();
+        return testDescriptor
+          .getTestCaseDescriptors()
+          .stream()
+          .map(testCaseDescriptor -> {
+            String displayName = Joiner
+              .on(" : ")
+              .join(version, function, testCaseDescriptor.getName());
+            return DynamicTest.dynamicTest(
+              displayName,
+              testCaseDescriptor.asExecutable(contextSetReadable)
+            );
+          });
       });
   }
 
