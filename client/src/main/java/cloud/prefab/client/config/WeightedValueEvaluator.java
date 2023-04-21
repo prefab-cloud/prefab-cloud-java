@@ -22,7 +22,7 @@ public class WeightedValueEvaluator {
   private final RandomProviderIF randomProvider;
 
   public WeightedValueEvaluator() {
-    this(new RandomProvider(), Hashing.murmur3_32());
+    this(new RandomProvider(), Hashing.murmur3_32_fixed());
   }
 
   @VisibleForTesting
