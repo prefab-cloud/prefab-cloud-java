@@ -21,6 +21,7 @@ import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Sets;
@@ -48,6 +49,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -246,11 +248,31 @@ public class ConfigClientImpl implements ConfigClient {
   private PrefabContextSetReadable resolveContext(
     @Nullable PrefabContextSetReadable prefabContextSetReadable
   ) {
-    return Optional
+    Optional<PrefabContextSetReadable> newContext = Optional
       .ofNullable(prefabContextSetReadable)
-      .orElseGet(() ->
-        getContextStore().getContexts().orElse(PrefabContextSetReadable.EMPTY)
-      );
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
+
+    Optional<PrefabContextSetReadable> existingContext = getContextStore()
+      .getContext()
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
+
+    if (newContext.isEmpty()) {
+      return existingContext.orElse(PrefabContextSetReadable.EMPTY);
+    } else {
+      if (existingContext.isEmpty()) {
+        return newContext.get();
+      } else {
+        // do the merge
+        PrefabContextSet prefabContextSet = new PrefabContextSet();
+        for (PrefabContext context : existingContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        for (PrefabContext context : newContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        return prefabContextSet;
+      }
+    }
   }
 
   @Override
