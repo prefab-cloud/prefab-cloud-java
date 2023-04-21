@@ -376,6 +376,12 @@ public class ConfigResolver {
         } else {
           return List.of(new EvaluatedCriterion(criterion, true));
         }
+      default:
+        LOG.debug(
+          "Unexpected operator {} found in criterion {}",
+          criterion.getOperator(),
+          criterion
+        );
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
