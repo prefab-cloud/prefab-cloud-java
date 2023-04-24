@@ -6,10 +6,22 @@ import java.util.concurrent.Callable;
 
 public class PrefabContextHelper {
 
-  private final ConfigClient configClient;
+  private final ContextStore contextStore;
 
+  /**
+   * Construct a context helper for a given context store
+   * @param contextStore
+   */
+  public PrefabContextHelper(ContextStore contextStore) {
+    this.contextStore = contextStore;
+  }
+
+  /**
+   * Convenience constructor to create a helper for the context store attached to a client
+   * @param configClient that will be queried for its contextStore at construction time
+   */
   public PrefabContextHelper(ConfigClient configClient) {
-    this.configClient = configClient;
+    this(configClient.getContextStore());
   }
 
   /**
@@ -45,9 +57,9 @@ public class PrefabContextHelper {
 
   private void resetContext(Optional<PrefabContextSetReadable> oldContext) {
     if (oldContext.isPresent()) {
-      configClient.getContextStore().setContext(oldContext.get());
+      contextStore.setContext(oldContext.get());
     } else {
-      configClient.getContextStore().clearContext();
+      contextStore.clearContext();
     }
   }
 
@@ -60,7 +72,7 @@ public class PrefabContextHelper {
   public PrefabContextScope performWorkWithAutoClosingContext(
     PrefabContextSetReadable context
   ) {
-    return new PrefabContextScope(configClient.getContextStore().setContext(context));
+    return new PrefabContextScope(contextStore.setContext(context));
   }
 
   public class PrefabContextScope implements AutoCloseable {
