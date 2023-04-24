@@ -104,6 +104,7 @@ public class ConfigClientImpl implements ConfigClient {
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
+    configChangeListeners.addAll(baseClient.getOptions().getChangeListeners());
     configChangeListeners.addAll(Arrays.asList(listeners));
     namespaceMaybe =
       baseClient

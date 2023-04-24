@@ -1,11 +1,15 @@
 package cloud.prefab.client;
 
+import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.context.ContextStore;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class Options {
 
@@ -36,6 +40,8 @@ public class Options {
   private boolean reportLogStats = true;
 
   private ContextStore contextStore = ThreadLocalContextStore.INSTANCE;
+
+  private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -187,5 +193,14 @@ public class Options {
 
   public ContextStore getContextStore() {
     return contextStore;
+  }
+
+  public Options addConfigChangeListener(ConfigChangeListener configChangeListener) {
+    changeListenerSet.add(configChangeListener);
+    return this;
+  }
+
+  public Set<ConfigChangeListener> getChangeListeners() {
+    return ImmutableSet.copyOf(changeListenerSet);
   }
 }
