@@ -197,9 +197,6 @@ public class ConfigClientImpl implements ConfigClient {
     LookupContext lookupContext
   ) {
     waitForInitialization();
-    if (!updatingConfigResolver.containsKey(configKey)) {
-      return Optional.empty();
-    }
     return updatingConfigResolver.getConfigValue(configKey, lookupContext);
   }
 

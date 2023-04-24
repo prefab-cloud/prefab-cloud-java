@@ -49,14 +49,14 @@ public class ConfigResolver {
   }
 
   public Optional<Match> getMatch(String key, LookupContext lookupContext) {
-    if (!configStore.containsKey(key)) {
+    final ConfigElement configElement = configStore.getElement(key);
+    if (configElement == null) {
       // logging lookups generate a lot of misses so skip those
       if (!key.startsWith(AbstractLoggingListener.LOG_LEVEL_PREFIX)) {
         LOG.trace("No config value found for key {}", key);
       }
       return Optional.empty();
     }
-    final ConfigElement configElement = configStore.getElement(key);
 
     return evalConfigElementMatch(configElement, lookupContext);
   }
