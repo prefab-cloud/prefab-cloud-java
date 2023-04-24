@@ -4,6 +4,7 @@ import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.client.util.Cache;
 import cloud.prefab.context.ContextStore;
+import cloud.prefab.context.PrefabContext;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -62,6 +63,12 @@ public class Options {
     return apikey;
   }
 
+  /**
+   * Sets the API key to be used to communicate with the Prefab APIs
+   * Can also be specified with env var `PREFAB_API_KEY`
+   * @param apikey the key
+   * @return Options
+   */
   public Options setApikey(String apikey) {
     this.apikey = apikey;
     return this;
@@ -71,6 +78,13 @@ public class Options {
     return configOverrideDir;
   }
 
+  /**
+   * Sets a directory to load additional config files from in addition to on the classpath
+   * Defaults to the current user's home directory.
+   * see the docs for {@link Options#setPrefabEnvs(List)} setPrefabEnvs} for more dicussion on file loading
+   * @param configOverrideDir
+   * @return
+   */
   public Options setConfigOverrideDir(String configOverrideDir) {
     this.configOverrideDir = configOverrideDir;
     return this;
@@ -83,6 +97,12 @@ public class Options {
     return Optional.ofNullable(namespace);
   }
 
+  /**
+   * Set's a namespace in which to evaluate configuration values.
+   * The value set for a key in a matching namespace has priority over the value set in a key without any namespace configured
+   * @param namespace to use when evaluating configuration values
+   * @return
+   */
   public Options setNamespace(String namespace) {
     this.namespace = namespace;
     return this;
@@ -101,23 +121,28 @@ public class Options {
     return prefabEnvs;
   }
 
+  /**
+   * Set the prefab environment names in order of increasing precedence
+   * Files named with the pattern `.prefab.%s.config.yaml` are loaded first with `default` then the supplied envs, in order
+   * This means a key in an env named later in the list will override the same key earlier in the list
+   * Files are loaded from the classpath first, then from the configured override directory
+   * @param prefabEnvs
+   * @return this
+   */
   public Options setPrefabEnvs(List<String> prefabEnvs) {
     this.prefabEnvs = prefabEnvs;
-    return this;
-  }
-
-  public boolean isSsl() {
-    return ssl;
-  }
-
-  public Options setSsl(boolean ssl) {
-    this.ssl = ssl;
     return this;
   }
 
   public Datasources getPrefabDatasource() {
     return prefabDatasources;
   }
+
+  /**
+   * Configure the Prefab clients to use the API or rely solely on local files
+   * @param prefabDatasources one of DataSource.ALL or DataSource.LOCAL_ONLY
+   * @return
+   */
 
   public Options setPrefabDatasource(Datasources prefabDatasources) {
     this.prefabDatasources = prefabDatasources;
@@ -147,6 +172,15 @@ public class Options {
   public boolean isReportLogStats() {
     return reportLogStats;
   }
+
+  /**
+   * Configure client to report logging statistics to prefab.
+   * The captured data consists of fully qualified logger name with counts of log messages by level.
+   * The data allows prefab to preconfigure the log levels UI.
+   * Defaults to true
+   * @param reportLogStats
+   * @return
+   */
 
   public Options setReportLogStats(boolean reportLogStats) {
     this.reportLogStats = reportLogStats;

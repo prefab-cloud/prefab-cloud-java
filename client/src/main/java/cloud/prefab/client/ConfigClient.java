@@ -79,10 +79,22 @@ public interface ConfigClient {
     @Nullable PrefabContextSetReadable prefabContext
   );
 
+  /**
+   * Adds a listener to config change events. A listener will only hear events that occur after this method is called.
+   * To register at client startup add listener using {@link Options#addConfigChangeListener(ConfigChangeListener)} instead
+   * @param configChangeListener
+   * @return
+   */
   boolean addConfigChangeListener(ConfigChangeListener configChangeListener);
 
   boolean removeConfigChangeListener(ConfigChangeListener configChangeListener);
 
+  /**
+   * This method is for primarily internal use by Prefab's logging filter implementations
+   * @param loggerName the fully qualified name of a logger to report
+   * @param logLevel the log level
+   * @param count the number of log messages
+   */
   void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count);
 
   /**
@@ -99,9 +111,18 @@ public interface ConfigClient {
 
   Optional<Prefab.LogLevel> getLogLevel(String loggerName);
 
+  /**
+   * Check if the client has completed initialization. Will not block
+   * @return true if client is ready
+   */
   boolean isReady();
 
-  public ContextStore getContextStore();
+  /**
+   * Get the configured {@link ContextStore}
+   * Can be set using {@link Options#setContextStore(ContextStore)}
+   * @return the ContextStore implementation
+   */
+  ContextStore getContextStore();
 
   enum Source {
     REMOTE_API,
