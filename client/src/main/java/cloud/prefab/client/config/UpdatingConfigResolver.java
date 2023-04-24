@@ -18,17 +18,14 @@ public class UpdatingConfigResolver {
   private final ConfigLoader configLoader;
   private final ConfigStoreDeltaCalculator configStoreDeltaCalculator;
 
-  private final PrefabCloudClient baseClient;
   private final ConfigStoreImpl configStore;
   private ConfigResolver configResolver;
 
   public UpdatingConfigResolver(
-    PrefabCloudClient baseClient,
     ConfigLoader configLoader,
     WeightedValueEvaluator weightedValueEvaluator,
     ConfigStoreDeltaCalculator configStoreDeltaCalculator
   ) {
-    this.baseClient = baseClient;
     this.configLoader = configLoader;
     this.configStoreDeltaCalculator = configStoreDeltaCalculator;
     this.configStore = new ConfigStoreImpl();

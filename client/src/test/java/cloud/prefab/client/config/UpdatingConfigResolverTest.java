@@ -36,7 +36,6 @@ public class UpdatingConfigResolverTest {
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
     resolver =
       new UpdatingConfigResolver(
-        mockBaseClient,
         mockLoader,
         new WeightedValueEvaluator(),
         new ConfigStoreDeltaCalculator()

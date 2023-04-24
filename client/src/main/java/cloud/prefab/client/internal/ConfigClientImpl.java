@@ -101,7 +101,6 @@ public class ConfigClientImpl implements ConfigClient {
     configLoader = new ConfigLoader(options);
     updatingConfigResolver =
       new UpdatingConfigResolver(
-        baseClient,
         configLoader,
         new WeightedValueEvaluator(),
         new ConfigStoreDeltaCalculator()
