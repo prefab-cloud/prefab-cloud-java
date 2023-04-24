@@ -28,7 +28,6 @@ public class Options {
   private String prefabApiUrl;
   private boolean ssl = true;
   private String apikey;
-  private Optional<Cache> distributedCache = Optional.empty();
 
   private String configOverrideDir;
   private List<String> prefabEnvs = new ArrayList<>();
@@ -65,15 +64,6 @@ public class Options {
 
   public Options setApikey(String apikey) {
     this.apikey = apikey;
-    return this;
-  }
-
-  public Optional<Cache> getDistributedCache() {
-    return distributedCache;
-  }
-
-  public Options setDistributedCache(Cache distributedCache) {
-    this.distributedCache = Optional.of(distributedCache);
     return this;
   }
 
