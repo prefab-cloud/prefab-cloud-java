@@ -18,6 +18,10 @@ public class Provenance {
     this.sourceLocationMaybe = Optional.of(sourceLocation);
   }
 
+  public ConfigClient.Source getSource() {
+    return source;
+  }
+
   @Override
   public String toString() {
     StringBuilder stringBuilder = new StringBuilder().append(source.name());

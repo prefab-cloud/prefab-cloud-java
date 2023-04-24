@@ -1,19 +1,20 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.internal.ConfigStoreDeltaCalculator;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UpdatingConfigResolver {
+
+  private static final Logger LOG = LoggerFactory.getLogger(UpdatingConfigResolver.class);
 
   private final ConfigLoader configLoader;
   private final ConfigStoreDeltaCalculator configStoreDeltaCalculator;
@@ -35,7 +36,7 @@ public class UpdatingConfigResolver {
   /**
    * Return the changed config values since last update()
    */
-  public synchronized List<ConfigChangeEvent> update() {
+  public List<ConfigChangeEvent> update() {
     // store the old map
     final Map<String, Optional<Prefab.ConfigValue>> before = configStore
       .entrySet()
@@ -62,6 +63,41 @@ public class UpdatingConfigResolver {
       );
 
     return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  }
+
+  public long getHighwaterMark() {
+    return configLoader.getHighwaterMark();
+  }
+
+  public synchronized void loadConfigs(
+    Prefab.Configs configs,
+    ConfigClient.Source source
+  ) {
+    setProjectEnvId(configs);
+
+    final long startingHighWaterMark = configLoader.getHighwaterMark();
+    Provenance provenance = new Provenance(source);
+
+    for (Prefab.Config config : configs.getConfigsList()) {
+      configLoader.set(new ConfigElement(config, provenance));
+    }
+
+    if (configLoader.getHighwaterMark() > startingHighWaterMark) {
+      LOG.info(
+        "Found new checkpoint with highwater id {} from {} in project {} environment: {} with {} configs",
+        configLoader.getHighwaterMark(),
+        provenance,
+        configs.getConfigServicePointer().getProjectId(),
+        configs.getConfigServicePointer().getProjectEnvId(),
+        configs.getConfigsCount()
+      );
+    } else {
+      LOG.debug(
+        "Checkpoint with highwater with highwater id {} from {}. No changes.",
+        configLoader.getHighwaterMark(),
+        provenance.getSource()
+      );
+    }
   }
 
   /**

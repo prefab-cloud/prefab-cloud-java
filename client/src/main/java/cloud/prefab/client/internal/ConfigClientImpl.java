@@ -6,11 +6,9 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
-import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigLoader;
 import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LookupContext;
-import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
 import cloud.prefab.client.config.WeightedValueEvaluator;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
@@ -70,7 +68,6 @@ public class ConfigClientImpl implements ConfigClient {
   private final Options options;
 
   private final UpdatingConfigResolver updatingConfigResolver;
-  private final ConfigLoader configLoader;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
@@ -98,10 +95,9 @@ public class ConfigClientImpl implements ConfigClient {
   ) {
     this.uniqueClientId = UUID.randomUUID().toString();
     this.options = baseClient.getOptions();
-    configLoader = new ConfigLoader(options);
     updatingConfigResolver =
       new UpdatingConfigResolver(
-        configLoader,
+        new ConfigLoader(options),
         new WeightedValueEvaluator(),
         new ConfigStoreDeltaCalculator()
       );
@@ -437,7 +433,7 @@ public class ConfigClientImpl implements ConfigClient {
     LOG.info("Starting SSE config subscriber");
     SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
       prefabHttpClient,
-      () -> configLoader.getHighwaterMark(),
+      updatingConfigResolver::getHighwaterMark,
       configs -> loadConfigs(configs, Source.STREAMING),
       scheduledExecutorService
     );
@@ -524,44 +520,20 @@ public class ConfigClientImpl implements ConfigClient {
       LOG.info(
         "Initialized Prefab from {} at highwater {} with currently known configs\n {}",
         source,
-        configLoader.getHighwaterMark(),
+        updatingConfigResolver.getHighwaterMark(),
         updatingConfigResolver.contentsString()
       );
     }
   }
 
-  private void loadConfigs(Prefab.Configs configs, Source source) {
+  private synchronized void loadConfigs(Prefab.Configs configs, Source source) {
     LOG.debug(
       "Loading {} configs from {} pointer {}",
       configs.getConfigsCount(),
       source,
       configs.hasConfigServicePointer()
     );
-    updatingConfigResolver.setProjectEnvId(configs);
-
-    final long startingHighWaterMark = configLoader.getHighwaterMark();
-
-    for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(new ConfigElement(config, new Provenance(source)));
-    }
-
-    if (configLoader.getHighwaterMark() > startingHighWaterMark) {
-      LOG.info(
-        "Found new checkpoint with highwater id {} from {} in project {} environment: {} and namespace: '{}' with {} configs",
-        configLoader.getHighwaterMark(),
-        source,
-        configs.getConfigServicePointer().getProjectId(),
-        configs.getConfigServicePointer().getProjectEnvId(),
-        options.getNamespace(),
-        configs.getConfigsCount()
-      );
-    } else {
-      LOG.debug(
-        "Checkpoint with highwater with highwater id {} from {}. No changes.",
-        configLoader.getHighwaterMark(),
-        source
-      );
-    }
+    updatingConfigResolver.loadConfigs(configs, source);
 
     finishInit(source);
   }
