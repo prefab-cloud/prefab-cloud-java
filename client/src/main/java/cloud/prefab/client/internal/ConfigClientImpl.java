@@ -22,6 +22,7 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -93,14 +94,26 @@ public class ConfigClientImpl implements ConfigClient {
     PrefabCloudClient baseClient,
     ConfigChangeListener... listeners
   ) {
-    this.uniqueClientId = UUID.randomUUID().toString();
-    this.options = baseClient.getOptions();
-    updatingConfigResolver =
+    this(
+      baseClient,
       new UpdatingConfigResolver(
-        new ConfigLoader(options),
+        new ConfigLoader(baseClient.getOptions()),
         new WeightedValueEvaluator(),
         new ConfigStoreDeltaCalculator()
-      );
+      ),
+      listeners
+    );
+  }
+
+  @VisibleForTesting
+  ConfigClientImpl(
+    PrefabCloudClient baseClient,
+    UpdatingConfigResolver updatingConfigResolver,
+    ConfigChangeListener... listeners
+  ) {
+    this.uniqueClientId = UUID.randomUUID().toString();
+    this.options = baseClient.getOptions();
+    this.updatingConfigResolver = updatingConfigResolver;
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
