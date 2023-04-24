@@ -1,41 +1,34 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
+import java.util.stream.StreamSupport;
 
 public class LookupContext {
 
   public static final LookupContext EMPTY = new LookupContext(
     Optional.empty(),
-    Optional.empty(),
-    Optional.empty(),
-    Collections.emptyMap()
+    PrefabContextSetReadable.EMPTY
   );
 
-  private final Optional<String> contextKey;
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
 
-  private final Map<String, Prefab.ConfigValue> properties;
-  private final Optional<String> contextTypeMaybe;
+  private final PrefabContextSetReadable prefabContextSetReadable;
 
   private Map<String, Prefab.ConfigValue> expandedProperties = null;
 
   public LookupContext(
-    Optional<String> contextType,
-    Optional<String> contextKey,
     Optional<Prefab.ConfigValue> namespace,
-    Map<String, Prefab.ConfigValue> properties
+    PrefabContextSetReadable prefabContextSetReadable
   ) {
-    this.contextTypeMaybe = contextType.map(String::toLowerCase);
-    this.contextKey = contextKey;
     this.namespaceMaybe = namespace;
-    this.properties = properties;
+    this.prefabContextSetReadable = prefabContextSetReadable;
   }
 
   @Override
@@ -48,54 +41,54 @@ public class LookupContext {
     }
     LookupContext that = (LookupContext) o;
     return (
-      Objects.equals(contextKey, that.contextKey) &&
       Objects.equals(namespaceMaybe, that.namespaceMaybe) &&
-      Objects.equals(properties, that.properties)
+      Objects.equals(prefabContextSetReadable, that.prefabContextSetReadable)
     );
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(contextKey, namespaceMaybe, properties);
-  }
-
-  public Map<String, Prefab.ConfigValue> getProperties() {
-    return properties;
-  }
-
-  public Optional<String> getContextKey() {
-    return contextKey;
+    return Objects.hash(namespaceMaybe, prefabContextSetReadable);
   }
 
   public Optional<Prefab.ConfigValue> getNamespace() {
     return namespaceMaybe;
   }
 
+  public Optional<Prefab.ConfigValue> getValue(String name) {
+    return Optional.ofNullable(getExpandedProperties().get(name));
+  }
+
   public Map<String, Prefab.ConfigValue> getExpandedProperties() {
-    if (expandedProperties == null) {
-      Map<String, Prefab.ConfigValue> newMap = Maps.newHashMapWithExpectedSize(
-        namespaceMaybe.map(ignored -> 1).orElse(0) +
-        contextKey.map(ignored -> 1).orElse(0) +
-        properties.size()
+    if (this.expandedProperties == null) {
+      int propertyCount =
+        StreamSupport
+          .stream(prefabContextSetReadable.getContexts().spliterator(), false)
+          .mapToInt(context -> context.getProperties().size())
+          .sum() +
+        1;
+
+      Map<String, Prefab.ConfigValue> expandedProperties = Maps.newHashMapWithExpectedSize(
+        propertyCount
       );
       namespaceMaybe.ifPresent(namespace ->
-        newMap.put(ConfigResolver.NAMESPACE_KEY, namespace)
+        expandedProperties.put(ConfigResolver.NAMESPACE_KEY, namespace)
       );
-      contextKey.ifPresent(c ->
-        newMap.put(
-          ConfigResolver.LOOKUP_KEY,
-          Prefab.ConfigValue.newBuilder().setString(c).build()
-        )
-      );
-      String prefix = contextTypeMaybe
-        .filter(Predicate.not(String::isEmpty))
-        .map(contextType -> contextType + ".")
-        .orElse("");
-      for (Map.Entry<String, Prefab.ConfigValue> keyValueEntry : properties.entrySet()) {
-        newMap.put(prefix + keyValueEntry.getKey(), keyValueEntry.getValue());
+      for (PrefabContext context : prefabContextSetReadable.getContexts()) {
+        String prefix = context.getName().isBlank()
+          ? ""
+          : context.getName().toLowerCase() + ".";
+        for (Map.Entry<String, Prefab.ConfigValue> stringConfigValueEntry : context
+          .getProperties()
+          .entrySet()) {
+          expandedProperties.put(
+            prefix + stringConfigValueEntry.getKey(),
+            stringConfigValueEntry.getValue()
+          );
+        }
       }
-      expandedProperties = ImmutableMap.copyOf(newMap);
+      this.expandedProperties = ImmutableMap.copyOf(expandedProperties);
     }
-    return expandedProperties;
+    return this.expandedProperties;
   }
 }

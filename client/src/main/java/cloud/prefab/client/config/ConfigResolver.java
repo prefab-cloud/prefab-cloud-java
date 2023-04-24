@@ -28,12 +28,19 @@ public class ConfigResolver {
 
   private long projectEnvId = 0;
 
-  public ConfigResolver(ConfigStore configStoreImpl) {
-    this(configStoreImpl, 0L);
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this(configStoreImpl, 0L, weightedValueEvaluator);
   }
 
-  public ConfigResolver(ConfigStore configStoreImpl, long projectEnvId) {
-    this.weightedValueEvaluator = new WeightedValueEvaluator();
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    long projectEnvId,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this.weightedValueEvaluator = weightedValueEvaluator;
     this.projectEnvId = projectEnvId;
     this.configStore = configStoreImpl;
   }
@@ -195,7 +202,7 @@ public class ConfigResolver {
       return weightedValueEvaluator.toValue(
         conditionalValue.getValue().getWeightedValues(),
         key,
-        lookupContext.getContextKey()
+        lookupContext
       );
     } else {
       return conditionalValue.getValue();
@@ -239,37 +246,16 @@ public class ConfigResolver {
     LookupContext lookupContext,
     Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
-    Optional<String> lookupKey = lookupContext.getContextKey();
     final Optional<Prefab.ConfigValue> prop = prop(
       criterion.getPropertyName(),
       lookupContext,
       rowPropertiesStack
     );
-    Optional<String> propStringValue = prop.flatMap(this::coerceToString);
+    Optional<String> propStringValue = prop.flatMap(ConfigValueUtils::coerceToString);
 
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
         return List.of(new EvaluatedCriterion(criterion, true));
-      case LOOKUP_KEY_IN:
-        if (lookupKey.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean match = criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), match));
-      case LOOKUP_KEY_NOT_IN:
-        if (lookupKey.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean notMatch = !criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), notMatch));
       case HIERARCHICAL_MATCH:
         if (prop.isPresent()) {
           if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
@@ -390,6 +376,12 @@ public class ConfigResolver {
         } else {
           return List.of(new EvaluatedCriterion(criterion, true));
         }
+      default:
+        LOG.debug(
+          "Unexpected operator {} found in criterion {}",
+          criterion.getOperator(),
+          criterion
+        );
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
@@ -405,25 +397,6 @@ public class ConfigResolver {
    */
   boolean hierarchicalMatch(String propertyString, String valueToMatch) {
     return propertyString.startsWith(valueToMatch);
-  }
-
-  private Optional<String> coerceToString(Prefab.ConfigValue configValue) {
-    switch (configValue.getTypeCase()) {
-      case STRING:
-        return Optional.of(configValue.getString());
-      case DOUBLE:
-        return Optional.of(String.valueOf(configValue.getDouble()));
-      case INT:
-        return Optional.of(String.valueOf(configValue.getInt()));
-      case BOOL:
-        return Optional.of(String.valueOf(configValue.getBool()));
-      default:
-        LOG.debug(
-          "Encountered unexpected type {} of configValue to coerce to string",
-          configValue.getTypeCase()
-        );
-        return Optional.empty();
-    }
   }
 
   public boolean setProjectEnvId(Prefab.Configs configs) {

@@ -1,14 +1,10 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.client.FeatureFlagClient;
-import cloud.prefab.client.config.ConfigLoader;
-import cloud.prefab.client.config.ConfigResolver;
-import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClient {
 
@@ -28,7 +24,10 @@ public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClie
    * @return
    */
   @Override
-  public boolean featureIsOn(String feature, PrefabContext prefabContext) {
+  public boolean featureIsOn(
+    String feature,
+    @Nullable PrefabContextSetReadable prefabContext
+  ) {
     return isOn(get(feature, prefabContext));
   }
 
@@ -39,17 +38,20 @@ public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClie
    */
   @Override
   public Optional<Prefab.ConfigValue> get(String feature) {
-    return getConfigValue(feature, Optional.empty());
+    return getConfigValue(feature, null);
   }
 
   @Override
-  public Optional<Prefab.ConfigValue> get(String feature, PrefabContext prefabContext) {
-    return getConfigValue(feature, Optional.of(prefabContext));
+  public Optional<Prefab.ConfigValue> get(
+    String feature,
+    @Nullable PrefabContextSetReadable prefabContext
+  ) {
+    return getConfigValue(feature, prefabContext);
   }
 
   protected abstract Optional<Prefab.ConfigValue> getConfigValue(
     String feature,
-    Optional<PrefabContext> prefabContext
+    @Nullable PrefabContextSetReadable prefabContext
   );
 
   private boolean isOn(Optional<Prefab.ConfigValue> featureFlagVariant) {

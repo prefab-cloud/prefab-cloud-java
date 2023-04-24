@@ -20,11 +20,15 @@ public class UpdatingConfigResolver {
   private final ConfigStoreImpl configStore;
   private ConfigResolver configResolver;
 
-  public UpdatingConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
+  public UpdatingConfigResolver(
+    PrefabCloudClient baseClient,
+    ConfigLoader configLoader,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
     this.baseClient = baseClient;
     this.configLoader = configLoader;
     this.configStore = new ConfigStoreImpl();
-    this.configResolver = new ConfigResolver(configStore);
+    this.configResolver = new ConfigResolver(configStore, weightedValueEvaluator);
   }
 
   /**

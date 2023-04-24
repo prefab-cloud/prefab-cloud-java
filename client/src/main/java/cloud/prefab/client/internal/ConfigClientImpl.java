@@ -1,7 +1,5 @@
 package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.config.ConfigResolver.LOOKUP_KEY;
-
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
@@ -14,16 +12,18 @@ import cloud.prefab.client.config.ConfigResolver;
 import cloud.prefab.client.config.LookupContext;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.UpdatingConfigResolver;
+import cloud.prefab.client.config.WeightedValueEvaluator;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
+import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -35,7 +35,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +85,8 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final PrefabHttpClient prefabHttpClient;
 
+  private final ContextStore contextStore;
+
   @Override
   public ConfigResolver getResolver() {
     return updatingConfigResolver.getResolver();
@@ -96,7 +99,8 @@ public class ConfigClientImpl implements ConfigClient {
     this.uniqueClientId = UUID.randomUUID().toString();
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
-    updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
+    updatingConfigResolver =
+      new UpdatingConfigResolver(baseClient, configLoader, new WeightedValueEvaluator());
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
@@ -107,6 +111,7 @@ public class ConfigClientImpl implements ConfigClient {
         .getNamespace()
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
+    contextStore = options.getContextStore();
     if (options.isLocalOnly() || !options.isReportLogStats()) {
       loggerStatsAggregator = null;
     } else {
@@ -162,7 +167,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, Collections.emptyMap());
+    return get(key, (PrefabContextSetReadable) null);
   }
 
   @Override
@@ -170,34 +175,20 @@ public class ConfigClientImpl implements ConfigClient {
     String configKey,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    LookupContext lookupContext = new LookupContext(
-      Optional.empty(),
-      Optional.ofNullable(properties.get(LOOKUP_KEY)).map(Prefab.ConfigValue::getString),
-      namespaceMaybe,
-      properties
-    );
-    return getInternal(configKey, lookupContext);
-  }
-
-  @Override
-  public Optional<Prefab.ConfigValue> get(String configKey, PrefabContext prefabContext) {
-    return get(configKey, Optional.of(prefabContext));
+    return get(configKey, PrefabContext.unnamedFromMap(properties));
   }
 
   @Override
   public Optional<Prefab.ConfigValue> get(
     String configKey,
-    Optional<PrefabContext> contextMaybe
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
-    return getInternal(
-      configKey,
-      new LookupContext(
-        contextMaybe.map(PrefabContext::getContextType),
-        contextMaybe.flatMap(PrefabContext::getKey),
-        namespaceMaybe,
-        contextMaybe.map(PrefabContext::getProperties).orElse(Collections.emptyMap())
-      )
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
     );
+
+    return getInternal(configKey, lookupContext);
   }
 
   private Optional<Prefab.ConfigValue> getInternal(
@@ -229,17 +220,19 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
+  public Optional<Prefab.LogLevel> getLogLevel(String loggerName) {
+    return getLogLevel(loggerName, null);
+  }
+
+  @Override
   public Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
-    Map<String, Prefab.ConfigValue> properties
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
     LookupContext lookupContext = new LookupContext(
-      Optional.empty(),
-      Optional.empty(),
       namespaceMaybe,
-      properties
+      resolveContext(prefabContext)
     );
-
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
       Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)
@@ -252,67 +245,44 @@ public class ConfigClientImpl implements ConfigClient {
     return Optional.empty();
   }
 
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevel(
-    String loggerName,
-    PrefabContext prefabContext
+  private PrefabContextSetReadable resolveContext(
+    @Nullable PrefabContextSetReadable prefabContextSetReadable
   ) {
-    return getLogLevel(loggerName, toProperties(prefabContext));
-  }
+    Optional<PrefabContextSetReadable> newContext = Optional
+      .ofNullable(prefabContextSetReadable)
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
 
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevel(
-    String loggerName,
-    Optional<PrefabContext> contextMaybe
-  ) {
-    return getLogLevel(
-      loggerName,
-      contextMaybe.map(this::toProperties).orElse(Collections.emptyMap())
-    );
-  }
+    Optional<PrefabContextSetReadable> existingContext = getContextStore()
+      .getContext()
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
 
-  private Map<String, Prefab.ConfigValue> toProperties(PrefabContext prefabContext) {
-    Map<String, Prefab.ConfigValue> contextProperties = Maps.newHashMapWithExpectedSize(
-      prefabContext.getProperties().size() + 1
-    );
-    prefabContext
-      .getKey()
-      .ifPresent(key ->
-        contextProperties.put(
-          LOOKUP_KEY,
-          Prefab.ConfigValue.newBuilder().setString(key).build()
-        )
-      );
-
-    contextProperties.putAll(prefabContext.getProperties());
-    return contextProperties;
-  }
-
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevelFromStringMap(
-    String loggerName,
-    Map<String, String> properties
-  ) {
-    Map<String, Prefab.ConfigValue> map;
-
-    if (properties.isEmpty()) {
-      map = Collections.emptyMap();
+    if (newContext.isEmpty()) {
+      return existingContext.orElse(PrefabContextSetReadable.EMPTY);
     } else {
-      ImmutableMap.Builder<String, Prefab.ConfigValue> mapBuilder = ImmutableMap.builder();
-      for (Map.Entry<String, String> entry : properties.entrySet()) {
-        mapBuilder.put(
-          entry.getKey(),
-          Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
-        );
+      if (existingContext.isEmpty()) {
+        return newContext.get();
+      } else {
+        // do the merge
+        PrefabContextSet prefabContextSet = new PrefabContextSet();
+        for (PrefabContext context : existingContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        for (PrefabContext context : newContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        return prefabContextSet;
       }
-      map = mapBuilder.build();
     }
-    return getLogLevel(loggerName, map);
   }
 
   @Override
   public boolean isReady() {
     return initializedLatch.getCount() == 0;
+  }
+
+  @Override
+  public ContextStore getContextStore() {
+    return contextStore;
   }
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {

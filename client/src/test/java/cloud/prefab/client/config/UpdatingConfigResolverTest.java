@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,7 +33,12 @@ public class UpdatingConfigResolverTest {
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
-    resolver = new UpdatingConfigResolver(mockBaseClient, mockLoader);
+    resolver =
+      new UpdatingConfigResolver(
+        mockBaseClient,
+        mockLoader,
+        new WeightedValueEvaluator()
+      );
   }
 
   @Test
@@ -270,9 +276,7 @@ public class UpdatingConfigResolverTest {
   ) {
     return new LookupContext(
       Optional.empty(),
-      Optional.empty(),
-      Optional.empty(),
-      Map.of(propName, configValue)
+      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
     );
   }
 }

@@ -3,64 +3,94 @@ package cloud.prefab.client.config;
 import cloud.prefab.client.util.RandomProvider;
 import cloud.prefab.client.util.RandomProviderIF;
 import cloud.prefab.domain.Prefab;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.math.LongMath;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
 public class WeightedValueEvaluator {
 
-  private static final HashFunction hash = Hashing.murmur3_32();
-  private static final long UNSIGNED_INT_MAX =
+  public static final long UNSIGNED_INT_MAX =
     Integer.MAX_VALUE + (long) Integer.MAX_VALUE;
+  private final HashFunction hashFunction;
 
-  private RandomProviderIF randomProvider = new RandomProvider();
+  private final RandomProviderIF randomProvider;
+
+  public WeightedValueEvaluator() {
+    this(new RandomProvider(), Hashing.murmur3_32_fixed());
+  }
+
+  @VisibleForTesting
+  WeightedValueEvaluator(RandomProviderIF randomProvider, HashFunction hashFunction) {
+    this.randomProvider = randomProvider;
+    this.hashFunction = hashFunction;
+  }
 
   public Prefab.ConfigValue toValue(
     Prefab.WeightedValues weightedValues,
-    String key,
-    Optional<String> lookupKey
+    String featureName,
+    LookupContext lookupContext
   ) {
-    double pctThroughDistribution = randomProvider.random();
-    if (lookupKey.isPresent()) {
-      pctThroughDistribution = getUserPct(lookupKey.get(), key);
-    }
+    Optional<String> hashPropertyValue = getHashPropertyValue(
+      weightedValues,
+      lookupContext
+    )
+      .flatMap(ConfigValueUtils::coerceToString);
+
+    double pctThroughDistribution = hashPropertyValue
+      .map(s -> getUserPct(featureName, s))
+      .orElseGet(randomProvider::random);
     return getVariantIdxFromWeights(
       weightedValues.getWeightedValuesList(),
       pctThroughDistribution
     );
   }
 
-  Prefab.ConfigValue getVariantIdxFromWeights(
-    List<Prefab.WeightedValue> weightedValues,
-    double pctThroughDistribution
+  private Optional<Prefab.ConfigValue> getHashPropertyValue(
+    Prefab.WeightedValues weightedValues,
+    LookupContext lookupContext
   ) {
-    Optional<Integer> distributionSpace = weightedValues
+    if (weightedValues.hasHashByPropertyName()) {
+      return lookupContext.getValue(weightedValues.getHashByPropertyName());
+    }
+
+    return Optional.empty();
+  }
+
+  private Prefab.ConfigValue getVariantIdxFromWeights(
+    List<Prefab.WeightedValue> weightedValues,
+    double targetPctThroughDistribution
+  ) {
+    int distributionSpace = weightedValues
       .stream()
       .map(Prefab.WeightedValue::getWeight)
-      .reduce(Integer::sum);
-    int bucket = (int) (distributionSpace.get() * pctThroughDistribution);
+      .reduce(Integer::sum)
+      .orElse(1);
     int sum = 0;
     for (Prefab.WeightedValue weightedValue : weightedValues) {
-      if (bucket < sum + weightedValue.getWeight()) {
+      sum += weightedValue.getWeight();
+      double percentThroughDistribution = sum / (double) distributionSpace;
+      if (targetPctThroughDistribution <= percentThroughDistribution) {
         return weightedValue.getValue();
-      } else {
-        sum += weightedValue.getWeight();
       }
     }
     // variants didn't add up to 100%
     return weightedValues.get(0).getValue();
   }
 
-  double getUserPct(String lookupKey, String featureName) {
-    final String toHash = String.format("%s%s", featureName, lookupKey);
-    final HashCode hashCode = hash.hashBytes(toHash.getBytes());
+  private double getUserPct(String featureName, String configValue) {
+    final String toHash = featureName + configValue;
+    final HashCode hashCode = hashFunction.hashString(toHash, StandardCharsets.UTF_8);
     return pct(hashCode.asInt());
   }
 
   private double pct(int signedInt) {
-    long y = signedInt & 0x00000000ffffffffL;
+    long y = (long) signedInt + Integer.MAX_VALUE;
     return y / (double) (UNSIGNED_INT_MAX);
   }
 }

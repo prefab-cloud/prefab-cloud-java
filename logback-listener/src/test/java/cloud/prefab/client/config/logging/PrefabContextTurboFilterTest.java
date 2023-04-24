@@ -36,8 +36,7 @@ class PrefabContextTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevel(logger.getName(), Optional.empty()))
-      .thenReturn(Optional.empty());
+    when(configClient.getLogLevel(logger.getName())).thenReturn(Optional.empty());
 
     assertThat(
       logbackTurboFilter.decide(null, logger, Level.DEBUG, "", new Object[0], null)
@@ -56,7 +55,7 @@ class PrefabContextTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevel(logger.getName(), Optional.empty()))
+    when(configClient.getLogLevel(logger.getName()))
       .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
 
     assertThat(
@@ -76,7 +75,7 @@ class PrefabContextTurboFilterTest {
     );
     when(configClient.isReady()).thenReturn(true);
 
-    when(configClient.getLogLevel(logger.getName(), Optional.empty()))
+    when(configClient.getLogLevel(logger.getName()))
       .thenReturn(Optional.of(Prefab.LogLevel.WARN));
 
     assertThat(
@@ -87,38 +86,6 @@ class PrefabContextTurboFilterTest {
     Mockito
       .verify(configClient)
       .reportLoggerUsage(logger.getName(), Prefab.LogLevel.DEBUG, 1);
-  }
-
-  @Test
-  void itSendsAvailableContextData() {
-    Logger logger = (Logger) LoggerFactory.getLogger(
-      "com.example.factory.FactoryFactory"
-    );
-    when(configClient.isReady()).thenReturn(true);
-    PrefabContext prefabContext = PrefabContext
-      .newBuilder("User")
-      .withKey("user1")
-      .set("key1", "val1")
-      .set("key2", "val2")
-      .build();
-
-    try {
-      PrefabContextHelper.saveContextToThreadLocal(prefabContext);
-
-      when(configClient.getLogLevel(logger.getName(), Optional.of(prefabContext)))
-        .thenReturn(Optional.of(Prefab.LogLevel.DEBUG));
-
-      assertThat(
-        logbackTurboFilter.decide(null, logger, Level.DEBUG, "", new Object[0], null)
-      )
-        .isEqualTo(FilterReply.ACCEPT);
-
-      Mockito
-        .verify(configClient)
-        .reportLoggerUsage(logger.getName(), Prefab.LogLevel.DEBUG, 1);
-    } finally {
-      PrefabContextHelper.clearContextThreadLocal();
-    }
   }
 
   @Test

@@ -1,30 +1,15 @@
 package cloud.prefab.context;
 
+import cloud.prefab.client.ConfigClient;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
 public class PrefabContextHelper {
 
-  private static final ThreadLocal<PrefabContext> contextThreadLocal = new ThreadLocal<>();
+  private final ConfigClient configClient;
 
-  public static void saveContextToThreadLocal(PrefabContext prefabContext) {
-    contextThreadLocal.set(prefabContext);
-  }
-
-  public static void saveContextToThreadLocal(Optional<PrefabContext> prefabContext) {
-    if (prefabContext.isPresent()) {
-      saveContextToThreadLocal(prefabContext.get());
-    } else {
-      contextThreadLocal.remove();
-    }
-  }
-
-  public static void clearContextThreadLocal() {
-    contextThreadLocal.remove();
-  }
-
-  public static Optional<PrefabContext> getContextFromThreadLocal() {
-    return Optional.ofNullable(contextThreadLocal.get());
+  public PrefabContextHelper(ConfigClient configClient) {
+    this.configClient = configClient;
   }
 
   /**
@@ -34,16 +19,12 @@ public class PrefabContextHelper {
    * @param callable to run
    * @return the return value of the callable
    */
-  public static <T> T performWorkWithContext(
-    PrefabContext prefabContext,
+  public <T> T performWorkWithContext(
+    PrefabContextSetReadable prefabContext,
     Callable<T> callable
   ) throws Exception {
-    final Optional<PrefabContext> contextBackup = getContextFromThreadLocal();
-    try {
-      saveContextToThreadLocal(prefabContext);
+    try (PrefabContextScope ignored = performWorkWithAutoClosingContext(prefabContext)) {
       return callable.call();
-    } finally {
-      saveContextToThreadLocal(contextBackup);
     }
   }
 
@@ -53,16 +34,20 @@ public class PrefabContextHelper {
    * @param prefabContext the contents of PrefabContext while runnable is running
    * @param runnable to run
    */
-  public static void performWorkWithContext(
-    PrefabContext prefabContext,
+  public void performWorkWithContext(
+    PrefabContextSetReadable prefabContext,
     Runnable runnable
   ) {
-    final Optional<PrefabContext> contextBackup = getContextFromThreadLocal();
-    try {
-      saveContextToThreadLocal(prefabContext);
+    try (PrefabContextScope ignored = performWorkWithAutoClosingContext(prefabContext)) {
       runnable.run();
-    } finally {
-      saveContextToThreadLocal(contextBackup);
+    }
+  }
+
+  private void resetContext(Optional<PrefabContextSetReadable> oldContext) {
+    if (oldContext.isPresent()) {
+      configClient.getContextStore().setContext(oldContext.get());
+    } else {
+      configClient.getContextStore().clearContext();
     }
   }
 
@@ -72,27 +57,23 @@ public class PrefabContextHelper {
    * @param context the contents of PrefabContext while work in the try-with-resources block is happening
    * @return an AutoClosable PrefabContextClosable that will revert the context on close
    */
-  public static PrefabContextScope performWorkWithAutoClosingContext(
-    PrefabContext context
+  public PrefabContextScope performWorkWithAutoClosingContext(
+    PrefabContextSetReadable context
   ) {
-    PrefabContextScope prefabContextScope = new PrefabContextScope(
-      getContextFromThreadLocal()
-    );
-    contextThreadLocal.set(context);
-    return prefabContextScope;
+    return new PrefabContextScope(configClient.getContextStore().setContext(context));
   }
 
-  public static class PrefabContextScope implements AutoCloseable {
+  public class PrefabContextScope implements AutoCloseable {
 
-    private final Optional<PrefabContext> contextBackup;
+    private final Optional<PrefabContextSetReadable> contextBackup;
 
-    private PrefabContextScope(Optional<PrefabContext> contextBackup) {
+    private PrefabContextScope(Optional<PrefabContextSetReadable> contextBackup) {
       this.contextBackup = contextBackup;
     }
 
     @Override
     public void close() {
-      PrefabContextHelper.saveContextToThreadLocal(contextBackup);
+      resetContext(contextBackup);
     }
   }
 }

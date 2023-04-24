@@ -20,16 +20,14 @@ class PrefabContextTest {
 
     PrefabContext prefabContext = PrefabContext
       .newBuilder(type)
-      .withKey(key)
-      .set("firstname", firstname)
-      .set("lastname", lastname)
-      .set("age", age)
-      .set("pi", pi)
-      .set("isCustomer", customer)
+      .put("firstname", firstname)
+      .put("lastname", lastname)
+      .put("age", age)
+      .put("pi", pi)
+      .put("isCustomer", customer)
       .build();
 
-    assertThat(prefabContext.getContextType()).isEqualTo(type);
-    assertThat(prefabContext.getKey().get()).isEqualTo(key);
+    assertThat(prefabContext.getName()).isEqualTo(type);
     assertThat(prefabContext.getProperties())
       .isEqualTo(
         Map.of(
