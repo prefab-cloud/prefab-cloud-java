@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 public class ConfigResolver {
 
   public static final String NAMESPACE_KEY = "NAMESPACE";
-  public static final String LOOKUP_KEY = "LOOKUP";
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 

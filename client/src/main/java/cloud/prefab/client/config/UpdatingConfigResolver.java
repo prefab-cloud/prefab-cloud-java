@@ -1,6 +1,7 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.internal.ConfigStoreDeltaCalculator;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 public class UpdatingConfigResolver {
 
   private final ConfigLoader configLoader;
+  private final ConfigStoreDeltaCalculator configStoreDeltaCalculator;
 
   private final PrefabCloudClient baseClient;
   private final ConfigStoreImpl configStore;
@@ -23,10 +25,12 @@ public class UpdatingConfigResolver {
   public UpdatingConfigResolver(
     PrefabCloudClient baseClient,
     ConfigLoader configLoader,
-    WeightedValueEvaluator weightedValueEvaluator
+    WeightedValueEvaluator weightedValueEvaluator,
+    ConfigStoreDeltaCalculator configStoreDeltaCalculator
   ) {
     this.baseClient = baseClient;
     this.configLoader = configLoader;
+    this.configStoreDeltaCalculator = configStoreDeltaCalculator;
     this.configStore = new ConfigStoreImpl();
     this.configResolver = new ConfigResolver(configStore, weightedValueEvaluator);
   }
@@ -60,40 +64,7 @@ public class UpdatingConfigResolver {
         )
       );
 
-    MapDifference<String, Optional<Prefab.ConfigValue>> delta = Maps.difference(
-      before,
-      after
-    );
-    if (delta.areEqual()) {
-      return ImmutableList.of();
-    } else {
-      ImmutableList.Builder<ConfigChangeEvent> changeEvents = ImmutableList.builder();
-
-      // removed config values
-      delta
-        .entriesOnlyOnLeft()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, value, Optional.empty()))
-        );
-
-      // added config values
-      delta
-        .entriesOnlyOnRight()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, Optional.empty(), value))
-        );
-
-      // changed config values
-      delta
-        .entriesDiffering()
-        .forEach((key, values) ->
-          changeEvents.add(
-            new ConfigChangeEvent(key, values.leftValue(), values.rightValue())
-          )
-        );
-
-      return changeEvents.build();
-    }
+    return configStoreDeltaCalculator.computeChangeEvents(before, after);
   }
 
   /**

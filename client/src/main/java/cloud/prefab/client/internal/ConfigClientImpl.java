@@ -100,7 +100,12 @@ public class ConfigClientImpl implements ConfigClient {
     this.options = baseClient.getOptions();
     configLoader = new ConfigLoader(options);
     updatingConfigResolver =
-      new UpdatingConfigResolver(baseClient, configLoader, new WeightedValueEvaluator());
+      new UpdatingConfigResolver(
+        baseClient,
+        configLoader,
+        new WeightedValueEvaluator(),
+        new ConfigStoreDeltaCalculator()
+      );
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.internal.ConfigStoreDeltaCalculator;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
@@ -37,7 +38,8 @@ public class UpdatingConfigResolverTest {
       new UpdatingConfigResolver(
         mockBaseClient,
         mockLoader,
-        new WeightedValueEvaluator()
+        new WeightedValueEvaluator(),
+        new ConfigStoreDeltaCalculator()
       );
   }
 
