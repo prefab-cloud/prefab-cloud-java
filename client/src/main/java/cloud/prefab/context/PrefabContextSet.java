@@ -35,6 +35,26 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     return set;
   }
 
+  /**
+   * Converts the given `PrefabContextSetReadable` instance into a PrefabContextSet
+   * If the argument is already a PrefabContextSet return it, othewise create a new PrefabContextSet and add the contents
+   * of the PrefabContextSetReadable to it, then return the new set
+   * @param prefabContextSetReadable instance to convert
+   * @return a PrefabContextSet built as discussed above
+   */
+  public static PrefabContextSet convert(
+    PrefabContextSetReadable prefabContextSetReadable
+  ) {
+    if (prefabContextSetReadable instanceof PrefabContextSet) {
+      return (PrefabContextSet) prefabContextSetReadable;
+    }
+    PrefabContextSet prefabContextSet = new PrefabContextSet();
+    for (PrefabContext context : prefabContextSetReadable.getContexts()) {
+      prefabContextSet.addContext(context);
+    }
+    return prefabContextSet;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {

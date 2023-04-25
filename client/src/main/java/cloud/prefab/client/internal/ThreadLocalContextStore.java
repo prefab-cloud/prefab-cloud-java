@@ -24,29 +24,26 @@ public class ThreadLocalContextStore implements ContextStore {
   public Optional<PrefabContextSetReadable> setContext(
     PrefabContextSetReadable prefabContextSetReadable
   ) {
-    PrefabContextSet previousContext = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
-    if (prefabContextSetReadable instanceof PrefabContextSet) {
-      PREFAB_CONTEXT_SET_THREAD_LOCAL.set((PrefabContextSet) prefabContextSetReadable);
-    } else {
-      PrefabContextSet prefabContextSet = new PrefabContextSet();
-      for (PrefabContext context : prefabContextSetReadable.getContexts()) {
-        prefabContextSet.addContext(context);
-      }
-      PREFAB_CONTEXT_SET_THREAD_LOCAL.set(prefabContextSet);
-    }
-
-    return Optional.ofNullable(previousContext);
+    Optional<PrefabContextSet> previousContext = getStoredContextSet();
+    PREFAB_CONTEXT_SET_THREAD_LOCAL.set(
+      PrefabContextSet.convert(prefabContextSetReadable)
+    );
+    return previousContext.map(PrefabContextSetReadable::readOnlyContextSetView);
   }
 
   @Override
   public Optional<PrefabContextSetReadable> clearContext() {
-    PrefabContextSetReadable previousContext = PREFAB_CONTEXT_SET_THREAD_LOCAL.get();
+    Optional<PrefabContextSet> previousContext = getStoredContextSet();
     PREFAB_CONTEXT_SET_THREAD_LOCAL.remove();
-    return Optional.of(previousContext);
+    return previousContext.map(PrefabContextSetReadable::readOnlyContextSetView);
   }
 
   @Override
   public Optional<PrefabContextSetReadable> getContext() {
+    return getStoredContextSet().map(PrefabContextSetReadable::readOnlyContextSetView);
+  }
+
+  private Optional<PrefabContextSet> getStoredContextSet() {
     return Optional.ofNullable(PREFAB_CONTEXT_SET_THREAD_LOCAL.get());
   }
 }

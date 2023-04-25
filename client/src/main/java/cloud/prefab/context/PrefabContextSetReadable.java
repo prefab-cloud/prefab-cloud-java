@@ -25,4 +25,23 @@ public interface PrefabContextSetReadable {
       return true;
     }
   };
+
+  static PrefabContextSetReadable readOnlyContextSetView(PrefabContextSet contextSet) {
+    return new PrefabContextSetReadable() {
+      @Override
+      public Optional<PrefabContext> getByName(String contextName) {
+        return contextSet.getByName(contextName);
+      }
+
+      @Override
+      public Iterable<PrefabContext> getContexts() {
+        return contextSet.getContexts();
+      }
+
+      @Override
+      public boolean isEmpty() {
+        return contextSet.isEmpty();
+      }
+    };
+  }
 }
