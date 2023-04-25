@@ -255,6 +255,19 @@ public class ConfigResolver {
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
         return List.of(new EvaluatedCriterion(criterion, true));
+      case IN_TIME_RANGE:
+        if (prop.isEmpty() || !criterion.getValueToMatch().hasTimeRange()) {
+          return List.of(new EvaluatedCriterion(criterion, false));
+        }
+        long currentTime = prop.get().getInt();
+        Prefab.TimeRange timeRange = criterion.getValueToMatch().getTimeRange();
+        if (timeRange.hasStart() && currentTime < timeRange.getStart()) {
+          return List.of(new EvaluatedCriterion(criterion, false));
+        }
+        if (timeRange.hasEnd() && currentTime > timeRange.getEnd()) {
+          return List.of(new EvaluatedCriterion(criterion, false));
+        }
+        return List.of(new EvaluatedCriterion(criterion, true));
       case HIERARCHICAL_MATCH:
         if (prop.isPresent()) {
           if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
