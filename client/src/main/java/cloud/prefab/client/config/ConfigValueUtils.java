@@ -23,7 +23,7 @@ public class ConfigValueUtils {
   ) {
     ImmutableMap.Builder<String, Prefab.ConfigValue> builder = ImmutableMap.<String, Prefab.ConfigValue>builder();
     for (Map.Entry<String, String> stringStringEntry : stringStringMap.entrySet()) {
-      builder.put(stringStringEntry.getValue(), fromString(stringStringEntry.getValue()));
+      builder.put(stringStringEntry.getKey(), fromString(stringStringEntry.getValue()));
     }
     return builder.build();
   }
