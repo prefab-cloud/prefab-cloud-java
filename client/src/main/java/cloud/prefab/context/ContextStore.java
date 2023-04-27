@@ -32,4 +32,13 @@ public interface ContextStore {
    * @return unmodifiable PrefabContextSetReadable view
    */
   Optional<PrefabContextSetReadable> getContext();
+
+  /**
+   *
+   * @return true or false to indicate if the underlying platform feature for a given ContextStore is available
+   */
+
+  default boolean isAvailable() {
+    return true;
+  }
 }
