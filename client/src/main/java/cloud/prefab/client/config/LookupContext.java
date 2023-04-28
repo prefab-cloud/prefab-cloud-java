@@ -1,5 +1,7 @@
 package cloud.prefab.client.config;
 
+import static cloud.prefab.client.config.ConfigResolver.NEW_NAMESPACE_KEY;
+
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
@@ -71,9 +73,6 @@ public class LookupContext {
       Map<String, Prefab.ConfigValue> expandedProperties = Maps.newHashMapWithExpectedSize(
         propertyCount
       );
-      namespaceMaybe.ifPresent(namespace ->
-        expandedProperties.put(ConfigResolver.NAMESPACE_KEY, namespace)
-      );
       for (PrefabContext context : prefabContextSetReadable.getContexts()) {
         String prefix = context.getName().isBlank()
           ? ""
@@ -87,6 +86,11 @@ public class LookupContext {
           );
         }
       }
+      namespaceMaybe.ifPresent(namespace -> {
+        expandedProperties.put(ConfigResolver.NAMESPACE_KEY, namespace);
+        // we'll eventually inject a "prefab" typed context to handle this
+        expandedProperties.put(NEW_NAMESPACE_KEY, namespace);
+      });
       this.expandedProperties = ImmutableMap.copyOf(expandedProperties);
     }
     return this.expandedProperties;

@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 public class ConfigResolver {
 
   public static final String NAMESPACE_KEY = "NAMESPACE";
-
+  public static final String NEW_NAMESPACE_KEY = "prefab.namespace";
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
   private final ConfigStore configStore;
