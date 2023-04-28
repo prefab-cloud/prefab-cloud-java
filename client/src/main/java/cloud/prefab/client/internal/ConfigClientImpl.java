@@ -382,43 +382,6 @@ public class ConfigClientImpl implements ConfigClient {
     return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
   }
 
-  private boolean loadCheckpointFromUrl(String url, Source source) {
-    LOG.debug("Loading {} from  {}", source, url);
-    try {
-      HttpRequest request = HttpRequest
-        .newBuilder()
-        .GET()
-        .uri(new URI(url))
-        .header(
-          "Authorization",
-          getBasicAuthenticationHeader(AUTH_USER, options.getApikey())
-        )
-        .build();
-
-      HttpClient client = HttpClient.newHttpClient();
-      HttpResponse<byte[]> response = client.send(
-        request,
-        HttpResponse.BodyHandlers.ofByteArray()
-      );
-
-      if (response.statusCode() != 200) {
-        LOG.warn("Problem loading {} {} {}", source, response.statusCode(), url);
-      } else {
-        Prefab.Configs configs = Prefab.Configs.parseFrom(response.body());
-        loadConfigs(configs, source);
-        return true;
-      }
-    } catch (Exception e) {
-      LOG.warn(
-        "Unexpected issue with loading {} via {} (stack trace available at DEBUG)",
-        source,
-        url
-      );
-      LOG.debug("Unexpected issue with loading {} via {}", source, url, e);
-    }
-    return false;
-  }
-
   private ScheduledExecutorService startStreamingExecutor() {
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(
       1,
