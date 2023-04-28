@@ -1,7 +1,9 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
-import cloud.prefab.client.internal.ConfigStoreDeltaCalculator;
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collection;

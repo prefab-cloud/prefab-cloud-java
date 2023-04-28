@@ -1,4 +1,4 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import static cloud.prefab.client.config.TestUtils.getIntConfigValue;
 import static cloud.prefab.client.config.TestUtils.getStringConfigValue;
@@ -36,6 +36,7 @@ class LookupContextTest {
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
           .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
+          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("user.firstname", getStringConfigValue("John"))
           .put("user.lastname", getStringConfigValue("Doe"))
           .put("user.age", getIntConfigValue(44))
@@ -68,6 +69,7 @@ class LookupContextTest {
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
           .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
+          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("user.firstname", getStringConfigValue("John"))
           .put("user.lastname", getStringConfigValue("Doe"))
           .put("user.age", getIntConfigValue(44))
@@ -97,6 +99,7 @@ class LookupContextTest {
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
           .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
+          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("firstname", getStringConfigValue("John"))
           .put("lastname", getStringConfigValue("Doe"))
           .put("age", getIntConfigValue(44))

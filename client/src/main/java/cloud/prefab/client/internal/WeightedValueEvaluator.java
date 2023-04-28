@@ -1,14 +1,13 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.util.RandomProvider;
 import cloud.prefab.client.util.RandomProviderIF;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import com.google.common.math.LongMath;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;

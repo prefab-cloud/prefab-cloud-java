@@ -1,4 +1,4 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -7,7 +7,9 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
-import cloud.prefab.client.internal.ConfigStoreDeltaCalculator;
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;

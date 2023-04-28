@@ -1,7 +1,9 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;

@@ -1,7 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeListener;
-import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.client.internal.ConfigResolver;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;

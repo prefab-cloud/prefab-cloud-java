@@ -1,6 +1,6 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.config.ConfigResolver.NEW_NAMESPACE_KEY;
+import static cloud.prefab.client.internal.ConfigResolver.NEW_NAMESPACE_KEY;
 
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;

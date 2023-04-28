@@ -1,6 +1,10 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigStore;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.ConfigValueUtils;
+import cloud.prefab.client.config.EvaluatedCriterion;
+import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;

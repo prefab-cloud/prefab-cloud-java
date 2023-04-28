@@ -1,6 +1,6 @@
 package cloud.prefab.client.integration;
 
-import cloud.prefab.client.config.ConfigLoader;
+import cloud.prefab.client.internal.ConfigLoader;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
