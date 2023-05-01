@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Provenance;
@@ -12,6 +13,7 @@ import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.checkerframework.checker.units.qual.C;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -263,6 +265,34 @@ public class ConfigResolverTest {
       .get();
     assertThat(negativeEval.isMatch()).isFalse();
     assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
+  }
+
+  @Test
+  void itFiltersKeysByConfigType() {
+    ConfigElement configTypedElement = new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .setConfigType(Prefab.ConfigType.CONFIG)
+        .setKey("key1")
+        .buildPartial(),
+      new Provenance(ConfigClient.Source.STREAMING)
+    );
+    ConfigElement featureFlagTypedElement = new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .setConfigType(Prefab.ConfigType.FEATURE_FLAG)
+        .setKey("key2")
+        .buildPartial(),
+      new Provenance(ConfigClient.Source.STREAMING)
+    );
+
+    when(mockConfigStoreImpl.getElements())
+      .thenReturn(List.of(configTypedElement, featureFlagTypedElement));
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.CONFIG))
+      .containsExactlyInAnyOrder("key1");
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.FEATURE_FLAG))
+      .containsExactlyInAnyOrder("key2");
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.SEGMENT)).isEmpty();
   }
 
   private Prefab.ConfigValue sv(String s) {
