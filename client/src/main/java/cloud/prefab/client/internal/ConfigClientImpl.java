@@ -214,9 +214,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Collection<String> getAllKeys() {
-    return updatingConfigResolver
-      .getResolver()
-      .getKeysOfConfigType(Prefab.ConfigType.CONFIG);
+    return updatingConfigResolver.getResolver().getKeys();
   }
 
   private Optional<Prefab.ConfigValue> getInternal(

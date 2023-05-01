@@ -77,7 +77,7 @@ public interface ConfigClient {
   );
 
   /**
-   * Evaluates all configurations of ConfigType = CONFIG
+   * Evaluates all configurations
    * @param prefabContext additional context to use to evaluate the config. Will be added to existing context as documented in {@link ContextStore#addContext(PrefabContext) addcontext} Pass Null or {@link PrefabContextSetReadable#EMPTY} to keep context as is
    * @return a Map with the config's key as the key, the current ConfigValue as map's value
    */
@@ -86,7 +86,7 @@ public interface ConfigClient {
   );
 
   /**
-   * @return all known config keys where the ConfigType = CONFIG
+   * @return all known config keys
    */
   Collection<String> getAllKeys();
 
