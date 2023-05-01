@@ -18,6 +18,7 @@
     <module>log4j-one-listener</module>
     <module>log4j-two-listener</module>
     <module>logback-listener</module>
+      <module>micronaut</module>
   </modules>
   <properties>
     <basepom.check.skip-license>true</basepom.check.skip-license>
