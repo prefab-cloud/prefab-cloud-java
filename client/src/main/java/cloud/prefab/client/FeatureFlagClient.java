@@ -6,13 +6,13 @@ import java.util.Optional;
 
 public interface FeatureFlagClient {
   /**
-   * Evaluate the given feature using the context loaded by Options.setConfigSupplier
+   * Evaluate the given feature using the context loaded from the ContextStore
    * @param feature
    * @return
    */
   boolean featureIsOn(String feature);
   /**
-   * Evaluate the named feature using the provided context
+   * Evaluate the named feature using the provided context comined with the context loaded from the ContextStore
    * @param feature
    * @param prefabContext the context to use for feature evaluation
    * @return
@@ -20,14 +20,14 @@ public interface FeatureFlagClient {
   boolean featureIsOn(String feature, PrefabContextSetReadable prefabContext);
 
   /**
-   * Return the feature flag config value for the given feature using the context loaded by Options.setConfigSupplier
+   * Return the feature flag config value for the given feature using the context loaded from the ContextStore
    * @param feature
    * @return
    */
   Optional<Prefab.ConfigValue> get(String feature);
 
   /**
-   * Return the feature flag config value for the given feature using the context loaded by Options.setConfigSupplier
+   * Return the feature flag config value for the given feature using the provided context combined with the one loaded from the ContextStore
    * @param feature
    * @param prefabContext the context to use for feature evaluation
    * @return
