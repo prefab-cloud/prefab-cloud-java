@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -412,6 +413,20 @@ public class ConfigResolver {
 
   public Collection<String> getKeys() {
     return configStore.getKeys();
+  }
+
+  public Collection<String> getKeysOfConfigType(Prefab.ConfigType configType) {
+    return configStore
+      .getElements()
+      .stream()
+      .map(ConfigElement::getConfig)
+      .filter(config -> config.getConfigType() == configType)
+      .map(Prefab.Config::getKey)
+      .collect(Collectors.toList());
+  }
+
+  public ConfigElement getRaw(String key) {
+    return configStore.getElement(key);
   }
 
   public boolean containsKey(String key) {

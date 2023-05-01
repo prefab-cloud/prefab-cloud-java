@@ -18,17 +18,17 @@ import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -79,11 +79,6 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
-
-  @Override
-  public ConfigResolver getResolver() {
-    return updatingConfigResolver.getResolver();
-  }
 
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
@@ -198,6 +193,30 @@ public class ConfigClientImpl implements ConfigClient {
     );
 
     return getInternal(configKey, lookupContext);
+  }
+
+  @Override
+  public Map<String, Prefab.ConfigValue> getAll(
+    @Nullable PrefabContextSetReadable prefabContext
+  ) {
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
+    );
+    ImmutableMap.Builder<String, Prefab.ConfigValue> bldr = ImmutableMap.builder();
+    for (String key : getAllKeys()) {
+      updatingConfigResolver
+        .getConfigValue(key, lookupContext)
+        .ifPresent(configValue -> bldr.put(key, configValue));
+    }
+    return bldr.build();
+  }
+
+  @Override
+  public Collection<String> getAllKeys() {
+    return updatingConfigResolver
+      .getResolver()
+      .getKeysOfConfigType(Prefab.ConfigType.CONFIG);
   }
 
   private Optional<Prefab.ConfigValue> getInternal(
