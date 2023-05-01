@@ -2,9 +2,7 @@ package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
-import cloud.prefab.client.util.Cache;
 import cloud.prefab.context.ContextStore;
-import cloud.prefab.context.PrefabContext;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashSet;
