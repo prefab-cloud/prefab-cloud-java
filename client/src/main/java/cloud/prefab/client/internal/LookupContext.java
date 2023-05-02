@@ -3,6 +3,7 @@ package cloud.prefab.client.internal;
 import static cloud.prefab.client.internal.ConfigResolver.NEW_NAMESPACE_KEY;
 
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
@@ -21,7 +22,7 @@ public class LookupContext {
 
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
 
-  private final PrefabContextSetReadable prefabContextSetReadable;
+  private final PrefabContextSet prefabContextSet;
 
   private Map<String, Prefab.ConfigValue> expandedProperties = null;
 
@@ -30,7 +31,7 @@ public class LookupContext {
     PrefabContextSetReadable prefabContextSetReadable
   ) {
     this.namespaceMaybe = namespace;
-    this.prefabContextSetReadable = prefabContextSetReadable;
+    this.prefabContextSet = PrefabContextSet.convert(prefabContextSetReadable);
   }
 
   @Override
@@ -44,13 +45,13 @@ public class LookupContext {
     LookupContext that = (LookupContext) o;
     return (
       Objects.equals(namespaceMaybe, that.namespaceMaybe) &&
-      Objects.equals(prefabContextSetReadable, that.prefabContextSetReadable)
+      Objects.equals(prefabContextSet, that.prefabContextSet)
     );
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(namespaceMaybe, prefabContextSetReadable);
+    return Objects.hash(namespaceMaybe, prefabContextSet);
   }
 
   public Optional<Prefab.ConfigValue> getNamespace() {
@@ -65,7 +66,7 @@ public class LookupContext {
     if (this.expandedProperties == null) {
       int propertyCount =
         StreamSupport
-          .stream(prefabContextSetReadable.getContexts().spliterator(), false)
+          .stream(prefabContextSet.getContexts().spliterator(), false)
           .mapToInt(context -> context.getProperties().size())
           .sum() +
         1;
@@ -73,7 +74,7 @@ public class LookupContext {
       Map<String, Prefab.ConfigValue> expandedProperties = Maps.newHashMapWithExpectedSize(
         propertyCount
       );
-      for (PrefabContext context : prefabContextSetReadable.getContexts()) {
+      for (PrefabContext context : prefabContextSet.getContexts()) {
         String prefix = context.getName().isBlank()
           ? ""
           : context.getName().toLowerCase() + ".";

@@ -106,4 +106,24 @@ class LookupContextTest {
           .build()
       );
   }
+
+  @Test
+  void equalsAndHashCodeWorkWithDifferentContextTypeArgs() {
+    PrefabContext context = PrefabContext
+      .newBuilder("user")
+      .put("firstName", "james")
+      .build();
+
+    LookupContext lookupContext1 = new LookupContext(
+      Optional.of(getStringConfigValue("coolnamespace")),
+      context
+    );
+    LookupContext lookupContext2 = new LookupContext(
+      Optional.of(getStringConfigValue("coolnamespace")),
+      PrefabContextSet.from(context)
+    );
+
+    assertThat(lookupContext1).isEqualTo(lookupContext2);
+    assertThat(lookupContext1.hashCode()).isEqualTo(lookupContext2.hashCode());
+  }
 }
