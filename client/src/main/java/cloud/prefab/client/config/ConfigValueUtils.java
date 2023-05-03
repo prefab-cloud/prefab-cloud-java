@@ -4,6 +4,7 @@ import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,16 @@ public class ConfigValueUtils {
         return Optional.of(String.valueOf(configValue.getInt()));
       case BOOL:
         return Optional.of(String.valueOf(configValue.getBool()));
+      case LOG_LEVEL:
+        return Optional.of(configValue.getLogLevel().name());
+      case STRING_LIST:
+        return Optional.of(
+          configValue
+            .getStringList()
+            .getValuesList()
+            .stream()
+            .collect(Collectors.joining(","))
+        );
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",
