@@ -14,6 +14,17 @@ _Note: Behind the scenes ServerRequestContext is based on a threadlocal, but mic
 
 ### Usage
 
+Maven
+
+Maven
+```xml
+<dependency>
+    <groupId>cloud.prefab</groupId>
+    <artifactId>micronaut</artifactId>
+    <version>0.3.8</version>
+</dependency>
+```
+
 The context store implementation is added to the Prefab `Options` class.
 
 You'll likely have a factory class like this one - see the `options.setContextStore(new PrefabMicronautStateStore());` in the prefabCloudClient method
