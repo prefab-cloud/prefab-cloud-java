@@ -1,4 +1,7 @@
 # prefab-cloud-java
+[![javadoc](https://javadoc.io/badge2/cloud.prefab/client/javadoc.svg)](https://javadoc.io/doc/cloud.prefab/client)
+[![Better Uptime Badge](https://betteruptime.com/status-badges/v1/monitor/pdi9.svg)](https://betteruptime.com/?utm_source=status_badge)
+
 Java (11+) Client and Logging adapters for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
