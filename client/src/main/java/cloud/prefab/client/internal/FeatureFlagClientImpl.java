@@ -1,9 +1,10 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 public class FeatureFlagClientImpl extends AbstractFeatureFlagResolverImpl {
 
@@ -15,8 +16,8 @@ public class FeatureFlagClientImpl extends AbstractFeatureFlagResolverImpl {
 
   protected Optional<Prefab.ConfigValue> getConfigValue(
     String feature,
-    Map<String, Prefab.ConfigValue> attributes
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
-    return configClient.get(feature, attributes);
+    return configClient.get(feature, prefabContext);
   }
 }

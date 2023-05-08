@@ -3,7 +3,6 @@ package cloud.prefab.client.integration;
 import cloud.prefab.client.PrefabCloudClient;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -12,7 +11,7 @@ public class IntegrationTestInput {
   private final String key;
   private final Optional<String> flag;
   private final String lookupKey;
-  private final Map<String, String> properties;
+  private final Map<String, Map<String, Object>> context;
   private final Optional<String> defaultValue;
 
   @JsonCreator
@@ -20,13 +19,13 @@ public class IntegrationTestInput {
     @JsonProperty("key") String key,
     @JsonProperty("flag") Optional<String> flag,
     @JsonProperty("lookup_key") String lookupKey,
-    @JsonProperty("properties") Map<String, String> properties,
+    @JsonProperty("context") Map<String, Map<String, Object>> context,
     @JsonProperty("default") Optional<String> defaultValue
   ) {
     this.key = key;
     this.flag = flag;
     this.lookupKey = lookupKey;
-    this.properties = properties;
+    this.context = context;
     this.defaultValue = defaultValue;
   }
 
@@ -45,13 +44,13 @@ public class IntegrationTestInput {
   public boolean featureIsOnFor(PrefabCloudClient client) {
     return client
       .featureFlagClient()
-      .featureIsOnFor(getFlag().get(), getResolvedLookupKey(), getResolvedProperties());
+      .featureIsOn(getFlag().get(), PrefabContextFactory.from(getContext()));
   }
 
   public long getFeatureFor(PrefabCloudClient client) {
     return client
       .featureFlagClient()
-      .get(getFlag().get(), getResolvedLookupKey(), getResolvedProperties())
+      .get(getFlag().get(), PrefabContextFactory.from(getContext()))
       .get()
       .getInt();
   }
@@ -64,31 +63,11 @@ public class IntegrationTestInput {
     return flag;
   }
 
-  public String getLookupKey() {
-    return lookupKey;
-  }
-
-  public Map<String, String> getProperties() {
-    return properties;
+  public Map<String, Map<String, Object>> getContext() {
+    return context;
   }
 
   public Optional<String> getDefault() {
     return defaultValue;
-  }
-
-  private Optional<String> getResolvedLookupKey() {
-    if (lookupKey == null) {
-      return Optional.empty();
-    } else {
-      return Optional.of(lookupKey);
-    }
-  }
-
-  private Map<String, String> getResolvedProperties() {
-    if (getProperties() == null) {
-      return ImmutableMap.of();
-    } else {
-      return getProperties();
-    }
   }
 }

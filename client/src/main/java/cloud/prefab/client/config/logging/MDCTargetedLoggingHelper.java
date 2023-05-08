@@ -51,9 +51,9 @@ public class MDCTargetedLoggingHelper {
   }
 
   /**
-   * Replaces the contents of the MDC context map until the context closes,
+   * Replaces the contents of the MDC context map until the returned TargetedLoggingContext closes,
    * then restores the MDC to original value. For use in try-with-resources blocks
-   * @param context the contents of MDC while callable is running
+   * @param context the contents of MDC while code in try-with-resources is running
    * @return an AutoClosable context object that will clean up the MDC on close
    */
   public static TargetedLoggingContext logWithExclusiveContext(

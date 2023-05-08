@@ -24,6 +24,10 @@ public class Match {
     return configValue;
   }
 
+  public ConfigElement getConfigElement() {
+    return configElement;
+  }
+
   public String getReason() {
     StringBuilder sb = new StringBuilder();
     evaluatedCriterion.forEach(ec -> {

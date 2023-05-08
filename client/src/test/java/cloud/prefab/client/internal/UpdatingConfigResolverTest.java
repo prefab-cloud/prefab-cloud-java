@@ -1,4 +1,4 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -7,6 +7,10 @@ import static org.mockito.Mockito.when;
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,7 +36,12 @@ public class UpdatingConfigResolverTest {
     when(mockLoader.calcConfig()).thenReturn(testData());
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
-    resolver = new UpdatingConfigResolver(mockBaseClient, mockLoader);
+    resolver =
+      new UpdatingConfigResolver(
+        mockLoader,
+        new WeightedValueEvaluator(),
+        new ConfigStoreDeltaCalculator()
+      );
   }
 
   @Test
@@ -165,35 +174,38 @@ public class UpdatingConfigResolverTest {
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectA"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectA"))
       ),
       "valueA"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB"))
       ),
       "valueB"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX"))
       ),
       "projectB.subprojectX"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX.subsubQ"))
+        singleValueLookupContext(
+          ConfigResolver.NAMESPACE_KEY,
+          sv("projectB.subprojectX.subsubQ")
+        )
       ),
       "projectB.subprojectX"
     );
     assertConfigValueStringIs(
       resolver.getConfigValue(
         "key1",
-        Map.of(ConfigResolver.NAMESPACE_KEY, sv("projectC"))
+        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectC"))
       ),
       "value_none"
     );
@@ -259,5 +271,15 @@ public class UpdatingConfigResolverTest {
       .setKey("key2")
       .addRows(rowWithStringValue("valueB2"))
       .build();
+  }
+
+  public static LookupContext singleValueLookupContext(
+    String propName,
+    Prefab.ConfigValue configValue
+  ) {
+    return new LookupContext(
+      Optional.empty(),
+      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
+    );
   }
 }

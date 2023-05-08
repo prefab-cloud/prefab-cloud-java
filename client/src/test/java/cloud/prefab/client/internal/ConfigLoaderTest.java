@@ -1,12 +1,13 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

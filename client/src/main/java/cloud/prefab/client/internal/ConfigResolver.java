@@ -1,15 +1,18 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigStore;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.ConfigValueUtils;
+import cloud.prefab.client.config.EvaluatedCriterion;
+import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,8 +24,7 @@ import org.slf4j.LoggerFactory;
 public class ConfigResolver {
 
   public static final String NAMESPACE_KEY = "NAMESPACE";
-  public static final String LOOKUP_KEY = "LOOKUP";
-
+  public static final String NEW_NAMESPACE_KEY = "prefab.namespace";
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
   private final ConfigStore configStore;
@@ -30,23 +32,44 @@ public class ConfigResolver {
 
   private long projectEnvId = 0;
 
-  public ConfigResolver(ConfigStore configStoreImpl) {
-    this(configStoreImpl, 0L);
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this(configStoreImpl, 0L, weightedValueEvaluator);
   }
 
-  public ConfigResolver(ConfigStore configStoreImpl, long projectEnvId) {
-    this.weightedValueEvaluator = new WeightedValueEvaluator();
+  public ConfigResolver(
+    ConfigStore configStoreImpl,
+    long projectEnvId,
+    WeightedValueEvaluator weightedValueEvaluator
+  ) {
+    this.weightedValueEvaluator = weightedValueEvaluator;
     this.projectEnvId = projectEnvId;
     this.configStore = configStoreImpl;
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {
-    return getConfigValue(key, new HashMap<>());
+    return getConfigValue(key, LookupContext.EMPTY);
   }
 
-  public Optional<Match> getMatch(
+  public Optional<Match> getMatch(String key, LookupContext lookupContext) {
+    final ConfigElement configElement = configStore.getElement(key);
+    if (configElement == null) {
+      // logging lookups generate a lot of misses so skip those
+      if (!key.startsWith(AbstractLoggingListener.LOG_LEVEL_PREFIX)) {
+        LOG.trace("No config value found for key {}", key);
+      }
+      return Optional.empty();
+    }
+
+    return evalConfigElementMatch(configElement, lookupContext);
+  }
+
+  private Optional<Match> getMatch(
     String key,
-    Map<String, Prefab.ConfigValue> properties
+    LookupContext lookupContext,
+    Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
     if (!configStore.containsKey(key)) {
       // logging lookups generate a lot of misses so skip those
@@ -57,14 +80,14 @@ public class ConfigResolver {
     }
     final ConfigElement configElement = configStore.getElement(key);
 
-    return evalConfigElementMatch(configElement, properties);
+    return evalConfigElementMatch(configElement, lookupContext, rowPropertiesStack);
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(
     String key,
-    Map<String, Prefab.ConfigValue> properties
+    LookupContext lookupContext
   ) {
-    return getMatch(key, properties).map(Match::getConfigValue);
+    return getMatch(key, lookupContext).map(Match::getConfigValue);
   }
 
   /**
@@ -81,43 +104,35 @@ public class ConfigResolver {
     return allValues.buildKeepingLast();
   }
 
-  /**
-   * find if we have a match for the given properties
-   *
-   * @param configElement
-   * @param properties
-   * @return
-   */
-  Optional<Match> evalConfigElementMatch(
+  private Optional<Match> evalConfigElementMatch(
     ConfigElement configElement,
-    Map<String, Prefab.ConfigValue> properties
+    LookupContext lookupContext,
+    Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
     // Prefer rows that have a projEnvId to ones that don't
     // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
+
     final Optional<Match> match = configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
-        Map<String, Prefab.ConfigValue> rowProperties = properties;
         if (!configRow.getPropertiesMap().isEmpty()) {
-          rowProperties =
-            Maps.newHashMapWithExpectedSize(
-              properties.size() + configRow.getPropertiesMap().size()
-            );
-          rowProperties.putAll(properties);
-          // Add row properties like "active"
-          rowProperties.putAll(configRow.getPropertiesMap());
+          rowPropertiesStack.push(configRow.getPropertiesMap());
         }
-
         // Return the value of the first matching set of criteria
         for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
           Optional<Match> optionalMatch = evaluateConditionalValue(
             conditionalValue,
-            rowProperties,
+            lookupContext,
+            rowPropertiesStack,
             configElement
           );
+
           if (optionalMatch.isPresent()) {
             return optionalMatch.get();
           }
+        }
+        if (!configRow.getPropertiesMap().isEmpty()) {
+          rowPropertiesStack.pop();
         }
         return null;
       })
@@ -125,6 +140,20 @@ public class ConfigResolver {
       .findFirst();
 
     return match;
+  }
+
+  /**
+   * find if we have a match for the given properties
+   *
+   * @param configElement
+   * @param lookupContext
+   * @return
+   */
+  Optional<Match> evalConfigElementMatch(
+    ConfigElement configElement,
+    LookupContext lookupContext
+  ) {
+    return evalConfigElementMatch(configElement, lookupContext, new LinkedList<>());
   }
 
   /**
@@ -137,26 +166,32 @@ public class ConfigResolver {
    */
   private Optional<Match> evaluateConditionalValue(
     Prefab.ConditionalValue conditionalValue,
-    Map<String, Prefab.ConfigValue> rowProperties,
+    LookupContext lookupContext,
+    Deque<Map<String, Prefab.ConfigValue>> rowProperties,
     ConfigElement configElement
   ) {
-    final List<EvaluatedCriterion> evaluatedCriterionStream = conditionalValue
-      .getCriteriaList()
-      .stream()
-      .flatMap(criterion -> evaluateCriterionMatch(criterion, rowProperties).stream())
-      .collect(Collectors.toList());
+    List<EvaluatedCriterion> evaluatedCriteria = new ArrayList<>();
 
-    if (evaluatedCriterionStream.stream().allMatch(EvaluatedCriterion::isMatch)) {
-      Prefab.ConfigValue simplified = simplify(
-        conditionalValue,
-        configElement.getConfig().getKey(),
+    for (Prefab.Criterion criterion : conditionalValue.getCriteriaList()) {
+      for (EvaluatedCriterion evaluateCriterion : evaluateCriterionMatch(
+        criterion,
+        lookupContext,
         rowProperties
-      );
-
-      return Optional.of(new Match(simplified, configElement, evaluatedCriterionStream));
-    } else {
-      return Optional.empty();
+      )) {
+        if (!evaluateCriterion.isMatch()) {
+          return Optional.empty();
+        }
+        evaluatedCriteria.add(evaluateCriterion);
+      }
     }
+
+    Prefab.ConfigValue simplified = simplify(
+      conditionalValue,
+      configElement.getConfig().getKey(),
+      lookupContext
+    );
+
+    return Optional.of(new Match(simplified, configElement, evaluatedCriteria));
   }
 
   /**
@@ -165,84 +200,70 @@ public class ConfigResolver {
   private Prefab.ConfigValue simplify(
     Prefab.ConditionalValue conditionalValue,
     String key,
-    Map<String, Prefab.ConfigValue> rowProperties
+    LookupContext lookupContext
   ) {
     if (conditionalValue.getValue().hasWeightedValues()) {
       return weightedValueEvaluator.toValue(
         conditionalValue.getValue().getWeightedValues(),
         key,
-        lookupKey(rowProperties)
+        lookupContext
       );
     } else {
       return conditionalValue.getValue();
     }
   }
 
-  private Optional<String> lookupKey(Map<String, Prefab.ConfigValue> attributes) {
-    if (attributes.containsKey(LOOKUP_KEY)) {
-      return Optional.of(attributes.get(LOOKUP_KEY).getString());
-    } else {
-      return Optional.empty();
-    }
-  }
-
   private Optional<Prefab.ConfigValue> prop(
     String key,
-    Map<String, Prefab.ConfigValue> attributes
+    LookupContext lookupContext,
+    Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
-    if (attributes.containsKey(key)) {
-      return Optional.of(attributes.get(key));
-    } else {
-      return Optional.empty();
+    for (Map<String, Prefab.ConfigValue> rowProperties : rowPropertiesStack) {
+      if (rowProperties.containsKey(key)) {
+        return Optional.of(rowProperties.get(key));
+      }
     }
+    Prefab.ConfigValue valueFromLookupContext = lookupContext
+      .getExpandedProperties()
+      .get(key);
+    if (valueFromLookupContext != null) {
+      return Optional.of(valueFromLookupContext);
+    }
+    return Optional.empty();
+  }
+
+  List<EvaluatedCriterion> evaluateCriterionMatch(
+    Prefab.Criterion criterion,
+    LookupContext lookupContext
+  ) {
+    return evaluateCriterionMatch(criterion, lookupContext, new LinkedList<>());
   }
 
   /**
    * Does this criterion match?
    *
    * @param criterion
-   * @param attributes
    * @return
    */
   List<EvaluatedCriterion> evaluateCriterionMatch(
     Prefab.Criterion criterion,
-    Map<String, Prefab.ConfigValue> attributes
+    LookupContext lookupContext,
+    Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
-    Optional<String> lookupKey = lookupKey(attributes);
     final Optional<Prefab.ConfigValue> prop = prop(
       criterion.getPropertyName(),
-      attributes
+      lookupContext,
+      rowPropertiesStack
     );
+    Optional<String> propStringValue = prop.flatMap(ConfigValueUtils::coerceToString);
 
     switch (criterion.getOperator()) {
       case ALWAYS_TRUE:
         return List.of(new EvaluatedCriterion(criterion, true));
-      case LOOKUP_KEY_IN:
-        if (!lookupKey.isPresent()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean match = criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), match));
-      case LOOKUP_KEY_NOT_IN:
-        if (!lookupKey.isPresent()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-        boolean notMatch = !criterion
-          .getValueToMatch()
-          .getStringList()
-          .getValuesList()
-          .contains(lookupKey.get());
-        return List.of(new EvaluatedCriterion(criterion, lookupKey.get(), notMatch));
       case HIERARCHICAL_MATCH:
         if (prop.isPresent()) {
           if (prop.get().hasString() && criterion.getValueToMatch().hasString()) {
-            final String propertyString = attributes
-              .get(criterion.getPropertyName())
-              .getString();
+            final String propertyString = prop.get().getString();
             return List.of(
               new EvaluatedCriterion(
                 criterion,
@@ -259,7 +280,8 @@ public class ConfigResolver {
       case IN_SEG:
         final Optional<Match> evaluatedSegment = getMatch(
           criterion.getValueToMatch().getString(),
-          attributes
+          lookupContext,
+          rowPropertiesStack
         );
 
         if (
@@ -280,7 +302,7 @@ public class ConfigResolver {
       case NOT_IN_SEG:
         final Optional<Prefab.ConfigValue> evaluatedNotSegment = getConfigValue(
           criterion.getValueToMatch().getString(),
-          attributes
+          lookupContext
         );
 
         if (evaluatedNotSegment.isPresent() && evaluatedNotSegment.get().hasBool()) {
@@ -301,34 +323,35 @@ public class ConfigResolver {
           );
         }
       case PROP_IS_ONE_OF:
-        if (!prop.isPresent()) {
+        if (!propStringValue.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
         // assumption that property is a String
         return List.of(
           new EvaluatedCriterion(
             criterion,
-            prop.get().getString(),
+            propStringValue.get(),
             criterion
               .getValueToMatch()
               .getStringList()
               .getValuesList()
-              .contains(prop.get().getString())
+              .contains(propStringValue.get())
           )
         );
       case PROP_IS_NOT_ONE_OF:
-        if (!prop.isPresent()) {
+        if (!propStringValue.isPresent()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
+
         return List.of(
           new EvaluatedCriterion(
             criterion,
-            prop.get().getString(),
+            propStringValue.get(),
             !criterion
               .getValueToMatch()
               .getStringList()
               .getValuesList()
-              .contains(prop.get().getString())
+              .contains(propStringValue.get())
           )
         );
       case PROP_ENDS_WITH_ONE_OF:
@@ -357,6 +380,12 @@ public class ConfigResolver {
         } else {
           return List.of(new EvaluatedCriterion(criterion, true));
         }
+      default:
+        LOG.debug(
+          "Unexpected operator {} found in criterion {}",
+          criterion.getOperator(),
+          criterion
+        );
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
@@ -386,19 +415,33 @@ public class ConfigResolver {
     return configStore.getKeys();
   }
 
+  public Collection<String> getKeysOfConfigType(Prefab.ConfigType configType) {
+    return configStore
+      .getElements()
+      .stream()
+      .map(ConfigElement::getConfig)
+      .filter(config -> config.getConfigType() == configType)
+      .map(Prefab.Config::getKey)
+      .collect(Collectors.toList());
+  }
+
+  public ConfigElement getRaw(String key) {
+    return configStore.getElement(key);
+  }
+
   public boolean containsKey(String key) {
     return configStore.containsKey(key);
   }
 
   public String contentsString() {
-    StringBuilder sb = new StringBuilder("");
+    StringBuilder sb = new StringBuilder();
     List<String> sortedKeys = new ArrayList(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
       final Optional<Match> match = evalConfigElementMatch(
         configElement,
-        new HashMap<>()
+        LookupContext.EMPTY
       );
       if (match.isPresent()) {
         sb.append(padded(key, 45));

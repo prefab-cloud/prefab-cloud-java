@@ -11,7 +11,7 @@ public class PrefabCloudClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(PrefabCloudClient.class);
 
   private final Options options;
-  private ConfigClient configClient;
+  private ConfigClientImpl configClient;
   private FeatureFlagClient featureFlagClient;
   private final AtomicBoolean closed;
 
@@ -31,6 +31,10 @@ public class PrefabCloudClient implements AutoCloseable {
   }
 
   public ConfigClient configClient() {
+    return configClientImpl();
+  }
+
+  private ConfigClientImpl configClientImpl() {
     if (configClient == null) {
       synchronized (this) {
         if (configClient == null) {
@@ -45,7 +49,7 @@ public class PrefabCloudClient implements AutoCloseable {
     if (featureFlagClient == null) {
       synchronized (this) {
         if (featureFlagClient == null) {
-          featureFlagClient = new FeatureFlagClientImpl(configClient());
+          featureFlagClient = new FeatureFlagClientImpl(configClientImpl());
         }
       }
     }

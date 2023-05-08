@@ -1,99 +1,57 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.client.FeatureFlagClient;
-import cloud.prefab.client.config.ConfigLoader;
-import cloud.prefab.client.config.ConfigResolver;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClient {
 
+  /**
+   * Evaluate the given feature using the context loaded by Options.setConfigSupplier
+   * @param feature
+   * @return
+   */
   @Override
   public boolean featureIsOn(String feature) {
-    return featureIsOnFor(feature, Optional.empty(), ImmutableMap.of());
-  }
-
-  @Override
-  public boolean featureIsOnFor(String feature, String lookupKey) {
-    return isOn(get(feature, Optional.of(lookupKey), ImmutableMap.of()));
+    return isOn(get(feature));
   }
 
   /**
-   * Simplified method for boolean flags. Returns false if flag is not defined.
-   *
+   * Evaluate the named feature using the provided context
    * @param feature
-   * @param lookupKey
-   * @param attributes
    * @return
    */
   @Override
-  public boolean featureIsOnFor(
+  public boolean featureIsOn(
     String feature,
-    String lookupKey,
-    Map<String, ? extends Object> attributes
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
-    return featureIsOnFor(feature, Optional.of(lookupKey), attributes);
-  }
-
-  @Override
-  public boolean featureIsOnFor(
-    String feature,
-    Optional<String> lookupKey,
-    Map<String, ? extends Object> attributes
-  ) {
-    return isOn(get(feature, lookupKey, attributes));
+    return isOn(get(feature, prefabContext));
   }
 
   /**
-   * Fetch a feature flag and evaluate
-   *
+   * Return the feature flag config value for the given feature using the context loaded by Options.setConfigSupplier
    * @param feature
-   * @param lookupKey
-   * @param properties
    * @return
    */
+  @Override
+  public Optional<Prefab.ConfigValue> get(String feature) {
+    return getConfigValue(feature, null);
+  }
+
   @Override
   public Optional<Prefab.ConfigValue> get(
     String feature,
-    Optional<String> lookupKey,
-    Map<String, ? extends Object> properties
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
-    return getFrom(
-      feature,
-      lookupKey,
-      properties
-        .entrySet()
-        .stream()
-        .collect(
-          Collectors.toMap(
-            Map.Entry::getKey,
-            e -> ConfigLoader.configValueFromObj(feature, e.getValue())
-          )
-        )
-    );
-  }
-
-  @Override
-  public Optional<Prefab.ConfigValue> getFrom(
-    String feature,
-    Optional<String> lookupKey,
-    Map<String, Prefab.ConfigValue> attributes
-  ) {
-    if (lookupKey.isPresent()) {
-      attributes.put(
-        ConfigResolver.LOOKUP_KEY,
-        Prefab.ConfigValue.newBuilder().setString(lookupKey.get()).build()
-      );
-    }
-    return getConfigValue(feature, attributes);
+    return getConfigValue(feature, prefabContext);
   }
 
   protected abstract Optional<Prefab.ConfigValue> getConfigValue(
     String feature,
-    Map<String, Prefab.ConfigValue> attributes
+    @Nullable PrefabContextSetReadable prefabContext
   );
 
   private boolean isOn(Optional<Prefab.ConfigValue> featureFlagVariant) {
@@ -101,7 +59,6 @@ public abstract class AbstractFeatureFlagResolverImpl implements FeatureFlagClie
       if (featureFlagVariant.get().hasBool()) {
         return featureFlagVariant.get().getBool();
       } else {
-        // TODO log
         return false;
       }
     } else {

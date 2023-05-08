@@ -1,5 +1,5 @@
 # prefab-cloud-java
-Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
+Java (11+) Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
@@ -9,7 +9,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.7</version>
+    <version>0.3.8</version>
 </dependency>
 ```
 
@@ -21,6 +21,13 @@ Live log levels with log4j or logback require additional maven dependencies.
 * [Log4J (one)](../log4j-one-listener/README.md)
 * [Log4j (two)](../log4j-two-listener/README.md)
 * [LogBack](../logback-listener/README.md)
+
+
+## Container Support
+
+ThreadLocal context state management handles many containers. For event-based containers where ThreadLocals are harder to manage, we have container-specific modules to support tying ContextState to the request scope
+
+* [Micronaut](../micronaut/README.md)
 
 
 ## Contributing to prefab-cloud-java

@@ -1,36 +1,44 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
-import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.config.ConfigChangeEvent;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UpdatingConfigResolver {
 
-  private final ConfigLoader configLoader;
+  private static final Logger LOG = LoggerFactory.getLogger(UpdatingConfigResolver.class);
 
-  private final PrefabCloudClient baseClient;
+  private final ConfigLoader configLoader;
+  private final ConfigStoreDeltaCalculator configStoreDeltaCalculator;
+
   private final ConfigStoreImpl configStore;
   private ConfigResolver configResolver;
 
-  public UpdatingConfigResolver(PrefabCloudClient baseClient, ConfigLoader configLoader) {
-    this.baseClient = baseClient;
+  public UpdatingConfigResolver(
+    ConfigLoader configLoader,
+    WeightedValueEvaluator weightedValueEvaluator,
+    ConfigStoreDeltaCalculator configStoreDeltaCalculator
+  ) {
     this.configLoader = configLoader;
+    this.configStoreDeltaCalculator = configStoreDeltaCalculator;
     this.configStore = new ConfigStoreImpl();
-    this.configResolver = new ConfigResolver(configStore);
+    this.configResolver = new ConfigResolver(configStore, weightedValueEvaluator);
   }
 
   /**
    * Return the changed config values since last update()
    */
-  public synchronized List<ConfigChangeEvent> update() {
+  public List<ConfigChangeEvent> update() {
     // store the old map
     final Map<String, Optional<Prefab.ConfigValue>> before = configStore
       .entrySet()
@@ -56,39 +64,41 @@ public class UpdatingConfigResolver {
         )
       );
 
-    MapDifference<String, Optional<Prefab.ConfigValue>> delta = Maps.difference(
-      before,
-      after
-    );
-    if (delta.areEqual()) {
-      return ImmutableList.of();
+    return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  }
+
+  public long getHighwaterMark() {
+    return configLoader.getHighwaterMark();
+  }
+
+  public synchronized void loadConfigs(
+    Prefab.Configs configs,
+    ConfigClient.Source source
+  ) {
+    setProjectEnvId(configs);
+
+    final long startingHighWaterMark = configLoader.getHighwaterMark();
+    Provenance provenance = new Provenance(source);
+
+    for (Prefab.Config config : configs.getConfigsList()) {
+      configLoader.set(new ConfigElement(config, provenance));
+    }
+
+    if (configLoader.getHighwaterMark() > startingHighWaterMark) {
+      LOG.info(
+        "Found new checkpoint with highwater id {} from {} in project {} environment: {} with {} configs",
+        configLoader.getHighwaterMark(),
+        provenance,
+        configs.getConfigServicePointer().getProjectId(),
+        configs.getConfigServicePointer().getProjectEnvId(),
+        configs.getConfigsCount()
+      );
     } else {
-      ImmutableList.Builder<ConfigChangeEvent> changeEvents = ImmutableList.builder();
-
-      // removed config values
-      delta
-        .entriesOnlyOnLeft()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, value, Optional.empty()))
-        );
-
-      // added config values
-      delta
-        .entriesOnlyOnRight()
-        .forEach((key, value) ->
-          changeEvents.add(new ConfigChangeEvent(key, Optional.empty(), value))
-        );
-
-      // changed config values
-      delta
-        .entriesDiffering()
-        .forEach((key, values) ->
-          changeEvents.add(
-            new ConfigChangeEvent(key, values.leftValue(), values.rightValue())
-          )
-        );
-
-      return changeEvents.build();
+      LOG.debug(
+        "Checkpoint with highwater with highwater id {} from {}. No changes.",
+        configLoader.getHighwaterMark(),
+        provenance.getSource()
+      );
     }
   }
 
@@ -125,9 +135,9 @@ public class UpdatingConfigResolver {
 
   public Optional<Prefab.ConfigValue> getConfigValue(
     String key,
-    Map<String, Prefab.ConfigValue> properties
+    LookupContext lookupContext
   ) {
-    return configResolver.getConfigValue(key, properties);
+    return configResolver.getConfigValue(key, lookupContext);
   }
 
   public Optional<Prefab.ConfigValue> getConfigValue(String key) {

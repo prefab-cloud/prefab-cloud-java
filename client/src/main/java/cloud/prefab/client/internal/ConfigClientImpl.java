@@ -1,40 +1,34 @@
 package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.config.ConfigResolver.NAMESPACE_KEY;
-
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
-import cloud.prefab.client.config.ConfigElement;
-import cloud.prefab.client.config.ConfigLoader;
-import cloud.prefab.client.config.ConfigResolver;
-import cloud.prefab.client.config.Provenance;
-import cloud.prefab.client.config.UpdatingConfigResolver;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.Value;
+import cloud.prefab.context.ContextStore;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +43,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +64,6 @@ public class ConfigClientImpl implements ConfigClient {
   private final Options options;
 
   private final UpdatingConfigResolver updatingConfigResolver;
-  private final ConfigLoader configLoader;
 
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
@@ -83,22 +78,36 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final PrefabHttpClient prefabHttpClient;
 
-  @Override
-  public ConfigResolver getResolver() {
-    return updatingConfigResolver.getResolver();
-  }
+  private final ContextStore contextStore;
 
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
     ConfigChangeListener... listeners
   ) {
+    this(
+      baseClient,
+      new UpdatingConfigResolver(
+        new ConfigLoader(baseClient.getOptions()),
+        new WeightedValueEvaluator(),
+        new ConfigStoreDeltaCalculator()
+      ),
+      listeners
+    );
+  }
+
+  @VisibleForTesting
+  ConfigClientImpl(
+    PrefabCloudClient baseClient,
+    UpdatingConfigResolver updatingConfigResolver,
+    ConfigChangeListener... listeners
+  ) {
     this.uniqueClientId = UUID.randomUUID().toString();
     this.options = baseClient.getOptions();
-    configLoader = new ConfigLoader(options);
-    updatingConfigResolver = new UpdatingConfigResolver(baseClient, configLoader);
+    this.updatingConfigResolver = updatingConfigResolver;
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
+    configChangeListeners.addAll(baseClient.getOptions().getChangeListeners());
     configChangeListeners.addAll(Arrays.asList(listeners));
     namespaceMaybe =
       baseClient
@@ -106,6 +115,7 @@ public class ConfigClientImpl implements ConfigClient {
         .getNamespace()
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
+    contextStore = options.getContextStore();
     if (options.isLocalOnly() || !options.isReportLogStats()) {
       loggerStatsAggregator = null;
     } else {
@@ -114,30 +124,24 @@ public class ConfigClientImpl implements ConfigClient {
       startLogStatsUploadExecutor();
     }
 
-    HttpClient httpClient;
-    ConnectivityTester connectivityTester;
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
-      httpClient = null;
-      connectivityTester = null;
       prefabHttpClient = null;
     } else {
-      httpClient =
-        HttpClient
-          .newBuilder()
-          .executor(
-            MoreExecutors.getExitingExecutorService(
-              (ThreadPoolExecutor) Executors.newCachedThreadPool(
-                new ThreadFactoryBuilder()
-                  .setDaemon(true)
-                  .setNameFormat("prefab-http-client-pooled-thread-%d")
-                  .build()
-              )
+      HttpClient httpClient = HttpClient
+        .newBuilder()
+        .executor(
+          MoreExecutors.getExitingExecutorService(
+            (ThreadPoolExecutor) Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("prefab-http-client-pooled-thread-%d")
+                .build()
             )
           )
-          .build();
-
-      connectivityTester = new ConnectivityTester(httpClient, options);
+        )
+        .build();
+      ConnectivityTester connectivityTester = new ConnectivityTester(httpClient, options);
       connectivityTester.testHttps();
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
@@ -167,43 +171,58 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Optional<Prefab.ConfigValue> get(String key) {
-    return get(key, Collections.emptyMap());
+    return get(key, (PrefabContextSetReadable) null);
   }
 
   @Override
   public Optional<Prefab.ConfigValue> get(
-    String key,
+    String configKey,
     Map<String, Prefab.ConfigValue> properties
   ) {
-    try {
-      if (
-        !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
-      ) {
-        if (
-          options.getOnInitializationFailure() == Options.OnInitializationFailure.UNLOCK
-        ) {
-          finishInit(Source.INIT_TIMEOUT);
-        } else {
-          throw new PrefabInitializationTimeoutException(
-            options.getInitializationTimeoutSec()
-          );
-        }
-      }
-      if (!updatingConfigResolver.containsKey(key)) {
-        return Optional.empty();
-      }
-      HashMap<String, Prefab.ConfigValue> mutableProperties = Maps.newHashMapWithExpectedSize(
-        properties.size() + (namespaceMaybe.isPresent() ? 1 : 0)
-      );
-      mutableProperties.putAll(properties);
-      namespaceMaybe.ifPresent(namespace ->
-        mutableProperties.put(NAMESPACE_KEY, namespace)
-      );
+    return get(configKey, PrefabContext.unnamedFromMap(properties));
+  }
 
-      return updatingConfigResolver.getConfigValue(key, mutableProperties);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+  @Override
+  public Optional<Prefab.ConfigValue> get(
+    String configKey,
+    @Nullable PrefabContextSetReadable prefabContext
+  ) {
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
+    );
+
+    return getInternal(configKey, lookupContext);
+  }
+
+  @Override
+  public Map<String, Prefab.ConfigValue> getAll(
+    @Nullable PrefabContextSetReadable prefabContext
+  ) {
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
+    );
+    ImmutableMap.Builder<String, Prefab.ConfigValue> bldr = ImmutableMap.builder();
+    for (String key : getAllKeys()) {
+      updatingConfigResolver
+        .getConfigValue(key, lookupContext)
+        .ifPresent(configValue -> bldr.put(key, configValue));
     }
+    return bldr.build();
+  }
+
+  @Override
+  public Collection<String> getAllKeys() {
+    return updatingConfigResolver.getResolver().getKeys();
+  }
+
+  private Optional<Prefab.ConfigValue> getInternal(
+    String configKey,
+    LookupContext lookupContext
+  ) {
+    waitForInitialization();
+    return updatingConfigResolver.getConfigValue(configKey, lookupContext);
   }
 
   @Override
@@ -224,13 +243,22 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   @Override
+  public Optional<Prefab.LogLevel> getLogLevel(String loggerName) {
+    return getLogLevel(loggerName, null);
+  }
+
+  @Override
   public Optional<Prefab.LogLevel> getLogLevel(
     String loggerName,
-    Map<String, Prefab.ConfigValue> properties
+    @Nullable PrefabContextSetReadable prefabContext
   ) {
+    LookupContext lookupContext = new LookupContext(
+      namespaceMaybe,
+      resolveContext(prefabContext)
+    );
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
-      Optional<Prefab.LogLevel> logLevelMaybe = get(configKey, properties)
+      Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)
         .filter(Prefab.ConfigValue::hasLogLevel)
         .map(Prefab.ConfigValue::getLogLevel);
       if (logLevelMaybe.isPresent()) {
@@ -240,31 +268,44 @@ public class ConfigClientImpl implements ConfigClient {
     return Optional.empty();
   }
 
-  @Override
-  public Optional<Prefab.LogLevel> getLogLevelFromStringMap(
-    String loggerName,
-    Map<String, String> properties
+  private PrefabContextSetReadable resolveContext(
+    @Nullable PrefabContextSetReadable prefabContextSetReadable
   ) {
-    Map<String, Prefab.ConfigValue> map;
+    Optional<PrefabContextSetReadable> newContext = Optional
+      .ofNullable(prefabContextSetReadable)
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
 
-    if (properties.isEmpty()) {
-      map = Collections.emptyMap();
+    Optional<PrefabContextSetReadable> existingContext = getContextStore()
+      .getContext()
+      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
+
+    if (newContext.isEmpty()) {
+      return existingContext.orElse(PrefabContextSetReadable.EMPTY);
     } else {
-      ImmutableMap.Builder<String, Prefab.ConfigValue> mapBuilder = ImmutableMap.builder();
-      for (Map.Entry<String, String> entry : properties.entrySet()) {
-        mapBuilder.put(
-          entry.getKey(),
-          Prefab.ConfigValue.newBuilder().setString(entry.getValue()).build()
-        );
+      if (existingContext.isEmpty()) {
+        return newContext.get();
+      } else {
+        // do the merge
+        PrefabContextSet prefabContextSet = new PrefabContextSet();
+        for (PrefabContext context : existingContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        for (PrefabContext context : newContext.get().getContexts()) {
+          prefabContextSet.addContext(context);
+        }
+        return prefabContextSet;
       }
-      map = mapBuilder.build();
     }
-    return getLogLevel(loggerName, map);
   }
 
   @Override
   public boolean isReady() {
     return initializedLatch.getCount() == 0;
+  }
+
+  @Override
+  public ContextStore getContextStore() {
+    return contextStore;
   }
 
   private Iterator<String> loggerNameLookupIterator(String loggerName) {
@@ -282,18 +323,23 @@ public class ConfigClientImpl implements ConfigClient {
           throw new NoSuchElementException();
         }
         String currentValue = nextValue;
-        nextValue =
-          loggerNameLookup.computeIfAbsent(
-            currentValue,
-            k -> {
-              int lastDotIndex = nextValue.lastIndexOf('.');
-              if (lastDotIndex > 0) {
-                return nextValue.substring(0, lastDotIndex);
-              } else {
-                return null;
+        String temp = loggerNameLookup.get(currentValue);
+        if (temp == null) {
+          nextValue =
+            loggerNameLookup.computeIfAbsent(
+              currentValue,
+              k -> {
+                int lastDotIndex = nextValue.lastIndexOf('.');
+                if (lastDotIndex > 0) {
+                  return nextValue.substring(0, lastDotIndex);
+                } else {
+                  return null;
+                }
               }
-            }
-          );
+            );
+        } else {
+          nextValue = temp;
+        }
         return currentValue;
       }
     };
@@ -353,43 +399,6 @@ public class ConfigClientImpl implements ConfigClient {
     return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
   }
 
-  private boolean loadCheckpointFromUrl(String url, Source source) {
-    LOG.debug("Loading {} from  {}", source, url);
-    try {
-      HttpRequest request = HttpRequest
-        .newBuilder()
-        .GET()
-        .uri(new URI(url))
-        .header(
-          "Authorization",
-          getBasicAuthenticationHeader(AUTH_USER, options.getApikey())
-        )
-        .build();
-
-      HttpClient client = HttpClient.newHttpClient();
-      HttpResponse<byte[]> response = client.send(
-        request,
-        HttpResponse.BodyHandlers.ofByteArray()
-      );
-
-      if (response.statusCode() != 200) {
-        LOG.warn("Problem loading {} {} {}", source, response.statusCode(), url);
-      } else {
-        Prefab.Configs configs = Prefab.Configs.parseFrom(response.body());
-        loadConfigs(configs, source);
-        return true;
-      }
-    } catch (Exception e) {
-      LOG.warn(
-        "Unexpected issue with loading {} via {} (stack trace available at DEBUG)",
-        source,
-        url
-      );
-      LOG.debug("Unexpected issue with loading {} via {}", source, url, e);
-    }
-    return false;
-  }
-
   private ScheduledExecutorService startStreamingExecutor() {
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(
       1,
@@ -409,7 +418,7 @@ public class ConfigClientImpl implements ConfigClient {
     LOG.info("Starting SSE config subscriber");
     SseConfigStreamingSubscriber sseConfigStreamingSubscriber = new SseConfigStreamingSubscriber(
       prefabHttpClient,
-      () -> configLoader.getHighwaterMark(),
+      updatingConfigResolver::getHighwaterMark,
       configs -> loadConfigs(configs, Source.STREAMING),
       scheduledExecutorService
     );
@@ -496,44 +505,20 @@ public class ConfigClientImpl implements ConfigClient {
       LOG.info(
         "Initialized Prefab from {} at highwater {} with currently known configs\n {}",
         source,
-        configLoader.getHighwaterMark(),
+        updatingConfigResolver.getHighwaterMark(),
         updatingConfigResolver.contentsString()
       );
     }
   }
 
-  private void loadConfigs(Prefab.Configs configs, Source source) {
+  private synchronized void loadConfigs(Prefab.Configs configs, Source source) {
     LOG.debug(
       "Loading {} configs from {} pointer {}",
       configs.getConfigsCount(),
       source,
       configs.hasConfigServicePointer()
     );
-    updatingConfigResolver.setProjectEnvId(configs);
-
-    final long startingHighWaterMark = configLoader.getHighwaterMark();
-
-    for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(new ConfigElement(config, new Provenance(source)));
-    }
-
-    if (configLoader.getHighwaterMark() > startingHighWaterMark) {
-      LOG.info(
-        "Found new checkpoint with highwater id {} from {} in project {} environment: {} and namespace: '{}' with {} configs",
-        configLoader.getHighwaterMark(),
-        source,
-        configs.getConfigServicePointer().getProjectId(),
-        configs.getConfigServicePointer().getProjectEnvId(),
-        options.getNamespace(),
-        configs.getConfigsCount()
-      );
-    } else {
-      LOG.debug(
-        "Checkpoint with highwater with highwater id {} from {}. No changes.",
-        configLoader.getHighwaterMark(),
-        source
-      );
-    }
+    updatingConfigResolver.loadConfigs(configs, source);
 
     finishInit(source);
   }
@@ -546,6 +531,26 @@ public class ConfigClientImpl implements ConfigClient {
         LOG.debug("Broadcasting change {} to {}", changeEvent, listener);
         listener.onChange(changeEvent);
       }
+    }
+  }
+
+  private void waitForInitialization() {
+    try {
+      if (
+        !initializedLatch.await(options.getInitializationTimeoutSec(), TimeUnit.SECONDS)
+      ) {
+        if (
+          options.getOnInitializationFailure() == Options.OnInitializationFailure.UNLOCK
+        ) {
+          finishInit(Source.INIT_TIMEOUT);
+        } else {
+          throw new PrefabInitializationTimeoutException(
+            options.getInitializationTimeoutSec()
+          );
+        }
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
     }
   }
 }

@@ -1,7 +1,9 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
@@ -12,7 +14,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

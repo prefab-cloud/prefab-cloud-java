@@ -1,14 +1,19 @@
-package cloud.prefab.client.config;
+package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import cloud.prefab.client.internal.ConfigClientImpl;
+import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.EvaluatedCriterion;
+import cloud.prefab.client.config.Provenance;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import org.checkerframework.checker.units.qual.C;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +25,7 @@ public class ConfigResolverTest {
 
   @BeforeEach
   public void setup() {
-    resolver = new ConfigResolver(mockConfigStoreImpl);
+    resolver = new ConfigResolver(mockConfigStoreImpl, new WeightedValueEvaluator());
   }
 
   @Test
@@ -30,161 +35,6 @@ public class ConfigResolverTest {
     assertThat(resolver.hierarchicalMatch("a.b.c.d.e", "a.b.c")).isEqualTo(true);
     assertThat(resolver.hierarchicalMatch("a.z.c", "a.b.c")).isEqualTo(false);
     assertThat(resolver.hierarchicalMatch("a.b", "a")).isEqualTo(true);
-  }
-
-  @Test
-  public void testPct() {
-    Prefab.Config flag = getTrueFalseConfig(500, 500);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-  }
-
-  @Test
-  public void testOff() {
-    Prefab.Config flag = getTrueFalseConfig(0, 1000);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
-  }
-
-  @Test
-  public void testOn() {
-    Prefab.Config flag = getTrueFalseConfig(1000, 0);
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("very high hash").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-
-    assertThat(
-      resolver
-        .evalConfigElementMatch(
-          new ConfigElement(
-            flag,
-            new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-          ),
-          Map.of(
-            ConfigResolver.LOOKUP_KEY,
-            Prefab.ConfigValue.newBuilder().setString("hashes low").build()
-          )
-        )
-        .get()
-        .getConfigValue()
-    )
-      .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(true).build());
-  }
-
-  private static Prefab.Config getTrueFalseConfig(int trueWeight, int falseWeight) {
-    Prefab.WeightedValues wvs = Prefab.WeightedValues
-      .newBuilder()
-      .addWeightedValues(
-        Prefab.WeightedValue
-          .newBuilder()
-          .setWeight(trueWeight)
-          .setValue(Prefab.ConfigValue.newBuilder().setBool(true).build())
-          .build()
-      )
-      .addWeightedValues(
-        Prefab.WeightedValue
-          .newBuilder()
-          .setWeight(falseWeight)
-          .setValue(Prefab.ConfigValue.newBuilder().setBool(false).build())
-          .build()
-      )
-      .build();
-
-    Prefab.Config flag = Prefab.Config
-      .newBuilder()
-      .setKey("FlagName")
-      .addAllowableValues(Prefab.ConfigValue.newBuilder().setBool(true))
-      .addAllowableValues(Prefab.ConfigValue.newBuilder().setBool(false))
-      .addRows(
-        Prefab.ConfigRow
-          .newBuilder()
-          .addValues(
-            Prefab.ConditionalValue
-              .newBuilder()
-              .setValue(Prefab.ConfigValue.newBuilder().setWeightedValues(wvs))
-              .build()
-          )
-      )
-      .build();
-    return flag;
   }
 
   @Test
@@ -209,7 +59,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion bobEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("bob@example.com"))
+        singleValueLookupContext("email", sv("bob@example.com"))
       )
       .stream()
       .findFirst()
@@ -221,7 +71,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion yahooEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@yahoo.com"))
+        singleValueLookupContext("email", sv("alice@yahoo.com"))
       )
       .stream()
       .findFirst()
@@ -233,7 +83,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion gmailEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@gmail.com"))
+        singleValueLookupContext("email", sv("alice@gmail.com"))
       )
       .stream()
       .findFirst()
@@ -265,7 +115,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion bobEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("bob@example.com"))
+        singleValueLookupContext("email", sv("bob@example.com"))
       )
       .stream()
       .findFirst()
@@ -277,7 +127,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion yahooEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@yahoo.com"))
+        singleValueLookupContext("email", sv("alice@yahoo.com"))
       )
       .stream()
       .findFirst()
@@ -289,7 +139,7 @@ public class ConfigResolverTest {
     final EvaluatedCriterion gmailEval = resolver
       .evaluateCriterionMatch(
         socialEmailCritieria,
-        ImmutableMap.of("email", sv("alice@gmail.com"))
+        singleValueLookupContext("email", sv("alice@gmail.com"))
       )
       .stream()
       .findFirst()
@@ -311,7 +161,10 @@ public class ConfigResolverTest {
       .build();
 
     final EvaluatedCriterion betaEval = resolver
-      .evaluateCriterionMatch(segmentCriteria, ImmutableMap.of("group", sv("beta")))
+      .evaluateCriterionMatch(
+        segmentCriteria,
+        singleValueLookupContext("group", sv("beta"))
+      )
       .stream()
       .findFirst()
       .get();
@@ -319,11 +172,127 @@ public class ConfigResolverTest {
     assertThat(betaEval.isMatch()).isTrue();
     final List<EvaluatedCriterion> alphaEval = resolver.evaluateCriterionMatch(
       segmentCriteria,
-      ImmutableMap.of("group", sv("alpha"))
+      singleValueLookupContext("group", sv("alpha"))
     );
     System.out.println(alphaEval);
     assertThat(alphaEval).hasSize(1);
     assertThat(alphaEval.get(0).isMatch()).isFalse();
+  }
+
+  @Test
+  public void testIntInStringListMatches() {
+    final Prefab.Criterion numberCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("number")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+      .build();
+
+    final EvaluatedCriterion positiveEval = resolver
+      .evaluateCriterionMatch(
+        numberCriterion,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(10).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(positiveEval.isMatch()).isTrue();
+    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
+
+    final EvaluatedCriterion negativeEval = resolver
+      .evaluateCriterionMatch(
+        numberCriterion,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(13).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(negativeEval.isMatch()).isFalse();
+    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
+  }
+
+  @Test
+  public void testIntNotInStringListMatches() {
+    final Prefab.Criterion numberCriteria = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("number")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_NOT_ONE_OF)
+      .build();
+
+    final EvaluatedCriterion positiveEval = resolver
+      .evaluateCriterionMatch(
+        numberCriteria,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(13).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(positiveEval.isMatch()).isTrue();
+    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
+
+    final EvaluatedCriterion negativeEval = resolver
+      .evaluateCriterionMatch(
+        numberCriteria,
+        singleValueLookupContext(
+          "number",
+          Prefab.ConfigValue.newBuilder().setInt(10).build()
+        )
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(negativeEval.isMatch()).isFalse();
+    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
+  }
+
+  @Test
+  void itFiltersKeysByConfigType() {
+    ConfigElement configTypedElement = new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .setConfigType(Prefab.ConfigType.CONFIG)
+        .setKey("key1")
+        .buildPartial(),
+      new Provenance(ConfigClient.Source.STREAMING)
+    );
+    ConfigElement featureFlagTypedElement = new ConfigElement(
+      Prefab.Config
+        .newBuilder()
+        .setConfigType(Prefab.ConfigType.FEATURE_FLAG)
+        .setKey("key2")
+        .buildPartial(),
+      new Provenance(ConfigClient.Source.STREAMING)
+    );
+
+    when(mockConfigStoreImpl.getElements())
+      .thenReturn(List.of(configTypedElement, featureFlagTypedElement));
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.CONFIG))
+      .containsExactlyInAnyOrder("key1");
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.FEATURE_FLAG))
+      .containsExactlyInAnyOrder("key2");
+    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.SEGMENT)).isEmpty();
   }
 
   private Prefab.ConfigValue sv(String s) {
@@ -368,6 +337,16 @@ public class ConfigResolverTest {
     return new ConfigElement(
       segment,
       new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
+    );
+  }
+
+  public static LookupContext singleValueLookupContext(
+    String propName,
+    Prefab.ConfigValue configValue
+  ) {
+    return new LookupContext(
+      Optional.empty(),
+      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
     );
   }
 }

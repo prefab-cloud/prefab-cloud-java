@@ -1,36 +1,39 @@
 package cloud.prefab.client;
 
-import cloud.prefab.client.util.RandomProviderIF;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import java.util.Map;
 import java.util.Optional;
 
 public interface FeatureFlagClient {
+  /**
+   * Evaluate the given feature using the context loaded from the ContextStore
+   * @param feature
+   * @return
+   */
   boolean featureIsOn(String feature);
+  /**
+   * Evaluate the named feature using the provided context comined with the context loaded from the ContextStore
+   * @param feature
+   * @param prefabContext the context to use for feature evaluation
+   * @return
+   */
+  boolean featureIsOn(String feature, PrefabContextSetReadable prefabContext);
 
-  boolean featureIsOnFor(String feature, String lookupKey);
+  /**
+   * Return the feature flag config value for the given feature using the context loaded from the ContextStore
+   * @param feature
+   * @return
+   */
+  Optional<Prefab.ConfigValue> get(String feature);
 
-  boolean featureIsOnFor(
-    String feature,
-    String lookupKey,
-    Map<String, ? extends Object> attributes
-  );
-
-  boolean featureIsOnFor(
-    String feature,
-    Optional<String> lookupKey,
-    Map<String, ? extends Object> attributes
-  );
-
+  /**
+   * Return the feature flag config value for the given feature using the provided context combined with the one loaded from the ContextStore
+   * @param feature
+   * @param prefabContext the context to use for feature evaluation
+   * @return
+   */
   Optional<Prefab.ConfigValue> get(
     String feature,
-    Optional<String> lookupKey,
-    Map<String, ? extends Object> properties
-  );
-
-  Optional<Prefab.ConfigValue> getFrom(
-    String feature,
-    Optional<String> lookupKey,
-    Map<String, Prefab.ConfigValue> attributes
+    PrefabContextSetReadable prefabContext
   );
 }
