@@ -57,4 +57,27 @@ public class ConfigValueUtils {
         return Optional.empty();
     }
   }
+
+  public static Optional<Object> asObject(Prefab.ConfigValue configValue) {
+    switch (configValue.getTypeCase()) {
+      case STRING:
+        return Optional.of(configValue.getString());
+      case DOUBLE:
+        return Optional.of(configValue.getDouble());
+      case INT:
+        return Optional.of(configValue.getInt());
+      case BOOL:
+        return Optional.of(configValue.getBool());
+      case LOG_LEVEL:
+        return Optional.of(configValue.getLogLevel());
+      case STRING_LIST:
+        return Optional.of(configValue.getStringList().getValuesList());
+      default:
+        LOG.debug(
+          "Encountered unexpected type {} of configValue to coerce to string",
+          configValue.getTypeCase()
+        );
+        return Optional.empty();
+    }
+  }
 }
