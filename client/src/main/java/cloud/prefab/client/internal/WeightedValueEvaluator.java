@@ -8,7 +8,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Optional;
 
-
 public class WeightedValueEvaluator {
 
   private final HashProvider hashProvider;
