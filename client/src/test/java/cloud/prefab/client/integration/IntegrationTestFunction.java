@@ -11,15 +11,15 @@ import java.util.stream.Collectors;
 public enum IntegrationTestFunction {
   GET_OR_RAISE("get_or_raise") {
     @Override
-    public String apply(PrefabCloudClient client, IntegrationTestInput input) {
+    public Object apply(PrefabCloudClient client, IntegrationTestInput input) {
       return input.getWithoutFallback(client);
     }
   },
   GET("get") {
     @Override
-    public String apply(PrefabCloudClient client, IntegrationTestInput input) {
+    public Object apply(PrefabCloudClient client, IntegrationTestInput input) {
       if (input.getFlag().isPresent()) {
-        return String.valueOf(input.getFeatureFor(client));
+        return input.getFeatureFor(client);
       } else {
         return input.getWithFallback(client);
       }
@@ -27,8 +27,8 @@ public enum IntegrationTestFunction {
   },
   ENABLED("enabled") {
     @Override
-    public String apply(PrefabCloudClient client, IntegrationTestInput input) {
-      return String.valueOf(input.featureIsOnFor(client));
+    public Object apply(PrefabCloudClient client, IntegrationTestInput input) {
+      return input.featureIsOnFor(client);
     }
   };
 
@@ -54,5 +54,5 @@ public enum IntegrationTestFunction {
     return jsonValue;
   }
 
-  public abstract String apply(PrefabCloudClient client, IntegrationTestInput input);
+  public abstract Object apply(PrefabCloudClient client, IntegrationTestInput input);
 }

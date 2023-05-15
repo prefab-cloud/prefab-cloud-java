@@ -28,7 +28,7 @@ class WeightedValueEvaluatorTest {
   RandomProviderIF randomProvider;
 
   @Mock
-  HashFunction hashFunction;
+  HashProvider hashProvider;
 
   @Mock
   HashCode hashCode;
@@ -73,10 +73,8 @@ class WeightedValueEvaluatorTest {
 
   @ParameterizedTest
   @MethodSource("provideArgumentsForHashingTrueFalse")
-  void itUsesHashFunctionWhenAble(int hashValue, boolean expectedValue) {
-    when(hashFunction.hashString("featureNamejames", StandardCharsets.UTF_8))
-      .thenReturn(hashCode);
-    when(hashCode.asInt()).thenReturn(hashValue);
+  void itUsesHashFunctionWhenAble(double hashValue, boolean expectedValue) {
+    when(hashProvider.hash("featureNamejames")).thenReturn(hashValue);
     Prefab.WeightedValues weightedValues = getTrueFalseConfig(
       500,
       500,
@@ -97,10 +95,8 @@ class WeightedValueEvaluatorTest {
 
   @ParameterizedTest
   @MethodSource("provideArgumentsForHashingFourWaySplit")
-  void itUsesHashFunctionWhenAbleFourWaySplit(int hashValue, int expectedValue) {
-    when(hashFunction.hashString("featureNamejames", StandardCharsets.UTF_8))
-      .thenReturn(hashCode);
-    when(hashCode.asInt()).thenReturn(hashValue);
+  void itUsesHashFunctionWhenAbleFourWaySplit(double hashValue, int expectedValue) {
+    when(hashProvider.hash("featureNamejames")).thenReturn(hashValue);
     Prefab.WeightedValues weightedValues = getMultiPartConfig(
       Optional.of("user.name"),
       10,
@@ -172,32 +168,19 @@ class WeightedValueEvaluatorTest {
 
   private static Stream<Arguments> provideArgumentsForHashingTrueFalse() {
     return Stream.of(
-      Arguments.of(Integer.MIN_VALUE, true),
-      Arguments.of(Integer.MIN_VALUE / 2, true),
-      Arguments.of(-1, true),
       Arguments.of(0, true),
-      Arguments.of(1, false),
-      Arguments.of(2, false),
-      Arguments.of(2000, false),
-      Arguments.of(20000, false),
-      Arguments.of(200000, false),
-      Arguments.of(Integer.MAX_VALUE / 2 - 10, false),
-      Arguments.of(Integer.MAX_VALUE / 2 + 10, false),
-      Arguments.of(Integer.MAX_VALUE, false)
+      Arguments.of(0.23, true),
+      Arguments.of(0.8, false),
+      Arguments.of(1, false)
     );
   }
 
   private static Stream<Arguments> provideArgumentsForHashingFourWaySplit() {
     return Stream.of(
-      Arguments.of(Integer.MIN_VALUE, 1),
-      Arguments.of(Integer.MIN_VALUE / 2, 1),
-      Arguments.of(-1, 2),
-      Arguments.of(0, 2),
-      Arguments.of(1, 3),
-      Arguments.of(2, 3),
-      Arguments.of(Integer.MAX_VALUE / 2 - 10, 3),
-      Arguments.of(Integer.MAX_VALUE / 2 + 10, 4),
-      Arguments.of(Integer.MAX_VALUE, 4)
+      Arguments.of(0, 1),
+      Arguments.of(0.3, 2),
+      Arguments.of(0.50001, 3),
+      Arguments.of(1, 4)
     );
   }
 

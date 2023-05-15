@@ -5,29 +5,23 @@ import cloud.prefab.client.util.RandomProvider;
 import cloud.prefab.client.util.RandomProviderIF;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
 public class WeightedValueEvaluator {
 
-  public static final long UNSIGNED_INT_MAX =
-    Integer.MAX_VALUE + (long) Integer.MAX_VALUE;
-  private final HashFunction hashFunction;
+  private final HashProvider hashProvider;
 
   private final RandomProviderIF randomProvider;
 
   public WeightedValueEvaluator() {
-    this(new RandomProvider(), Hashing.murmur3_32_fixed());
+    this(new RandomProvider(), HashProvider.DEFAULT);
   }
 
   @VisibleForTesting
-  WeightedValueEvaluator(RandomProviderIF randomProvider, HashFunction hashFunction) {
+  WeightedValueEvaluator(RandomProviderIF randomProvider, HashProvider hashProvider) {
     this.randomProvider = randomProvider;
-    this.hashFunction = hashFunction;
+    this.hashProvider = hashProvider;
   }
 
   public Prefab.ConfigValue toValue(
@@ -44,7 +38,7 @@ public class WeightedValueEvaluator {
     double pctThroughDistribution = hashPropertyValue
       .map(s -> getUserPct(featureName, s))
       .orElseGet(randomProvider::random);
-    return getVariantIdxFromWeights(
+    return getValueFromWeightsAndPercent(
       weightedValues.getWeightedValuesList(),
       pctThroughDistribution
     );
@@ -61,7 +55,7 @@ public class WeightedValueEvaluator {
     return Optional.empty();
   }
 
-  private Prefab.ConfigValue getVariantIdxFromWeights(
+  private Prefab.ConfigValue getValueFromWeightsAndPercent(
     List<Prefab.WeightedValue> weightedValues,
     double targetPctThroughDistribution
   ) {
@@ -84,12 +78,6 @@ public class WeightedValueEvaluator {
 
   private double getUserPct(String featureName, String configValue) {
     final String toHash = featureName + configValue;
-    final HashCode hashCode = hashFunction.hashString(toHash, StandardCharsets.UTF_8);
-    return pct(hashCode.asInt());
-  }
-
-  private double pct(int signedInt) {
-    long y = (long) signedInt + Integer.MAX_VALUE;
-    return y / (double) (UNSIGNED_INT_MAX);
+    return hashProvider.hash(toHash);
   }
 }

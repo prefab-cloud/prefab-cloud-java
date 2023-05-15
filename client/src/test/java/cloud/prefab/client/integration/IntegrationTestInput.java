@@ -1,6 +1,8 @@
 package cloud.prefab.client.integration;
 
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.config.ConfigValueUtils;
+import cloud.prefab.client.value.LiveObject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
@@ -12,7 +14,7 @@ public class IntegrationTestInput {
   private final Optional<String> flag;
   private final String lookupKey;
   private final Map<String, Map<String, Object>> context;
-  private final Optional<String> defaultValue;
+  private final Optional<Object> defaultValue;
 
   @JsonCreator
   public IntegrationTestInput(
@@ -20,7 +22,7 @@ public class IntegrationTestInput {
     @JsonProperty("flag") Optional<String> flag,
     @JsonProperty("lookup_key") String lookupKey,
     @JsonProperty("context") Map<String, Map<String, Object>> context,
-    @JsonProperty("default") Optional<String> defaultValue
+    @JsonProperty("default") Optional<Object> defaultValue
   ) {
     this.key = key;
     this.flag = flag;
@@ -29,15 +31,17 @@ public class IntegrationTestInput {
     this.defaultValue = defaultValue;
   }
 
-  public String getWithFallback(PrefabCloudClient client) {
-    return client.configClient().liveString(getKey()).orElse(defaultValue.orElse(null));
+  public Object getWithFallback(PrefabCloudClient client) {
+    LiveObject liveObject = new LiveObject(client.configClient(), getKey());
+    return liveObject.orElse(defaultValue.orElse(null));
   }
 
-  public String getWithoutFallback(PrefabCloudClient client) {
+  public Object getWithoutFallback(PrefabCloudClient client) {
     if (defaultValue.isPresent()) {
       return getWithFallback(client);
     } else {
-      return client.configClient().liveString(getKey()).get();
+      LiveObject liveObject = new LiveObject(client.configClient(), getKey());
+      return liveObject.get();
     }
   }
 
@@ -67,7 +71,7 @@ public class IntegrationTestInput {
     return context;
   }
 
-  public Optional<String> getDefault() {
+  public Optional<Object> getDefault() {
     return defaultValue;
   }
 }

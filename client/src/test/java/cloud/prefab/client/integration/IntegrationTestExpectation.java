@@ -2,11 +2,13 @@ package cloud.prefab.client.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.fail;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyReturnValue;
 import cloud.prefab.client.value.UndefinedKeyException;
+import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -14,8 +16,13 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.google.common.collect.ImmutableMap;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @JsonTypeInfo(use = Id.NAME, property = "status", defaultImpl = VerifyReturnValue.class)
 @JsonSubTypes(
@@ -25,6 +32,8 @@ import javax.annotation.Nullable;
   }
 )
 public interface IntegrationTestExpectation {
+  Logger LOG = LoggerFactory.getLogger(IntegrationTestExpectation.class);
+
   void verifyScenario(
     PrefabCloudClient client,
     IntegrationTestFunction function,
@@ -34,10 +43,10 @@ public interface IntegrationTestExpectation {
   class VerifyReturnValue implements IntegrationTestExpectation {
 
     @Nullable
-    private final String expectedValue;
+    private final Object expectedValue;
 
     @JsonCreator
-    private VerifyReturnValue(@JsonProperty("value") @Nullable String expectedValue) {
+    private VerifyReturnValue(@JsonProperty("value") @Nullable Object expectedValue) {
       this.expectedValue = expectedValue;
     }
 
@@ -47,7 +56,16 @@ public interface IntegrationTestExpectation {
       IntegrationTestFunction function,
       IntegrationTestInput input
     ) {
-      assertThat(function.apply(client, input)).isEqualTo(expectedValue);
+      Object actualValue = function.apply(client, input);
+      if (expectedValue == null) {
+        assertThat(actualValue).isNull();
+      } else if (expectedValue instanceof Number && actualValue instanceof Number) {
+        assertThat(String.valueOf(actualValue)).isEqualTo(String.valueOf(expectedValue));
+      } else if (actualValue instanceof Prefab.LogLevel) {
+        assertThat(((Prefab.LogLevel) actualValue).name()).isEqualTo(expectedValue);
+      } else {
+        assertThat(actualValue).isEqualTo(expectedValue);
+      }
     }
   }
 
