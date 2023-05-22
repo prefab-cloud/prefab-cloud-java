@@ -13,6 +13,7 @@ import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.units.qual.C;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -293,6 +294,57 @@ public class ConfigResolverTest {
     assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.FEATURE_FLAG))
       .containsExactlyInAnyOrder("key2");
     assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.SEGMENT)).isEmpty();
+  }
+
+  @Test
+  public void testTimeInRange() {
+    // note this relies on ConfigResolver on-demand adding the current time
+    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(ConfigResolver.CURRENT_TIME_KEY)
+      .setValueToMatch(
+        Prefab.ConfigValue.newBuilder().setIntRange(Prefab.IntRange.newBuilder().build())
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
+      .build();
+
+    final EvaluatedCriterion positiveEval = resolver
+      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
+      .stream()
+      .findFirst()
+      .get();
+
+    assertThat(positiveEval.isMatch()).isTrue();
+  }
+
+  @Test
+  public void testTimeAfterRange() {
+    // note this relies on ConfigResolver on-demand adding the current time
+    long currentTime = System.currentTimeMillis();
+
+    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(ConfigResolver.CURRENT_TIME_KEY)
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setIntRange(
+            Prefab.IntRange
+              .newBuilder()
+              .setEnd(currentTime - TimeUnit.MINUTES.toMillis(2))
+              .build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
+      .build();
+
+    final EvaluatedCriterion eval = resolver
+      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
+      .stream()
+      .findFirst()
+      .get();
+
+    assertThat(eval.isMatch()).isFalse();
   }
 
   private Prefab.ConfigValue sv(String s) {
