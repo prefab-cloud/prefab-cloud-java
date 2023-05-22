@@ -329,7 +329,7 @@ public class ConfigResolver {
           );
         }
       case PROP_IS_ONE_OF:
-        if (!propStringValue.isPresent()) {
+        if (propStringValue.isEmpty()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
         // assumption that property is a String
@@ -345,7 +345,7 @@ public class ConfigResolver {
           )
         );
       case PROP_IS_NOT_ONE_OF:
-        if (!propStringValue.isPresent()) {
+        if (propStringValue.isEmpty()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
 
@@ -456,7 +456,7 @@ public class ConfigResolver {
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder();
-    List<String> sortedKeys = new ArrayList(getKeys());
+    List<String> sortedKeys = new ArrayList<>(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
