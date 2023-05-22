@@ -25,6 +25,8 @@ public class ConfigResolver {
 
   public static final String NAMESPACE_KEY = "NAMESPACE";
   public static final String NEW_NAMESPACE_KEY = "prefab.namespace";
+
+  public static final String CURRENT_TIME_KEY = "prefab.current-time";
   private static final Logger LOG = LoggerFactory.getLogger(ConfigResolver.class);
 
   private final ConfigStore configStore;
@@ -112,7 +114,7 @@ public class ConfigResolver {
     // Prefer rows that have a projEnvId to ones that don't
     // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
 
-    final Optional<Match> match = configElement
+    return configElement
       .getRowsProjEnvFirst(projectEnvId)
       .map(configRow -> {
         if (!configRow.getPropertiesMap().isEmpty()) {
@@ -138,8 +140,6 @@ public class ConfigResolver {
       })
       .filter(Objects::nonNull)
       .findFirst();
-
-    return match;
   }
 
   /**
@@ -228,6 +228,12 @@ public class ConfigResolver {
       .get(key);
     if (valueFromLookupContext != null) {
       return Optional.of(valueFromLookupContext);
+    }
+    //TODO: move this current time injection into a ContextResolver class
+    if (CURRENT_TIME_KEY.equals(key)) {
+      return Optional.of(
+        Prefab.ConfigValue.newBuilder().setInt(System.currentTimeMillis()).build()
+      );
     }
     return Optional.empty();
   }
@@ -323,7 +329,7 @@ public class ConfigResolver {
           );
         }
       case PROP_IS_ONE_OF:
-        if (!propStringValue.isPresent()) {
+        if (propStringValue.isEmpty()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
         // assumption that property is a String
@@ -339,7 +345,7 @@ public class ConfigResolver {
           )
         );
       case PROP_IS_NOT_ONE_OF:
-        if (!propStringValue.isPresent()) {
+        if (propStringValue.isEmpty()) {
           return List.of(new EvaluatedCriterion(criterion, false));
         }
 
@@ -379,6 +385,21 @@ public class ConfigResolver {
           return List.of(new EvaluatedCriterion(criterion, prop.get(), !matched));
         } else {
           return List.of(new EvaluatedCriterion(criterion, true));
+        }
+      case IN_INT_RANGE:
+        if (
+          prop.isPresent() &&
+          prop.get().hasInt() &&
+          criterion.getValueToMatch().hasIntRange()
+        ) {
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              IntRangeWrapper
+                .of(criterion.getValueToMatch().getIntRange())
+                .contains(prop.get().getInt())
+            )
+          );
         }
       default:
         LOG.debug(
@@ -435,7 +456,7 @@ public class ConfigResolver {
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder();
-    List<String> sortedKeys = new ArrayList(getKeys());
+    List<String> sortedKeys = new ArrayList<>(getKeys());
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
