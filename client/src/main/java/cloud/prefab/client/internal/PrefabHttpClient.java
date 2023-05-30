@@ -98,7 +98,7 @@ public class PrefabHttpClient {
     long offset
   ) {
     return requestConfigsFromURI(
-      URI.create(options.getPrefabApiUrl() + "/api/v1/configs/" + offset)
+      URI.create(options.getCDNUrl() + "/api/v1/configs/" + offset)
     );
   }
 
