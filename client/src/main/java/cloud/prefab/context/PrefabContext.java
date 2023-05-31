@@ -59,6 +59,16 @@ public class PrefabContext implements PrefabContextSetReadable {
     );
   }
 
+  public Prefab.ContextShape getShape() {
+    Prefab.ContextShape.Builder shapeBuilder = Prefab.ContextShape
+      .newBuilder()
+      .setName(getName());
+    properties.forEach((key, value) ->
+      shapeBuilder.putFieldTypes(key, value.getTypeCase().getNumber())
+    );
+    return shapeBuilder.build();
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(name, properties);

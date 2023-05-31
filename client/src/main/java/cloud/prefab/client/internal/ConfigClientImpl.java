@@ -146,6 +146,9 @@ public class ConfigClientImpl implements ConfigClient {
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
       startCheckpointExecutor();
+      if (options.isContextShapeUploadEnabled()) {
+        new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC()).start();
+      }
     }
   }
 
@@ -187,13 +190,14 @@ public class ConfigClientImpl implements ConfigClient {
     String configKey,
     @Nullable PrefabContextSetReadable prefabContext
   ) {
-    LookupContext lookupContext = new LookupContext(
-      namespaceMaybe,
-      resolveContext(prefabContext)
-    );
+    PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
+    reportUsage(configKey, resolvedContext);
+    LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
 
     return getInternal(configKey, lookupContext);
   }
+
+  private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {}
 
   @Override
   public Map<String, Prefab.ConfigValue> getAll(
@@ -350,7 +354,6 @@ public class ConfigClientImpl implements ConfigClient {
     if (cdnSuccess) {
       return;
     }
-
     loadAPI();
   }
 
