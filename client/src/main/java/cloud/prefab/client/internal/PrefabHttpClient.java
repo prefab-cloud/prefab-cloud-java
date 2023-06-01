@@ -76,10 +76,7 @@ public class PrefabHttpClient {
       .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/context-shapes"))
       .POST(HttpRequest.BodyPublishers.ofByteArray(contextShapes.toByteArray()))
       .build();
-    LOG.info(
-      "posting to {}",
-      URI.create(options.getPrefabApiUrl() + "/api/v1/context-shapes")
-    );
+    LOG.debug("posting context shape to {}", request.uri());
     try {
       HttpResponse<String> response = httpClient.send(
         request,
@@ -96,7 +93,36 @@ public class PrefabHttpClient {
     } catch (IOException e) {
       LOG.warn("Error uploading context shapes via http {}", e.getMessage());
     } catch (InterruptedException e) {
-      LOG.warn("Interrupted while uploading context shapes via http");
+      LOG.warn("Interrupted while uploading context shapes");
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  void reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
+    HttpRequest request = getClientBuilderWithStandardHeaders()
+      .header("Content-Type", PROTO_MEDIA_TYPE)
+      .header("Accept", PROTO_MEDIA_TYPE)
+      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/evaluated-keys"))
+      .POST(HttpRequest.BodyPublishers.ofByteArray(evaluatedKeys.toByteArray()))
+      .build();
+    LOG.debug("posting evaluated keys to {}", request.uri());
+    try {
+      HttpResponse<String> response = httpClient.send(
+        request,
+        HttpResponse.BodyHandlers.ofString()
+      );
+
+      if (!isSuccess(response.statusCode())) {
+        LOG.info(
+          "Uploading evaluated keys returned unsuccessful code {} with body {}",
+          response.statusCode(),
+          response.body()
+        );
+      }
+    } catch (IOException e) {
+      LOG.warn("Error uploading evaluated keys via http {}", e.getMessage());
+    } catch (InterruptedException e) {
+      LOG.warn("Interrupted while uploading evaluated keys");
       Thread.currentThread().interrupt();
     }
   }
