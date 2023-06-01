@@ -69,6 +69,38 @@ public class PrefabHttpClient {
     }
   }
 
+  void reportContextShape(Prefab.ContextShapes contextShapes) {
+    HttpRequest request = getClientBuilderWithStandardHeaders()
+      .header("Content-Type", PROTO_MEDIA_TYPE)
+      .header("Accept", PROTO_MEDIA_TYPE)
+      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/context-shapes"))
+      .POST(HttpRequest.BodyPublishers.ofByteArray(contextShapes.toByteArray()))
+      .build();
+    LOG.info(
+      "posting to {}",
+      URI.create(options.getPrefabApiUrl() + "/api/v1/context-shapes")
+    );
+    try {
+      HttpResponse<String> response = httpClient.send(
+        request,
+        HttpResponse.BodyHandlers.ofString()
+      );
+
+      if (!isSuccess(response.statusCode())) {
+        LOG.info(
+          "Uploading context shapes returned unsuccessful code {} with body {}",
+          response.statusCode(),
+          response.body()
+        );
+      }
+    } catch (IOException e) {
+      LOG.warn("Error uploading context shapes via http {}", e.getMessage());
+    } catch (InterruptedException e) {
+      LOG.warn("Interrupted while uploading context shapes via http");
+      Thread.currentThread().interrupt();
+    }
+  }
+
   CompletableFuture<HttpResponse<Void>> requestConfigSSE(
     long offset,
     Flow.Subscriber<String> lineSubscriber

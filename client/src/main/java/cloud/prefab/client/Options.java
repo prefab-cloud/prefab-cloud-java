@@ -41,6 +41,8 @@ public class Options {
 
   private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
 
+  private boolean contextShapeUploadEnabled = true;
+
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
     this.prefabApiUrl =
@@ -182,6 +184,24 @@ public class Options {
 
   public Options setReportLogStats(boolean reportLogStats) {
     this.reportLogStats = reportLogStats;
+    return this;
+  }
+
+  public boolean isContextShapeUploadEnabled() {
+    return contextShapeUploadEnabled;
+  }
+
+  /**
+   * Configure client to report context shape data
+   * The captured data consists of names and types of context data, NOT the actual values
+   * The data allows prefab to populate options in the rule builder UI
+   * Defaults to true
+   * @param enabled
+   * @return
+   */
+
+  public Options setContextShapeUploadEnabled(boolean enabled) {
+    this.contextShapeUploadEnabled = enabled;
     return this;
   }
 
