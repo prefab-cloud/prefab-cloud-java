@@ -69,7 +69,7 @@ public class PrefabHttpClient {
     }
   }
 
-  void reportContextShape(Prefab.ContextShapes contextShapes) {
+  boolean reportContextShape(Prefab.ContextShapes contextShapes) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
@@ -82,23 +82,25 @@ public class PrefabHttpClient {
         request,
         HttpResponse.BodyHandlers.ofString()
       );
-
-      if (!isSuccess(response.statusCode())) {
-        LOG.info(
-          "Uploading context shapes returned unsuccessful code {} with body {}",
-          response.statusCode(),
-          response.body()
-        );
+      if (isSuccess(response.statusCode())) {
+        return true;
       }
+
+      LOG.info(
+        "Uploading context shapes returned unsuccessful code {} with body {}",
+        response.statusCode(),
+        response.body()
+      );
     } catch (IOException e) {
       LOG.warn("Error uploading context shapes via http {}", e.getMessage());
     } catch (InterruptedException e) {
       LOG.warn("Interrupted while uploading context shapes");
       Thread.currentThread().interrupt();
     }
+    return false;
   }
 
-  void reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
+  boolean reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
@@ -112,19 +114,21 @@ public class PrefabHttpClient {
         HttpResponse.BodyHandlers.ofString()
       );
 
-      if (!isSuccess(response.statusCode())) {
-        LOG.info(
-          "Uploading evaluated keys returned unsuccessful code {} with body {}",
-          response.statusCode(),
-          response.body()
-        );
+      if (isSuccess(response.statusCode())) {
+        return true;
       }
+      LOG.info(
+        "Uploading evaluated keys returned unsuccessful code {} with body {}",
+        response.statusCode(),
+        response.body()
+      );
     } catch (IOException e) {
       LOG.warn("Error uploading evaluated keys via http {}", e.getMessage());
     } catch (InterruptedException e) {
       LOG.warn("Interrupted while uploading evaluated keys");
       Thread.currentThread().interrupt();
     }
+    return false;
   }
 
   CompletableFuture<HttpResponse<Void>> requestConfigSSE(
