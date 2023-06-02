@@ -60,7 +60,7 @@ public class EvaluatedKeysAggregator {
         try {
           doUpload();
         } catch (Exception e) {
-          LOG.debug("error uploading context shapes", e);
+          LOG.debug("error uploading evaluated keys", e);
         }
       },
       1,
@@ -76,9 +76,12 @@ public class EvaluatedKeysAggregator {
         .newBuilder()
         .addAllKeys(evaluatedKeys);
       namespace.ifPresent(builder::setNamespace);
-      prefabHttpClient.reportEvaluatedKeys(builder.build());
-      lastUploadTime = clock.millis();
-      dirtyFlag.set(false);
+      Prefab.EvaluatedKeys keysToUpload = builder.build();
+      LOG.debug("uploading evaluated keys {}", keysToUpload);
+      if (prefabHttpClient.reportEvaluatedKeys(keysToUpload)) {
+        lastUploadTime = clock.millis();
+        dirtyFlag.set(false);
+      }
     }
   }
 

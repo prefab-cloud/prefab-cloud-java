@@ -2,6 +2,7 @@ package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -39,6 +40,7 @@ class ContextShapeAggregatorTest {
 
   @BeforeEach
   void beforeEach() {
+    lenient().when(prefabHttpClient.reportContextShape(any())).thenReturn(true);
     aggregator =
       new ContextShapeAggregator(
         new Options().setNamespace("the-namespace"),
