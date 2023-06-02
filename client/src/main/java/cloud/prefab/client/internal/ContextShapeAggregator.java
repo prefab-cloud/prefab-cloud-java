@@ -75,11 +75,14 @@ public class ContextShapeAggregator {
   @VisibleForTesting
   void doUpload() {
     if (shouldUpload()) {
+      boolean previousDirtyFlagValue = dirtyFlag.getAndSet(false);
       Prefab.ContextShapes shapesToUpload = buildProtoShapesFromShapeState();
       LOG.debug("uploading context shapes {}", shapesToUpload);
-      prefabHttpClient.reportContextShape(shapesToUpload);
-      lastUploadTime = clock.millis();
-      dirtyFlag.set(false);
+      if (prefabHttpClient.reportContextShape(shapesToUpload)) {
+        lastUploadTime = clock.millis();
+      } else {
+        dirtyFlag.compareAndSet(false, previousDirtyFlagValue);
+      }
     }
   }
 

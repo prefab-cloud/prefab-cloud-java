@@ -78,9 +78,10 @@ public class EvaluatedKeysAggregator {
       namespace.ifPresent(builder::setNamespace);
       Prefab.EvaluatedKeys keysToUpload = builder.build();
       LOG.debug("uploading evaluated keys {}", keysToUpload);
-      prefabHttpClient.reportEvaluatedKeys(keysToUpload);
-      lastUploadTime = clock.millis();
-      dirtyFlag.set(false);
+      if (prefabHttpClient.reportEvaluatedKeys(keysToUpload)) {
+        lastUploadTime = clock.millis();
+        dirtyFlag.set(false);
+      }
     }
   }
 
