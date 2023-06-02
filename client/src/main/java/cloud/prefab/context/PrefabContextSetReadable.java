@@ -24,6 +24,14 @@ public interface PrefabContextSetReadable {
     public boolean isEmpty() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return com.google.common.base.MoreObjects
+        .toStringHelper(this)
+        .add("contextByNameMap", "EMPTY")
+        .toString();
+    }
   };
 
   static PrefabContextSetReadable readOnlyContextSetView(PrefabContextSet contextSet) {
@@ -41,6 +49,11 @@ public interface PrefabContextSetReadable {
       @Override
       public boolean isEmpty() {
         return contextSet.isEmpty();
+      }
+
+      @Override
+      public String toString() {
+        return contextSet.toString();
       }
     };
   }
