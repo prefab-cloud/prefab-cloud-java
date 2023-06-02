@@ -65,4 +65,9 @@ public class ServerRequestContextStore implements ContextStore {
         objectHttpRequest.getAttribute(ATTRIBUTE_NAME, PrefabContextSet.class)
       );
   }
+
+  @Override
+  public boolean isAvailable() {
+    return ServerRequestContext.currentRequest().isPresent();
+  }
 }
