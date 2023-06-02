@@ -42,6 +42,7 @@ public class Options {
   private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
 
   private boolean contextShapeUploadEnabled = true;
+  private boolean evaluatedConfigKeyUploadEnabled = true;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -189,6 +190,23 @@ public class Options {
 
   public boolean isContextShapeUploadEnabled() {
     return contextShapeUploadEnabled;
+  }
+
+  /**
+   * Configure client to report the keys of evaluated configurations
+   * The data allows prefab to show which configs are used vs unused
+   * Defaults to true
+   * @param enabled
+   * @return
+   */
+
+  public Options setEvaluatedConfigKeyUploadEnabled(boolean enabled) {
+    this.evaluatedConfigKeyUploadEnabled = enabled;
+    return this;
+  }
+
+  public boolean isEvaluatedConfigKeyUploadEnabled() {
+    return evaluatedConfigKeyUploadEnabled;
   }
 
   /**

@@ -50,7 +50,7 @@ public class SseConfigStreamingSubscriber {
         sseHandler.subscribe(flowSubscriber);
         prefabHttpClient.requestConfigSSE(highwaterMarkSupplier.get(), sseHandler);
       } catch (Exception e) {
-        LOG.warn("Unexpected exception starting SSE stream", e);
+        LOG.warn("Unexpected exception starting SSE config stream, will retry", e);
       }
     };
 
@@ -62,7 +62,7 @@ public class SseConfigStreamingSubscriber {
         TimeUnit.SECONDS.toMillis(1),
         TimeUnit.SECONDS.toMillis(30)
       );
-      LOG.info("Restarting connection in {} ms", delayMillis);
+      LOG.info("Restarting SSE config connection in {} ms", delayMillis);
       scheduledExecutorService.schedule(starter, delayMillis, TimeUnit.MILLISECONDS);
     }
   }

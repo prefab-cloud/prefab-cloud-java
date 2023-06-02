@@ -80,6 +80,10 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final ContextStore contextStore;
 
+  private ContextShapeAggregator contextShapeAggregator = null;
+
+  private EvaluatedKeysAggregator evaluatedKeysAggregator = null;
+
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
     ConfigChangeListener... listeners
@@ -147,7 +151,14 @@ public class ConfigClientImpl implements ConfigClient {
       startStreaming();
       startCheckpointExecutor();
       if (options.isContextShapeUploadEnabled()) {
-        new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC()).start();
+        contextShapeAggregator =
+          new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
+        contextShapeAggregator.start();
+      }
+      if (options.isEvaluatedConfigKeyUploadEnabled()) {
+        evaluatedKeysAggregator =
+          new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
+        evaluatedKeysAggregator.start();
       }
     }
   }
@@ -197,7 +208,14 @@ public class ConfigClientImpl implements ConfigClient {
     return getInternal(configKey, lookupContext);
   }
 
-  private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {}
+  private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {
+    if (contextShapeAggregator != null) {
+      contextShapeAggregator.reportContextUsage(prefabContext);
+    }
+    if (evaluatedKeysAggregator != null) {
+      evaluatedKeysAggregator.reportKeyUsage(configKey);
+    }
+  }
 
   @Override
   public Map<String, Prefab.ConfigValue> getAll(
