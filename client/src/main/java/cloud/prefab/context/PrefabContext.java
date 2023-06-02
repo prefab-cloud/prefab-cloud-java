@@ -59,6 +59,20 @@ public class PrefabContext implements PrefabContextSetReadable {
     );
   }
 
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, properties);
+  }
+
+  @Override
+  public String toString() {
+    return com.google.common.base.MoreObjects
+      .toStringHelper(this)
+      .add("name", name)
+      .add("properties", properties)
+      .toString();
+  }
+
   public Prefab.ContextShape getShape() {
     Prefab.ContextShape.Builder shapeBuilder = Prefab.ContextShape
       .newBuilder()
@@ -67,11 +81,6 @@ public class PrefabContext implements PrefabContextSetReadable {
       shapeBuilder.putFieldTypes(key, value.getTypeCase().getNumber())
     );
     return shapeBuilder.build();
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(name, properties);
   }
 
   public static PrefabContext unnamedFromMap(

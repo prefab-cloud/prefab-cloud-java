@@ -73,4 +73,12 @@ public class PrefabContextSet implements PrefabContextSetReadable {
   public int hashCode() {
     return Objects.hash(contextByNameMap);
   }
+
+  @Override
+  public String toString() {
+    return com.google.common.base.MoreObjects
+      .toStringHelper(this)
+      .add("contextByNameMap", contextByNameMap)
+      .toString();
+  }
 }
