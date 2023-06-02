@@ -301,6 +301,20 @@ public class ConfigClientImpl implements ConfigClient {
       .getContext()
       .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
 
+    if (LOG.isTraceEnabled()) {
+      LOG.trace(
+        "context store contains {}, after filtering {}",
+        getContextStore().getContext().map(Object::toString).orElse("n/a"),
+        existingContext.map(Object::toString).orElse("n/a")
+      );
+
+      LOG.trace(
+        "Merging passed context {} with context store {}",
+        prefabContextSetReadable,
+        getContextStore().getContext().map(Object::toString).orElse("n/a")
+      );
+    }
+
     if (newContext.isEmpty()) {
       return existingContext.orElse(PrefabContextSetReadable.EMPTY);
     } else {
