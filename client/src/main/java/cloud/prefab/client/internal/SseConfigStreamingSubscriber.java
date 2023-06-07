@@ -1,6 +1,9 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.domain.Prefab;
+import cloud.prefab.sse.SSEHandler;
+import cloud.prefab.sse.events.DataEvent;
+import cloud.prefab.sse.events.Event;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Base64;
 import java.util.concurrent.Flow;
@@ -67,7 +70,7 @@ public class SseConfigStreamingSubscriber {
     }
   }
 
-  static class FlowSubscriber implements Flow.Subscriber<SSEHandler.Event> {
+  static class FlowSubscriber implements Flow.Subscriber<Event> {
 
     private final Consumer<Prefab.Configs> configConsumer;
     private final Consumer<Boolean> restartHandler;
@@ -90,9 +93,9 @@ public class SseConfigStreamingSubscriber {
     }
 
     @Override
-    public void onNext(SSEHandler.Event item) {
-      if (item instanceof SSEHandler.DataEvent) {
-        SSEHandler.DataEvent dataEvent = (SSEHandler.DataEvent) item;
+    public void onNext(Event item) {
+      if (item instanceof DataEvent) {
+        DataEvent dataEvent = (DataEvent) item;
         try {
           Prefab.Configs configs = Prefab.Configs.parseFrom(
             Base64.getDecoder().decode(dataEvent.getData().trim())

@@ -20,6 +20,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>cloud.prefab</groupId>
+      <artifactId>sse-handler</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
