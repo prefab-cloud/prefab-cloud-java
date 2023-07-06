@@ -184,32 +184,39 @@ public class ConfigResolver {
         evaluatedCriteria.add(evaluateCriterion);
       }
     }
-
-    Prefab.ConfigValue simplified = simplify(
-      conditionalValue,
-      configElement.getConfig().getKey(),
-      lookupContext
+    return Optional.of(
+      simplifyToMatch(conditionalValue, configElement, lookupContext, evaluatedCriteria)
     );
-
-    return Optional.of(new Match(simplified, configElement, evaluatedCriteria));
   }
 
   /**
    * A ConfigValue may be a WeightedValue. If so break it down so we can return a simpler form.
    */
-  private Prefab.ConfigValue simplify(
-    Prefab.ConditionalValue conditionalValue,
-    String key,
-    LookupContext lookupContext
+  private Match simplifyToMatch(
+    Prefab.ConditionalValue selectedConditionalValue,
+    ConfigElement configElement,
+    LookupContext lookupContext,
+    List<EvaluatedCriterion> evaluatedCriteria
   ) {
-    if (conditionalValue.getValue().hasWeightedValues()) {
-      return weightedValueEvaluator.toValue(
-        conditionalValue.getValue().getWeightedValues(),
-        key,
+    if (selectedConditionalValue.getValue().hasWeightedValues()) {
+      WeightedValueEvaluator.Result result = weightedValueEvaluator.toResult(
+        selectedConditionalValue.getValue().getWeightedValues(),
+        configElement.getConfig().getKey(),
         lookupContext
       );
+      return new Match(
+        result.getValue(),
+        configElement,
+        evaluatedCriteria,
+        Optional.of(result.getIndex())
+      );
     } else {
-      return conditionalValue.getValue();
+      return new Match(
+        selectedConditionalValue.getValue(),
+        configElement,
+        evaluatedCriteria,
+        Optional.empty()
+      );
     }
   }
 

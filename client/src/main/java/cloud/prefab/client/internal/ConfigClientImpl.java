@@ -205,7 +205,8 @@ public class ConfigClientImpl implements ConfigClient {
     reportUsage(configKey, resolvedContext);
     LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
 
-    return getInternal(configKey, lookupContext);
+    Optional<Prefab.ConfigValue> value = getInternal(configKey, lookupContext);
+    return value;
   }
 
   private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {

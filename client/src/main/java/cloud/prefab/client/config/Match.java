@@ -3,21 +3,25 @@ package cloud.prefab.client.config;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
 import java.util.List;
+import java.util.Optional;
 
 public class Match {
 
   private final Prefab.ConfigValue configValue;
   private final ConfigElement configElement;
   private final List<EvaluatedCriterion> evaluatedCriterion;
+  private final Optional<Integer> weightedValueIndex;
 
   public Match(
     Prefab.ConfigValue configValue,
     ConfigElement configElement,
-    List<EvaluatedCriterion> evaluatedCriterion
+    List<EvaluatedCriterion> evaluatedCriterion,
+    Optional<Integer> weightedValueIndex
   ) {
     this.configValue = configValue;
     this.configElement = configElement;
     this.evaluatedCriterion = evaluatedCriterion;
+    this.weightedValueIndex = weightedValueIndex;
   }
 
   public Prefab.ConfigValue getConfigValue() {
