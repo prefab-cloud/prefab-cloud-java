@@ -45,6 +45,15 @@ public class PrefabHttpClient {
     this.options = options;
   }
 
+  public static class BadStatusCodeException extends Exception {
+
+    int statusCode;
+
+    BadStatusCodeException(int statusCode) {
+      this.statusCode = statusCode;
+    }
+  }
+
   void reportLoggers(Prefab.Loggers loggers) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
@@ -71,6 +80,50 @@ public class PrefabHttpClient {
       LOG.warn("Interrupted while uploading logger stats via http");
       Thread.currentThread().interrupt();
     }
+  }
+
+  CompletableFuture<Prefab.TelemetryEventsResponse> reportTelemetryEvents(
+    Prefab.TelemetryEvents telemetryEvents
+  ) {
+    HttpRequest request = getClientBuilderWithStandardHeaders()
+      .header("Content-Type", PROTO_MEDIA_TYPE)
+      .header("Accept", PROTO_MEDIA_TYPE)
+      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/telemetry"))
+      .POST(HttpRequest.BodyPublishers.ofByteArray(telemetryEvents.toByteArray()))
+      .build();
+
+    CompletableFuture<Prefab.TelemetryEventsResponse> returnedFuture = new CompletableFuture<>();
+
+    CompletableFuture<HttpResponse<InputStream>> internalFuture = httpClient.sendAsync(
+      request,
+      HttpResponse.BodyHandlers.ofInputStream()
+    );
+
+    internalFuture.whenComplete((response, e) -> {
+      if (e != null) {
+        returnedFuture.completeExceptionally(e);
+      }
+      if (!isSuccess(response.statusCode())) {
+        LOG.info(
+          "Uploading telemetry events returned unsuccessful code {} with body {}",
+          response.statusCode(),
+          response.body()
+        );
+        returnedFuture.completeExceptionally(
+          new BadStatusCodeException(response.statusCode())
+        );
+      }
+      try {
+        returnedFuture.complete(
+          Prefab.TelemetryEventsResponse.parseFrom(response.body())
+        );
+      } catch (IOException ex) {
+        LOG.info("Unable to parse telemetry response proto");
+        returnedFuture.completeExceptionally(ex);
+      }
+    });
+
+    return returnedFuture;
   }
 
   boolean reportContextShape(Prefab.ContextShapes contextShapes) {

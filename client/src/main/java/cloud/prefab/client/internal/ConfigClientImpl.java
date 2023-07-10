@@ -6,6 +6,7 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
@@ -79,6 +80,7 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
+  private MatchProcessor matchProcessor;
 
   private ContextShapeAggregator contextShapeAggregator = null;
 
@@ -160,6 +162,8 @@ public class ConfigClientImpl implements ConfigClient {
           new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
         evaluatedKeysAggregator.start();
       }
+      matchProcessor = new MatchProcessor(options, prefabHttpClient, Clock.systemUTC());
+      matchProcessor.start();
     }
   }
 
@@ -204,9 +208,7 @@ public class ConfigClientImpl implements ConfigClient {
     PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
     reportUsage(configKey, resolvedContext);
     LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
-
-    Optional<Prefab.ConfigValue> value = getInternal(configKey, lookupContext);
-    return value;
+    return getInternal(configKey, lookupContext);
   }
 
   private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {
@@ -245,7 +247,23 @@ public class ConfigClientImpl implements ConfigClient {
     LookupContext lookupContext
   ) {
     waitForInitialization();
-    return updatingConfigResolver.getConfigValue(configKey, lookupContext);
+    Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
+
+    matchMaybe.ifPresent(match -> reportMatchResult(match, lookupContext));
+
+    return matchMaybe.map(Match::getConfigValue);
+  }
+
+  private void reportMatchResult(Match match, LookupContext lookupContext) {
+    matchProcessor.reportMatch(match, lookupContext);
+  }
+
+  private Optional<Match> getMatchInternal(
+    String configKey,
+    LookupContext lookupContext
+  ) {
+    waitForInitialization();
+    return updatingConfigResolver.getResolver().getMatch(configKey, lookupContext);
   }
 
   @Override
