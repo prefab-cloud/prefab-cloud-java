@@ -2,7 +2,9 @@ package cloud.prefab.client.internal;
 
 import cloud.prefab.client.config.Match;
 import cloud.prefab.domain.Prefab;
+import com.google.common.base.MoreObjects;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -14,8 +16,14 @@ public class MatchStatsAggregator {
     this.statsAggregate = statsAggregate;
   }
 
-  StatsAggregate getStatAggregate() {
+  StatsAggregate getStatsAggregate() {
     return statsAggregate;
+  }
+
+  StatsAggregate getAndResetStatsAggregate() {
+    StatsAggregate currentStatsAggregate = statsAggregate;
+    statsAggregate = new StatsAggregate();
+    return currentStatsAggregate;
   }
 
   void recordMatch(Match match, long timeStamp) {
@@ -24,7 +32,7 @@ public class MatchStatsAggregator {
 
   static class StatsAggregate {
 
-    Map<String, Map<CountKey, Counter>> counterData = new HashMap<>();
+    Map<ConfigKeyAndTypeKey, Map<CountKey, Counter>> counterData = new HashMap<>();
     long minTime = 0;
     long maxTime = 0;
 
@@ -36,7 +44,7 @@ public class MatchStatsAggregator {
       return maxTime;
     }
 
-    Map<String, Map<CountKey, Counter>> getCounterData() {
+    Map<ConfigKeyAndTypeKey, Map<CountKey, Counter>> getCounterData() {
       return counterData;
     }
 
@@ -48,38 +56,114 @@ public class MatchStatsAggregator {
         maxTime = timeStamp;
       }
 
-      Map<CountKey, Counter> innerMap = counterData.computeIfAbsent(
+      ConfigKeyAndTypeKey configKeyAndTypeKey = new ConfigKeyAndTypeKey(
         match.getConfigElement().getConfig().getKey(),
+        match.getConfigElement().getConfig().getConfigType()
+      );
+
+      Map<CountKey, Counter> innerMap = counterData.computeIfAbsent(
+        configKeyAndTypeKey,
         ignored -> new HashMap<>()
       );
-      int selectedIndex = 0;
-      for (Prefab.ConfigValue allowablevalue : match
-        .getConfigElement()
-        .getConfig()
-        .getAllowableValuesList()) {
-        if (allowablevalue.equals(match.getConfigValue())) {
-          break;
-        }
-        selectedIndex++;
-      }
-      //FIXME can run off the end of the list
 
       CountKey countKey = new CountKey(
         match.getConfigElement().getConfig().getId(),
-        selectedIndex
+        indexOfMatch(
+          match.getConfigValue(),
+          match.getConfigElement().getConfig().getAllowableValuesList()
+        ),
+        match.getConfigValue()
       );
-      innerMap.computeIfAbsent(countKey, c -> new Counter()).inc();
+      innerMap.computeIfAbsent(countKey, c -> new Counter(0)).inc();
+    }
+
+    private int indexOfMatch(
+      Prefab.ConfigValue configValue,
+      List<Prefab.ConfigValue> allowableValuesList
+    ) {
+      int selectedIndex = 0;
+      for (Prefab.ConfigValue value : allowableValuesList) {
+        if (value.equals(configValue)) {
+          return selectedIndex;
+        }
+        selectedIndex++;
+      }
+      return -1;
+    }
+
+    Prefab.ConfigEvaluationSummaries toProto() {
+      Prefab.ConfigEvaluationSummaries.Builder builder = Prefab.ConfigEvaluationSummaries.newBuilder();
+      builder.setStart(getMinTime());
+      builder.setEnd(getMaxTime());
+      for (Map.Entry<ConfigKeyAndTypeKey, Map<CountKey, Counter>> mapEntry : counterData.entrySet()) {
+        Prefab.ConfigEvaluationSummary.Builder summaryBuilder = Prefab.ConfigEvaluationSummary
+          .newBuilder()
+          .setType(mapEntry.getKey().configType)
+          .setKey(mapEntry.getKey().key);
+        for (Map.Entry<CountKey, Counter> countKeyCounterEntry : mapEntry
+          .getValue()
+          .entrySet()) {
+          CountKey countKey = countKeyCounterEntry.getKey();
+          Counter counter = countKeyCounterEntry.getValue();
+          Prefab.ConfigEvaluationCounter.Builder counterProtoBuilder = Prefab.ConfigEvaluationCounter
+            .newBuilder()
+            .setConfigId(countKey.configId)
+            .setCount(counter.count);
+          if (countKey.selectedIndex >= 0) {
+            counterProtoBuilder.setSelectedIndex(countKey.selectedIndex);
+          }
+          counterProtoBuilder.setSelectedValue(countKey.configValue);
+          summaryBuilder.addCounters(counterProtoBuilder);
+        }
+        builder.addSummaries(summaryBuilder.build());
+      }
+      return builder.build();
+    }
+  }
+
+  static class ConfigKeyAndTypeKey {
+
+    final String key;
+    final Prefab.ConfigType configType;
+
+    public ConfigKeyAndTypeKey(String key, Prefab.ConfigType configType) {
+      this.key = key;
+      this.configType = configType;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      ConfigKeyAndTypeKey that = (ConfigKeyAndTypeKey) o;
+      return Objects.equals(key, that.key) && configType == that.configType;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, configType);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects
+        .toStringHelper(this)
+        .add("key", key)
+        .add("configType", configType)
+        .toString();
     }
   }
 
   static class CountKey {
 
-    long configId;
-    long selectedIndex;
+    final long configId;
+    final int selectedIndex;
+    final Prefab.ConfigValue configValue;
 
-    CountKey(long configId, long selectedIndex) {
+    CountKey(long configId, int selectedIndex, Prefab.ConfigValue configValue) {
       this.configId = configId;
       this.selectedIndex = selectedIndex;
+      this.configValue = configValue;
     }
 
     @Override
@@ -87,20 +171,25 @@ public class MatchStatsAggregator {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       CountKey countKey = (CountKey) o;
-      return configId == countKey.configId && selectedIndex == countKey.selectedIndex;
+      return (
+        configId == countKey.configId &&
+        selectedIndex == countKey.selectedIndex &&
+        Objects.equals(configValue, countKey.configValue)
+      );
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(configId, selectedIndex);
+      return Objects.hash(configId, selectedIndex, configValue);
     }
 
     @Override
     public String toString() {
-      return com.google.common.base.MoreObjects
+      return MoreObjects
         .toStringHelper(this)
         .add("configId", configId)
         .add("selectedIndex", selectedIndex)
+        .add("configValue", configValue)
         .toString();
     }
   }
