@@ -23,16 +23,20 @@ public class PrefabHttpClient {
   private static final Logger LOG = LoggerFactory.getLogger(PrefabHttpClient.class);
 
   public static final String CLIENT_HEADER_KEY = "client";
+  private static final String VERSION_HEADER = "X-PrefabCloud-Client-Version";
 
   public static final String CLIENT_HEADER_VALUE = String.format(
     "%s.%s",
     MavenInfo.getInstance().getArtifactId(),
     MavenInfo.getInstance().getVersion()
   );
+
+  public static final String NEW_CLIENT_HEADER_VALUE =
+    "prefab-cloud-java-" + MavenInfo.getInstance().getVersion();
+
   private static final String PROTO_MEDIA_TYPE = "application/x-protobuf";
   private static final String EVENT_STREAM_MEDIA_TYPE = "text/event-stream";
   private static final String START_AT_HEADER = "x-prefab-start-at-id";
-
   private final Options options;
   private final HttpClient httpClient;
 
@@ -196,6 +200,7 @@ public class PrefabHttpClient {
     return HttpRequest
       .newBuilder()
       .header(CLIENT_HEADER_KEY, CLIENT_HEADER_VALUE)
+      .header(VERSION_HEADER, NEW_CLIENT_HEADER_VALUE)
       .header(
         "Authorization",
         getBasicAuthenticationHeader(options.getApiKeyId(), options.getApikey())
