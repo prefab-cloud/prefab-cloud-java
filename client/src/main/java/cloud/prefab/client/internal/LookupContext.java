@@ -62,6 +62,10 @@ public class LookupContext {
     return Optional.ofNullable(getExpandedProperties().get(name));
   }
 
+  public PrefabContextSet getPrefabContextSet() {
+    return prefabContextSet;
+  }
+
   public Map<String, Prefab.ConfigValue> getExpandedProperties() {
     if (this.expandedProperties == null) {
       int propertyCount =

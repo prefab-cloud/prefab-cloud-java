@@ -1,5 +1,6 @@
 package cloud.prefab.context;
 
+import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableList;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,6 +56,13 @@ public class PrefabContextSet implements PrefabContextSetReadable {
       prefabContextSet.addContext(context);
     }
     return prefabContextSet;
+  }
+
+  public Prefab.ContextSet toProto() {
+    Prefab.ContextSet.Builder bldr = Prefab.ContextSet.newBuilder();
+    getContexts()
+      .forEach(prefabContext -> bldr.addContexts(prefabContext.toProtoContext()));
+    return bldr.build();
   }
 
   @Override
