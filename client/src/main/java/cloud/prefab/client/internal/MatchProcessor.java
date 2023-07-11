@@ -5,10 +5,15 @@ import cloud.prefab.client.config.Match;
 import cloud.prefab.domain.Prefab;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import dev.failsafe.Bulkhead;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import java.net.http.HttpResponse;
 import java.time.Clock;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -120,30 +125,40 @@ public class MatchProcessor {
     }
   }
 
+  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500); //TODO add more
+
   void uploadLoop() {
+    Bulkhead<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> bulkhead = Bulkhead
+      .<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>>builder(5)
+      .build();
+
+    RetryPolicy<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> retryPolicy = RetryPolicy
+      .<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>>builder()
+      .withMaxRetries(3)
+      .withBackoff(1, 10, ChronoUnit.SECONDS)
+      .handleResultIf(r -> RETRYABLE_STATUS_CODES.contains(r.statusCode()))
+      .build();
+
     while (true) {
       try {
-        //TODO throttle simultaneous uploads
         MatchStatsAggregator.StatsAggregate statsAggregate = outputQueue.take();
         if (statsAggregate.getCounterData().isEmpty()) {
           continue;
         }
         Prefab.ConfigEvaluationSummaries proto = statsAggregate.toProto();
-        LOG.info("Uploading {}", proto);
-        CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> future = prefabHttpClient.reportTelemetryEvents(
-          Prefab.TelemetryEvents
-            .newBuilder()
-            .addEvents(Prefab.TelemetryEvent.newBuilder().setSummaries(proto).build())
-            .build()
-        );
-        //TODO retry, handle responses
-        future.whenComplete((telemetryEventsResponse, throwable) -> {
-          if (telemetryEventsResponse != null) {
-            LOG.info("Upload worked");
-          } else {
-            LOG.info("Error on upload", throwable);
-          }
-        });
+        LOG.debug("Uploading {}", proto);
+
+        Failsafe
+          .with(retryPolicy)
+          .compose(bulkhead)
+          .getStageAsync(() ->
+            prefabHttpClient.reportTelemetryEvents(
+              Prefab.TelemetryEvents
+                .newBuilder()
+                .addEvents(Prefab.TelemetryEvent.newBuilder().setSummaries(proto).build())
+                .build()
+            )
+          );
       } catch (InterruptedException e) {
         // continue
       }

@@ -23,6 +23,7 @@
   <properties>
     <basepom.check.skip-license>true</basepom.check.skip-license>
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
+    <dep.failsafe.version>3.3.2</dep.failsafe.version>
     <dep.jackson.version>2.14.1</dep.jackson.version>
     <dep.junit.version>5.9.1</dep.junit.version>
     <dep.protobuf.version>3.21.7</dep.protobuf.version>
@@ -65,6 +66,11 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java-util</artifactId>
         <version>${dep.protobuf.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>dev.failsafe</groupId>
+        <artifactId>failsafe</artifactId>
+        <version>${dep.failsafe.version}</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>
