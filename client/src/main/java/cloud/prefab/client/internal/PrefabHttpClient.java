@@ -112,6 +112,9 @@ public class PrefabHttpClient {
   }
 
   boolean reportContextShape(Prefab.ContextShapes contextShapes) {
+    if (contextShapes.getShapesList().isEmpty()) {
+      return true;
+    }
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
@@ -143,6 +146,9 @@ public class PrefabHttpClient {
   }
 
   boolean reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
+    if (evaluatedKeys.getKeysList().isEmpty()) {
+      return true;
+    }
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
