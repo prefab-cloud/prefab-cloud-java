@@ -3,6 +3,7 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -82,7 +83,23 @@ public class PrefabHttpClient {
     }
   }
 
-  CompletableFuture<Prefab.TelemetryEventsResponse> reportTelemetryEvents(
+  private static HttpResponse.BodySubscriber<Supplier<Prefab.TelemetryEventsResponse>> asProto() {
+    HttpResponse.BodySubscriber<InputStream> upstream = HttpResponse.BodySubscribers.ofInputStream();
+
+    return HttpResponse.BodySubscribers.mapping(
+      upstream,
+      inputStream ->
+        () -> {
+          try (InputStream stream = inputStream) {
+            return Prefab.TelemetryEventsResponse.parseFrom(stream);
+          } catch (IOException e) {
+            throw new UncheckedIOException(e);
+          }
+        }
+    );
+  }
+
+  CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> reportTelemetryEvents(
     Prefab.TelemetryEvents telemetryEvents
   ) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
@@ -91,39 +108,7 @@ public class PrefabHttpClient {
       .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/telemetry"))
       .POST(HttpRequest.BodyPublishers.ofByteArray(telemetryEvents.toByteArray()))
       .build();
-
-    CompletableFuture<Prefab.TelemetryEventsResponse> returnedFuture = new CompletableFuture<>();
-
-    CompletableFuture<HttpResponse<InputStream>> internalFuture = httpClient.sendAsync(
-      request,
-      HttpResponse.BodyHandlers.ofInputStream()
-    );
-
-    internalFuture.whenComplete((response, e) -> {
-      if (e != null) {
-        returnedFuture.completeExceptionally(e);
-      }
-      if (!isSuccess(response.statusCode())) {
-        LOG.info(
-          "Uploading telemetry events returned unsuccessful code {} with body {}",
-          response.statusCode(),
-          response.body()
-        );
-        returnedFuture.completeExceptionally(
-          new BadStatusCodeException(response.statusCode())
-        );
-      }
-      try {
-        returnedFuture.complete(
-          Prefab.TelemetryEventsResponse.parseFrom(response.body())
-        );
-      } catch (IOException ex) {
-        LOG.info("Unable to parse telemetry response proto");
-        returnedFuture.completeExceptionally(ex);
-      }
-    });
-
-    return returnedFuture;
+    return httpClient.sendAsync(request, responseInfo -> asProto());
   }
 
   boolean reportContextShape(Prefab.ContextShapes contextShapes) {

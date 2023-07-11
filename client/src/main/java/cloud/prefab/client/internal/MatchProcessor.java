@@ -5,18 +5,17 @@ import cloud.prefab.client.config.Match;
 import cloud.prefab.domain.Prefab;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,7 +130,7 @@ public class MatchProcessor {
         }
         Prefab.ConfigEvaluationSummaries proto = statsAggregate.toProto();
         LOG.info("Uploading {}", proto);
-        CompletableFuture<Prefab.TelemetryEventsResponse> future = prefabHttpClient.reportTelemetryEvents(
+        CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> future = prefabHttpClient.reportTelemetryEvents(
           Prefab.TelemetryEvents
             .newBuilder()
             .addEvents(Prefab.TelemetryEvent.newBuilder().setSummaries(proto).build())
@@ -181,44 +180,6 @@ public class MatchProcessor {
       super(EventType.MATCH, timestamp);
       this.match = match;
       this.lookupContext = lookupContext;
-    }
-  }
-
-  private static class DataSenderTask implements Runnable {
-
-    //TODO: rename DataSenderHandler one thread, keep at most N futures in progress at a time
-    // figure out threading issues with callbacks - don't want to start another request on the http client's callback thread!
-    // pair up the aggregate with the future for retry logic
-    // use failsafe library for retry?
-    PrefabHttpClient prefabHttpClient;
-    private final LinkedBlockingQueue<MatchStatsAggregator.StatsAggregate> outputQueue;
-
-    DataSenderTask(
-      PrefabHttpClient prefabHttpClient,
-      LinkedBlockingQueue<MatchStatsAggregator.StatsAggregate> outputQueue
-    ) {
-      this.prefabHttpClient = prefabHttpClient;
-      this.outputQueue = outputQueue;
-    }
-
-    @Override
-    public void run() {
-      try {
-        MatchStatsAggregator.StatsAggregate aggregate = outputQueue.take();
-        CompletableFuture<Prefab.TelemetryEventsResponse> future = prefabHttpClient.reportTelemetryEvents(
-          null //TODO implement proto conversion on the aggregate
-        );
-        future.handle((r, e) -> {
-          if (r != null) {
-            // decrement outstanding task counter
-          } else {
-            // handle error
-            // figure out how to safely retry - by default this will run on the http client's thread
-
-          }
-          return null;
-        });
-      } catch (InterruptedException e) {}
     }
   }
 }
