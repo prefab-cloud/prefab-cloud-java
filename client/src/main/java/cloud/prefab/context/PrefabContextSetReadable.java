@@ -67,7 +67,12 @@ public interface PrefabContextSetReadable {
       .filter(c -> !c.getName().isBlank())
       .filter(c -> c.getProperties().containsKey("key"))
       .sorted(Comparator.comparing(PrefabContext::getName))
-      .map(c -> c.getName() + c.getProperties().get("key"))
+      .map(c ->
+        new StringBuilder()
+          .append(c.getName())
+          .append("--")
+          .append(c.getProperties().get("key").toString().trim())
+      )
       .collect(Collectors.joining());
   }
 }

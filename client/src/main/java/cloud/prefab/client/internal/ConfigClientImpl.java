@@ -80,7 +80,7 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
-  private MatchProcessor matchProcessor;
+  private MatchProcessingManager matchProcessingManager;
 
   private ContextShapeAggregator contextShapeAggregator = null;
 
@@ -162,8 +162,8 @@ public class ConfigClientImpl implements ConfigClient {
           new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
         evaluatedKeysAggregator.start();
       }
-      matchProcessor = new MatchProcessor(options, prefabHttpClient, Clock.systemUTC());
-      matchProcessor.start();
+      matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
+      matchProcessingManager.start();
     }
   }
 
@@ -255,7 +255,7 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void reportMatchResult(Match match, LookupContext lookupContext) {
-    matchProcessor.reportMatch(match, lookupContext);
+    matchProcessingManager.reportMatch(match, lookupContext);
   }
 
   private Optional<Match> getMatchInternal(
@@ -446,11 +446,6 @@ public class ConfigClientImpl implements ConfigClient {
       LOG.info("Got exception with message {} loading configs from API", e.getMessage());
     }
     return false;
-  }
-
-  private static String getBasicAuthenticationHeader(String username, String password) {
-    String valueToEncode = username + ":" + password;
-    return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
   }
 
   private ScheduledExecutorService startStreamingExecutor() {

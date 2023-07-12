@@ -6,14 +6,11 @@ import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import dev.failsafe.Bulkhead;
-import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
-import java.net.http.HttpResponse;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,7 +20,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,18 +28,14 @@ public class MatchProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(MatchProcessor.class);
 
   private final Options options;
-  private final PrefabHttpClient prefabHttpClient;
   private final Clock clock;
 
   private static final int DRAIN_SIZE = 25_000;
   private static final int QUEUE_SIZE = 1_000_000_000;
 
-  private static final int OUTPUT_QUEUE_SIZE = 10;
   private final List<Event> drain = new ArrayList<>(DRAIN_SIZE); // don't allocate a new one every run
 
-  private final LinkedBlockingQueue<OutputBuffer> outputQueue = new LinkedBlockingQueue<>(
-    OUTPUT_QUEUE_SIZE
-  );
+  private final LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue;
 
   private final LinkedBlockingQueue<Event> matchQueue = new LinkedBlockingQueue<>(
     QUEUE_SIZE
@@ -52,11 +44,15 @@ public class MatchProcessor {
   private final MatchStatsAggregator matchStatsAggregator = new MatchStatsAggregator();
   private final ContextDeduplicator contextDeduplicator;
 
-  MatchProcessor(Options options, PrefabHttpClient prefabHttpClient, Clock clock) {
+  MatchProcessor(
+    LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue,
+    Clock clock,
+    Options options
+  ) {
     this.options = options;
-    this.prefabHttpClient = prefabHttpClient;
     this.clock = clock;
-    this.contextDeduplicator = new ContextDeduplicator();
+    this.contextDeduplicator = new ContextDeduplicator(Duration.ofMinutes(15), 1000);
+    this.outputQueue = outputQueue;
   }
 
   void start() {
@@ -72,18 +68,6 @@ public class MatchProcessor {
     );
     aggregatorThread.start();
 
-    ThreadFactory uploaderFactory = new ThreadFactoryBuilder()
-      .setDaemon(true)
-      .setNameFormat("prefab-match-processor-uploader-%d")
-      .build();
-
-    Thread uploaderThread = uploaderFactory.newThread(this::uploadLoop);
-    uploaderThread.setUncaughtExceptionHandler((t, e) ->
-      LOG.error("uncaught exception in thread t {}", t.getName(), e)
-    );
-    uploaderThread.setDaemon(true);
-    uploaderThread.start();
-
     ScheduledExecutorService executorService = MoreExecutors.getExitingScheduledExecutorService(
       new ScheduledThreadPoolExecutor(
         1,
@@ -96,12 +80,20 @@ public class MatchProcessor {
     executorService.scheduleAtFixedRate(this::flushStats, 10, 10, TimeUnit.SECONDS);
   }
 
+  private static final Set<Prefab.ConfigType> SUPPORTED_CONFIG_TYPES = Sets.immutableEnumSet(
+    Prefab.ConfigType.CONFIG,
+    Prefab.ConfigType.FEATURE_FLAG
+  );
+
   void reportMatch(Match match, LookupContext lookupContext) {
     if (
-      match.getConfigElement().getConfig().getConfigType() ==
-      Prefab.ConfigType.FEATURE_FLAG
+      SUPPORTED_CONFIG_TYPES.contains(
+        match.getConfigElement().getConfig().getConfigType()
+      )
     ) {
-      matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext));
+      if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
+        //TODO increment dropped events
+      }
     }
   }
 
@@ -133,7 +125,11 @@ public class MatchProcessor {
             MatchStatsAggregator.StatsAggregate stats = matchStatsAggregator.getAndResetStatsAggregate();
             Set<Prefab.ExampleContext> contextsToSend = recentlySeenContexts;
             recentlySeenContexts = new HashSet<>();
-            if (!outputQueue.offer(new OutputBuffer(contextsToSend, stats))) {
+            if (
+              !outputQueue.offer(
+                new MatchProcessingManager.OutputBuffer(contextsToSend, stats)
+              )
+            ) {
               //restore state and keep aggregating
               matchStatsAggregator.setStatsAggregate(stats);
               recentlySeenContexts = contextsToSend;
@@ -147,48 +143,11 @@ public class MatchProcessor {
     }
   }
 
-  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500); //TODO add more
-
-  void uploadLoop() {
-    Bulkhead<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> bulkhead = Bulkhead
-      .<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>>builder(5)
-      .build();
-
-    RetryPolicy<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> retryPolicy = RetryPolicy
-      .<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>>builder()
-      .withMaxRetries(3)
-      .withBackoff(1, 10, ChronoUnit.SECONDS)
-      .handleResultIf(r -> RETRYABLE_STATUS_CODES.contains(r.statusCode()))
-      .build();
-
-    while (true) {
-      try {
-        bulkhead.acquirePermit();
-        OutputBuffer outputBuffer = outputQueue.take();
-        Prefab.TelemetryEvents telemetryEvents = outputBuffer.toTelemetryEvents();
-        if (!telemetryEvents.getEventsList().isEmpty()) {
-          LOG.debug("Uploading {}", telemetryEvents);
-          Failsafe
-            .with(retryPolicy)
-            .getStageAsync(() -> prefabHttpClient.reportTelemetryEvents(telemetryEvents))
-            .whenComplete((r, t) -> {
-              // don't care if error or not here, just want to release the permit
-              bulkhead.releasePermit();
-            });
-        } else {
-          bulkhead.releasePermit();
-        }
-      } catch (InterruptedException e) {
-        // continue
-      }
-    }
-  }
-
   void flushStats() {
     matchQueue.offer(new MatchProcessor.Event(Event.EventType.FLUSH, clock.millis()));
   }
 
-  private static class Event {
+  static class Event {
 
     enum EventType {
       MATCH,
@@ -204,7 +163,7 @@ public class MatchProcessor {
     }
   }
 
-  private static class MatchEvent extends Event {
+  static class MatchEvent extends Event {
 
     Match match;
     LookupContext lookupContext;
@@ -216,17 +175,13 @@ public class MatchProcessor {
     }
   }
 
-  private static class ContextDeduplicator {
+  static class ContextDeduplicator {
 
     private final Cache<String, String> cache;
 
-    ContextDeduplicator() {
+    ContextDeduplicator(Duration expiry, int maxSize) {
       this.cache =
-        CacheBuilder
-          .newBuilder()
-          .expireAfterWrite(10, TimeUnit.MINUTES)
-          .maximumSize(1000)
-          .build();
+        CacheBuilder.newBuilder().expireAfterWrite(expiry).maximumSize(maxSize).build();
     }
 
     boolean recentlySeen(String fingerprint) {
@@ -235,44 +190,6 @@ public class MatchProcessor {
       }
       cache.put(fingerprint, fingerprint);
       return false;
-    }
-  }
-
-  private static class OutputBuffer {
-
-    Set<Prefab.ExampleContext> recentlySeenContexts;
-    MatchStatsAggregator.StatsAggregate statsAggregate;
-
-    public OutputBuffer(
-      Set<Prefab.ExampleContext> recentlySeenContexts,
-      MatchStatsAggregator.StatsAggregate statsAggregate
-    ) {
-      this.recentlySeenContexts = recentlySeenContexts;
-      this.statsAggregate = statsAggregate;
-    }
-
-    Prefab.TelemetryEvents toTelemetryEvents() {
-      Prefab.TelemetryEvents.Builder telemetryEventsBuilder = Prefab.TelemetryEvents.newBuilder();
-      if (!recentlySeenContexts.isEmpty()) {
-        telemetryEventsBuilder.addEvents(
-          Prefab.TelemetryEvent
-            .newBuilder()
-            .setExampleContexts(
-              Prefab.ExampleContexts
-                .newBuilder()
-                .addAllExamples(recentlySeenContexts)
-                .build()
-            )
-            .build()
-        );
-      }
-      if (!statsAggregate.getCounterData().isEmpty()) {
-        telemetryEventsBuilder.addEvents(
-          Prefab.TelemetryEvent.newBuilder().setSummaries(statsAggregate.toProto())
-        );
-      }
-
-      return telemetryEventsBuilder.build();
     }
   }
 }
