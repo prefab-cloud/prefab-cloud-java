@@ -255,7 +255,9 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void reportMatchResult(Match match, LookupContext lookupContext) {
-    matchProcessingManager.reportMatch(match, lookupContext);
+    if (matchProcessingManager != null) {
+      matchProcessingManager.reportMatch(match, lookupContext);
+    }
   }
 
   private Optional<Match> getMatchInternal(
