@@ -7,6 +7,7 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -19,6 +20,14 @@ public interface ConfigClient {
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
   Value<String> liveString(String key);
+
+  /**
+   * Evaluates a configuration based on context from the ContextStore
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a value that will be evaluated at runtime based on the context from the current scope
+   */
+  Value<List<String>> liveStringList(String key);
 
   /**
    * Evaluates a configuration based on context from the ContextStore
