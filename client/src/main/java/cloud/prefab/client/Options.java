@@ -44,6 +44,8 @@ public class Options {
   private boolean contextShapeUploadEnabled = true;
   private boolean evaluatedConfigKeyUploadEnabled = true;
 
+  private boolean configEvaluationCountsUploadEnabled = false;
+
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
     this.prefabApiUrl =
@@ -207,6 +209,17 @@ public class Options {
 
   public boolean isEvaluatedConfigKeyUploadEnabled() {
     return evaluatedConfigKeyUploadEnabled;
+  }
+
+  public boolean isConfigEvaluationCountsUploadEnabled() {
+    return configEvaluationCountsUploadEnabled;
+  }
+
+  public Options setConfigEvaluationCountsUploadEnabled(
+    boolean configEvaluationCountsUploadEnabled
+  ) {
+    this.configEvaluationCountsUploadEnabled = configEvaluationCountsUploadEnabled;
+    return this;
   }
 
   /**
