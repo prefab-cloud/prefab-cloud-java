@@ -272,7 +272,7 @@ public class ConfigClientImpl implements ConfigClient {
     LookupContext lookupContext
   ) {
     waitForInitialization();
-    return updatingConfigResolver.getResolver().getMatch(configKey, lookupContext);
+    return updatingConfigResolver.getMatch(configKey, lookupContext);
   }
 
   @Override
