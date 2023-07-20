@@ -12,6 +12,7 @@ import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
+import cloud.prefab.client.value.LiveStringList;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
@@ -28,7 +29,6 @@ import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -170,6 +170,11 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Value<String> liveString(String key) {
     return new LiveString(this, key);
+  }
+
+  @Override
+  public Value<List<String>> liveStringList(String key) {
+    return new LiveStringList(this, key);
   }
 
   @Override
