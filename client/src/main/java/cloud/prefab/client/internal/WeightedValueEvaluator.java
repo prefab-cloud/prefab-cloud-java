@@ -29,6 +29,14 @@ public class WeightedValueEvaluator {
     String featureName,
     LookupContext lookupContext
   ) {
+    return toResult(weightedValues, featureName, lookupContext).getValue();
+  }
+
+  public Result toResult(
+    Prefab.WeightedValues weightedValues,
+    String featureName,
+    LookupContext lookupContext
+  ) {
     Optional<String> hashPropertyValue = getHashPropertyValue(
       weightedValues,
       lookupContext
@@ -55,7 +63,7 @@ public class WeightedValueEvaluator {
     return Optional.empty();
   }
 
-  private Prefab.ConfigValue getValueFromWeightsAndPercent(
+  private Result getValueFromWeightsAndPercent(
     List<Prefab.WeightedValue> weightedValues,
     double targetPctThroughDistribution
   ) {
@@ -65,19 +73,44 @@ public class WeightedValueEvaluator {
       .reduce(Integer::sum)
       .orElse(1);
     int sum = 0;
+    int index = 0;
     for (Prefab.WeightedValue weightedValue : weightedValues) {
       sum += weightedValue.getWeight();
       double percentThroughDistribution = sum / (double) distributionSpace;
       if (targetPctThroughDistribution <= percentThroughDistribution) {
-        return weightedValue.getValue();
+        return Result.of(weightedValue.getValue(), index);
       }
+      index++;
     }
     // variants didn't add up to 100%
-    return weightedValues.get(0).getValue();
+    return Result.of(weightedValues.get(0).getValue(), 0);
   }
 
   private double getUserPct(String featureName, String configValue) {
     final String toHash = featureName + configValue;
     return hashProvider.hash(toHash);
+  }
+
+  public static class Result {
+
+    Prefab.ConfigValue value;
+    int index;
+
+    Result(Prefab.ConfigValue value, int index) {
+      this.value = value;
+      this.index = index;
+    }
+
+    public static Result of(Prefab.ConfigValue value, int index) {
+      return new Result(value, index);
+    }
+
+    public Prefab.ConfigValue getValue() {
+      return value;
+    }
+
+    public int getIndex() {
+      return index;
+    }
   }
 }

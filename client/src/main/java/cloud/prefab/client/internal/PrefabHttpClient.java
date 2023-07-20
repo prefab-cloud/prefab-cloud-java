@@ -3,6 +3,7 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -45,6 +46,15 @@ public class PrefabHttpClient {
     this.options = options;
   }
 
+  public static class BadStatusCodeException extends Exception {
+
+    int statusCode;
+
+    BadStatusCodeException(int statusCode) {
+      this.statusCode = statusCode;
+    }
+  }
+
   void reportLoggers(Prefab.Loggers loggers) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
@@ -73,7 +83,38 @@ public class PrefabHttpClient {
     }
   }
 
+  private static HttpResponse.BodySubscriber<Supplier<Prefab.TelemetryEventsResponse>> asProto() {
+    HttpResponse.BodySubscriber<InputStream> upstream = HttpResponse.BodySubscribers.ofInputStream();
+
+    return HttpResponse.BodySubscribers.mapping(
+      upstream,
+      inputStream ->
+        () -> {
+          try (InputStream stream = inputStream) {
+            return Prefab.TelemetryEventsResponse.parseFrom(stream);
+          } catch (IOException e) {
+            throw new UncheckedIOException(e);
+          }
+        }
+    );
+  }
+
+  CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> reportTelemetryEvents(
+    Prefab.TelemetryEvents telemetryEvents
+  ) {
+    HttpRequest request = getClientBuilderWithStandardHeaders()
+      .header("Content-Type", PROTO_MEDIA_TYPE)
+      .header("Accept", PROTO_MEDIA_TYPE)
+      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/telemetry"))
+      .POST(HttpRequest.BodyPublishers.ofByteArray(telemetryEvents.toByteArray()))
+      .build();
+    return httpClient.sendAsync(request, responseInfo -> asProto());
+  }
+
   boolean reportContextShape(Prefab.ContextShapes contextShapes) {
+    if (contextShapes.getShapesList().isEmpty()) {
+      return true;
+    }
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
@@ -105,6 +146,9 @@ public class PrefabHttpClient {
   }
 
   boolean reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
+    if (evaluatedKeys.getKeysList().isEmpty()) {
+      return true;
+    }
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)

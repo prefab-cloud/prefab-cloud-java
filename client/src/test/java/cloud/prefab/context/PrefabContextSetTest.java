@@ -102,4 +102,41 @@ class PrefabContextSetTest {
     PrefabContextSet prefabContextSet = PrefabContextSet.from(PREFAB_COMPANY_CONTEXT);
     assertThat(PrefabContextSet.convert(prefabContextSet)).isEqualTo(prefabContextSet);
   }
+
+  @Test
+  void fingerPrintIsEmptyForKeyLess() {
+    assertThat(
+      PrefabContextSet
+        .from(
+          PREFAB_USER_CONTEXT_2,
+          PREFAB_COMPANY_CONTEXT,
+          PREFAB_USER_CONTEXT_1_LOWERCASE
+        )
+        .getFingerPrint()
+    )
+      .isEmpty();
+  }
+
+  @Test
+  void fingerPrintForSingleContextWorks() {
+    assertThat(
+      PrefabContextSet
+        .from(PrefabContext.newBuilder("user").put("key", "u123").build())
+        .getFingerPrint()
+    )
+      .isEqualTo("user--string: \"u123\"");
+  }
+
+  @Test
+  void fingerPrintForContextSetWorks() {
+    assertThat(
+      PrefabContextSet
+        .from(
+          PrefabContext.newBuilder("user").put("key", "u123").build(),
+          PrefabContext.newBuilder("team").put("key", "t123").build()
+        )
+        .getFingerPrint()
+    )
+      .isEqualTo("team--string: \"t123\"user--string: \"u123\"");
+  }
 }
