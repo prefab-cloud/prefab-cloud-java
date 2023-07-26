@@ -111,6 +111,10 @@ public class MatchProcessor {
             String fingerPrint = context.getFingerPrint();
             if (!fingerPrint.isBlank()) {
               if (!contextDeduplicator.recentlySeen(fingerPrint)) {
+                LOG.debug(
+                  "have not seen context with fingerprint {} will add to recently seen contexts",
+                  fingerPrint
+                );
                 recentlySeenContexts.add(
                   Prefab.ExampleContext
                     .newBuilder()
@@ -118,7 +122,11 @@ public class MatchProcessor {
                     .setContextSet(PrefabContextSet.convert(context).toProto())
                     .build()
                 );
+              } else {
+                LOG.debug("Already saw context with fingerprint {}", fingerPrint);
               }
+            } else {
+              LOG.trace("ignoring context with no fingerprint {}", context);
             }
           }
           if (event.eventType == Event.EventType.FLUSH) {
