@@ -76,7 +76,7 @@ public class TelemetryUploader implements AutoCloseable {
         MatchProcessingManager.OutputBuffer outputBuffer = queue.take();
         Prefab.TelemetryEvents telemetryEvents = outputBuffer.toTelemetryEvents();
         if (!telemetryEvents.getEventsList().isEmpty()) {
-          LOG.info("Uploading {}", telemetryEvents);
+          LOG.debug("Uploading {}", telemetryEvents);
           Failsafe
             .with(retryPolicy)
             .getStageAsync(() -> prefabHttpClient.reportTelemetryEvents(telemetryEvents))

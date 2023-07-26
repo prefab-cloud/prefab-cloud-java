@@ -6,6 +6,8 @@ import cloud.prefab.domain.Prefab;
 import java.time.Clock;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MatchProcessingManager {
 
@@ -33,6 +35,8 @@ public class MatchProcessingManager {
 
   static class OutputBuffer {
 
+    static final Logger LOG = LoggerFactory.getLogger(OutputBuffer.class);
+
     Set<Prefab.ExampleContext> recentlySeenContexts;
     MatchStatsAggregator.StatsAggregate statsAggregate;
 
@@ -47,6 +51,10 @@ public class MatchProcessingManager {
     Prefab.TelemetryEvents toTelemetryEvents() {
       Prefab.TelemetryEvents.Builder telemetryEventsBuilder = Prefab.TelemetryEvents.newBuilder();
       if (!recentlySeenContexts.isEmpty()) {
+        LOG.debug(
+          "adding {} recently seen contexts to telemetry bundle",
+          recentlySeenContexts.size()
+        );
         telemetryEventsBuilder.addEvents(
           Prefab.TelemetryEvent
             .newBuilder()
@@ -58,6 +66,8 @@ public class MatchProcessingManager {
             )
             .build()
         );
+      } else {
+        LOG.debug("No recently seen contexts for telemetry bundle");
       }
       if (!statsAggregate.getCounterData().isEmpty()) {
         telemetryEventsBuilder.addEvents(
