@@ -8,6 +8,7 @@ import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -114,30 +115,36 @@ public class ConfigResolver {
     // Prefer rows that have a projEnvId to ones that don't
     // There will be 0-1 rows with projenv and 0-1 rows without (the default row)
 
-    return configElement
-      .getRowsProjEnvFirst(projectEnvId)
-      .map(configRow -> {
-        if (!configRow.getPropertiesMap().isEmpty()) {
-          rowPropertiesStack.push(configRow.getPropertiesMap());
-        }
-        // Return the value of the first matching set of criteria
-        for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
-          Optional<Match> optionalMatch = evaluateConditionalValue(
-            conditionalValue,
-            lookupContext,
-            rowPropertiesStack,
-            configElement
-          );
-
-          if (optionalMatch.isPresent()) {
-            return optionalMatch.get();
+    return Streams
+      .mapWithIndex(
+        configElement.getRowsProjEnvFirst(projectEnvId),
+        (configRow, rowIndex) -> {
+          if (!configRow.getPropertiesMap().isEmpty()) {
+            rowPropertiesStack.push(configRow.getPropertiesMap());
           }
+          // Return the value of the first matching set of criteria
+          int conditionalValueIndex = 0;
+          for (Prefab.ConditionalValue conditionalValue : configRow.getValuesList()) {
+            Optional<Match> optionalMatch = evaluateConditionalValue(
+              rowIndex,
+              conditionalValue,
+              conditionalValueIndex,
+              lookupContext,
+              rowPropertiesStack,
+              configElement
+            );
+
+            if (optionalMatch.isPresent()) {
+              return optionalMatch.get();
+            }
+            conditionalValueIndex++;
+          }
+          if (!configRow.getPropertiesMap().isEmpty()) {
+            rowPropertiesStack.pop();
+          }
+          return null;
         }
-        if (!configRow.getPropertiesMap().isEmpty()) {
-          rowPropertiesStack.pop();
-        }
-        return null;
-      })
+      )
       .filter(Objects::nonNull)
       .findFirst();
   }
@@ -165,13 +172,14 @@ public class ConfigResolver {
    * @return
    */
   private Optional<Match> evaluateConditionalValue(
+    long rowIndex,
     Prefab.ConditionalValue conditionalValue,
+    int conditionalValueIndex,
     LookupContext lookupContext,
     Deque<Map<String, Prefab.ConfigValue>> rowProperties,
     ConfigElement configElement
   ) {
     List<EvaluatedCriterion> evaluatedCriteria = new ArrayList<>();
-
     for (Prefab.Criterion criterion : conditionalValue.getCriteriaList()) {
       for (EvaluatedCriterion evaluateCriterion : evaluateCriterionMatch(
         criterion,
@@ -185,7 +193,14 @@ public class ConfigResolver {
       }
     }
     return Optional.of(
-      simplifyToMatch(conditionalValue, configElement, lookupContext, evaluatedCriteria)
+      simplifyToMatch(
+        rowIndex,
+        conditionalValue,
+        conditionalValueIndex,
+        configElement,
+        lookupContext,
+        evaluatedCriteria
+      )
     );
   }
 
@@ -193,7 +208,9 @@ public class ConfigResolver {
    * A ConfigValue may be a WeightedValue. If so break it down so we can return a simpler form.
    */
   private Match simplifyToMatch(
+    long rowIndex,
     Prefab.ConditionalValue selectedConditionalValue,
+    int conditionalValueIndex,
     ConfigElement configElement,
     LookupContext lookupContext,
     List<EvaluatedCriterion> evaluatedCriteria
@@ -208,6 +225,8 @@ public class ConfigResolver {
         result.getValue(),
         configElement,
         evaluatedCriteria,
+        (int) rowIndex,
+        conditionalValueIndex,
         Optional.of(result.getIndex())
       );
     } else {
@@ -215,6 +234,8 @@ public class ConfigResolver {
         selectedConditionalValue.getValue(),
         configElement,
         evaluatedCriteria,
+        (int) rowIndex,
+        conditionalValueIndex,
         Optional.empty()
       );
     }
