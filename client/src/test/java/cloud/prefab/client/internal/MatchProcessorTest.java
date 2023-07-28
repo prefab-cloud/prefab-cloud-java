@@ -58,6 +58,8 @@ class MatchProcessorTest {
         ConfigValueUtils.from(false),
         new ConfigElement(TF_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        1,
+        2,
         Optional.empty()
       ),
       new LookupContext(
@@ -74,6 +76,8 @@ class MatchProcessorTest {
         ConfigValueUtils.from(true),
         new ConfigElement(TF_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        1,
+        2,
         Optional.empty()
       ),
       new LookupContext(
@@ -90,6 +94,8 @@ class MatchProcessorTest {
         ConfigValueUtils.from(true),
         new ConfigElement(TF_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        1,
+        2,
         Optional.empty()
       ),
       new LookupContext(

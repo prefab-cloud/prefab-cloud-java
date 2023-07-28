@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public class MatchStatsAggregator {
 
@@ -68,11 +69,14 @@ public class MatchStatsAggregator {
 
       CountKey countKey = new CountKey(
         match.getConfigElement().getConfig().getId(),
+        match.getConfigValue(),
         indexOfMatch(
           match.getConfigValue(),
           match.getConfigElement().getConfig().getAllowableValuesList()
         ),
-        match.getConfigValue()
+        match.getRowIndex(),
+        match.getConditionalValueIndex(),
+        match.getWeightedValueIndex()
       );
       innerMap.computeIfAbsent(countKey, c -> new Counter(0)).inc();
     }
@@ -112,6 +116,11 @@ public class MatchStatsAggregator {
           if (countKey.selectedIndex >= 0) {
             counterProtoBuilder.setSelectedIndex(countKey.selectedIndex);
           }
+          counterProtoBuilder.setConfigRowIndex(countKey.rowIndex);
+          counterProtoBuilder.setConditionalValueIndex(countKey.valueIndex);
+          countKey.weightedValueIndex.ifPresent(
+            counterProtoBuilder::setWeightedValueIndex
+          );
           counterProtoBuilder.setSelectedValue(countKey.configValue);
           summaryBuilder.addCounters(counterProtoBuilder);
         }
@@ -162,11 +171,24 @@ public class MatchStatsAggregator {
 
     final long configId;
     final int selectedIndex;
+    private final int rowIndex;
+    private final int valueIndex;
+    private final Optional<Integer> weightedValueIndex;
     final Prefab.ConfigValue configValue;
 
-    CountKey(long configId, int selectedIndex, Prefab.ConfigValue configValue) {
+    CountKey(
+      long configId,
+      Prefab.ConfigValue configValue,
+      int selectedIndex,
+      int rowIndex,
+      int valueIndex,
+      Optional<Integer> weightedValueIndex
+    ) {
       this.configId = configId;
       this.selectedIndex = selectedIndex;
+      this.rowIndex = rowIndex;
+      this.valueIndex = valueIndex;
+      this.weightedValueIndex = weightedValueIndex;
       this.configValue = configValue;
     }
 
@@ -182,13 +204,23 @@ public class MatchStatsAggregator {
       return (
         configId == countKey.configId &&
         selectedIndex == countKey.selectedIndex &&
+        rowIndex == countKey.rowIndex &&
+        valueIndex == countKey.valueIndex &&
+        Objects.equals(weightedValueIndex, countKey.weightedValueIndex) &&
         Objects.equals(configValue, countKey.configValue)
       );
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(configId, selectedIndex, configValue);
+      return Objects.hash(
+        configId,
+        selectedIndex,
+        rowIndex,
+        valueIndex,
+        weightedValueIndex,
+        configValue
+      );
     }
 
     @Override
@@ -197,6 +229,9 @@ public class MatchStatsAggregator {
         .toStringHelper(this)
         .add("configId", configId)
         .add("selectedIndex", selectedIndex)
+        .add("rowIndex", rowIndex)
+        .add("valueIndex", valueIndex)
+        .add("weightedValueIndex", weightedValueIndex)
         .add("configValue", configValue)
         .toString();
     }

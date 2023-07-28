@@ -67,6 +67,8 @@ class MatchStatsAggregatorTest {
         ConfigValueUtils.from(true),
         new ConfigElement(TF_CONFIG_1, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        0,
+        2,
         Optional.empty()
       ),
       101
@@ -77,6 +79,8 @@ class MatchStatsAggregatorTest {
         ConfigValueUtils.from(false),
         new ConfigElement(TF_CONFIG_1, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        0,
+        2,
         Optional.empty()
       ),
       102
@@ -87,6 +91,8 @@ class MatchStatsAggregatorTest {
         ConfigValueUtils.from(false),
         new ConfigElement(TF_CONFIG_2, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
+        0,
+        2,
         Optional.empty()
       ),
       102
@@ -100,6 +106,8 @@ class MatchStatsAggregatorTest {
           new Provenance(ConfigClient.Source.STREAMING)
         ),
         Collections.emptyList(),
+        0,
+        3,
         Optional.empty()
       ),
       107
@@ -117,7 +125,14 @@ class MatchStatsAggregatorTest {
             Prefab.ConfigType.FEATURE_FLAG
           ),
           Map.of(
-            new MatchStatsAggregator.CountKey(1, 0, ConfigValueUtils.from(1)),
+            new MatchStatsAggregator.CountKey(
+              1,
+              ConfigValueUtils.from(1),
+              0,
+              0,
+              3,
+              Optional.empty()
+            ),
             new MatchStatsAggregator.Counter(1)
           ),
           new MatchStatsAggregator.ConfigKeyAndTypeKey(
@@ -125,11 +140,32 @@ class MatchStatsAggregatorTest {
             Prefab.ConfigType.FEATURE_FLAG
           ),
           Map.of(
-            new MatchStatsAggregator.CountKey(1, 0, ConfigValueUtils.from(true)),
+            new MatchStatsAggregator.CountKey(
+              1,
+              ConfigValueUtils.from(true),
+              0,
+              0,
+              2,
+              Optional.empty()
+            ),
             new MatchStatsAggregator.Counter(1),
-            new MatchStatsAggregator.CountKey(1, 1, ConfigValueUtils.from(false)),
+            new MatchStatsAggregator.CountKey(
+              1,
+              ConfigValueUtils.from(false),
+              1,
+              0,
+              2,
+              Optional.empty()
+            ),
             new MatchStatsAggregator.Counter(1),
-            new MatchStatsAggregator.CountKey(2, 1, ConfigValueUtils.from(false)),
+            new MatchStatsAggregator.CountKey(
+              2,
+              ConfigValueUtils.from(false),
+              1,
+              0,
+              2,
+              Optional.empty()
+            ),
             new MatchStatsAggregator.Counter(1)
           )
         )
