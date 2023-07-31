@@ -192,6 +192,49 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.4.1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>com.google.guava:guava</include>
+                  <include>cloud.prefab:sse-handler</include>
+                  <include>dev.failsafe:failsafe</include>
+                  <include>org.yaml:snakeyaml</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <!--
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>prefab.shaded.com.google.common</shadedPattern>
+                </relocation>
+                -->
+                <relocation>
+                  <pattern>org.yaml.snakeyaml</pattern>
+                  <shadedPattern>prefab.shaded.snakeyaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>dev.failsafe</pattern>
+                  <shadedPattern>prefab.shaded.dev.failsafe</shadedPattern>
+                </relocation>
+              </relocations>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>uberjar</shadedClassifierName>
+              <shadeSourcesContent>true</shadeSourcesContent>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>

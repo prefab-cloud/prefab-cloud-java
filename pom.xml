@@ -24,11 +24,11 @@
     <basepom.check.skip-license>true</basepom.check.skip-license>
     <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
     <dep.failsafe.version>3.3.2</dep.failsafe.version>
+    <dep.guava.version>31.1-jre</dep.guava.version>
     <dep.jackson.version>2.14.1</dep.jackson.version>
     <dep.junit.version>5.9.1</dep.junit.version>
     <dep.protobuf.version>3.23.2</dep.protobuf.version>
     <dep.protoc.version>3.21.7</dep.protoc.version>
-    <dep.guava.version>31.1-jre</dep.guava.version>
   </properties>
 
   <dependencyManagement>
