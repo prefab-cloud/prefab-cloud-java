@@ -162,7 +162,7 @@ public class ConfigClientImpl implements ConfigClient {
           new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
         evaluatedKeysAggregator.start();
       }
-      if (options.isConfigEvaluationCountsUploadEnabled()) {
+      if (options.isConfigEvaluationCountsUploadEnabled() || options.isExampleContextUploadEnabled()) {
         matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
         matchProcessingManager.start();
       }

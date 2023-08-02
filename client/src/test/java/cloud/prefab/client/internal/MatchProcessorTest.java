@@ -42,17 +42,120 @@ class MatchProcessorTest {
     )
     .build();
 
-  // more testing to come, factoring out the timed flush to the manager may make the testing here easier
   @Test
-  void itWorks() throws InterruptedException {
+  void itRecordsCountsAndContexts() throws InterruptedException {
     LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
     MatchProcessor matchProcessor = new MatchProcessor(
       outputQueue,
       Clock.systemUTC(),
-      new Options()
+      new Options().setContextUploadMode(Options.ContextUploadMode.PERIODIC_EXAMPLE).setConfigEvaluationCountsUploadEnabled(true)
     );
     matchProcessor.start();
 
+    reportSomeMatches(matchProcessor);
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer item = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(item).isNotNull();
+
+    assertThat(item.recentlySeenContexts).hasSize(2);
+    assertThat(item.statsAggregate.getCounterData())
+      .containsKey(
+        new MatchStatsAggregator.ConfigKeyAndTypeKey(
+          TF_CONFIG.getKey(),
+          TF_CONFIG.getConfigType()
+        )
+      );
+
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(nextItem).isNotNull();
+    assertThat(nextItem.recentlySeenContexts).isEmpty();
+    assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
+  }
+
+
+  @Test
+  void itRecordsCountsWithoutContexts() throws InterruptedException {
+    LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
+    MatchProcessor matchProcessor = new MatchProcessor(
+            outputQueue,
+            Clock.systemUTC(),
+            new Options().setContextUploadMode(Options.ContextUploadMode.SHAPE_ONLY).setConfigEvaluationCountsUploadEnabled(true)
+    );
+    matchProcessor.start();
+
+    reportSomeMatches(matchProcessor);
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer item = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(item).isNotNull();
+
+    assertThat(item.recentlySeenContexts).isEmpty();
+    assertThat(item.statsAggregate.getCounterData())
+            .containsKey(
+                    new MatchStatsAggregator.ConfigKeyAndTypeKey(
+                            TF_CONFIG.getKey(),
+                            TF_CONFIG.getConfigType()
+                    )
+            );
+
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(nextItem).isNotNull();
+    assertThat(nextItem.recentlySeenContexts).isEmpty();
+    assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
+  }
+
+  @Test
+  void itRecordsContextsWithoutCounts() throws InterruptedException {
+    LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
+    MatchProcessor matchProcessor = new MatchProcessor(
+            outputQueue,
+            Clock.systemUTC(),
+            new Options().setContextUploadMode(Options.ContextUploadMode.PERIODIC_EXAMPLE).setConfigEvaluationCountsUploadEnabled(false)
+    );
+    matchProcessor.start();
+
+    reportSomeMatches(matchProcessor);
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer item = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(item).isNotNull();
+
+    assertThat(item.recentlySeenContexts).hasSize(2);
+    assertThat(item.statsAggregate.getCounterData()).isEmpty();
+
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(nextItem).isNotNull();
+    assertThat(nextItem.recentlySeenContexts).isEmpty();
+    assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
+  }
+
+  @Test
+  void itRecordsNothing() throws InterruptedException {
+    LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
+    MatchProcessor matchProcessor = new MatchProcessor(
+            outputQueue,
+            Clock.systemUTC(),
+            new Options().setContextUploadMode(Options.ContextUploadMode.SHAPE_ONLY).setConfigEvaluationCountsUploadEnabled(false)
+    );
+    matchProcessor.start();
+
+    reportSomeMatches(matchProcessor);
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer item = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(item).isNotNull();
+
+    assertThat(item.recentlySeenContexts).isEmpty();
+    assertThat(item.statsAggregate.getCounterData()).isEmpty();
+
+    matchProcessor.flushStats();
+    MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
+    assertThat(nextItem).isNotNull();
+    assertThat(nextItem.recentlySeenContexts).isEmpty();
+    assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
+  }
+
+  private static void reportSomeMatches(MatchProcessor matchProcessor) {
     matchProcessor.reportMatch(
       new Match(
         ConfigValueUtils.from(false),
@@ -106,24 +209,6 @@ class MatchProcessorTest {
         )
       )
     );
-    matchProcessor.flushStats();
-    MatchProcessingManager.OutputBuffer item = outputQueue.poll(10, TimeUnit.SECONDS);
-    assertThat(item).isNotNull();
-
-    assertThat(item.recentlySeenContexts).hasSize(2);
-    assertThat(item.statsAggregate.getCounterData())
-      .containsKey(
-        new MatchStatsAggregator.ConfigKeyAndTypeKey(
-          TF_CONFIG.getKey(),
-          TF_CONFIG.getConfigType()
-        )
-      );
-
-    matchProcessor.flushStats();
-    MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
-    assertThat(nextItem).isNotNull();
-    assertThat(nextItem.recentlySeenContexts).isEmpty();
-    assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
   }
   //TODO write a test where the output queue is full and processor continues to accumulate to the same buffer
 }

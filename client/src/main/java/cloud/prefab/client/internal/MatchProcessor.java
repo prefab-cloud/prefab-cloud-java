@@ -7,7 +7,6 @@ import cloud.prefab.domain.Prefab;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Clock;
 import java.time.Duration;
@@ -16,10 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,17 +63,6 @@ public class MatchProcessor {
       LOG.error("uncaught exception in thread t {}", t.getName(), e)
     );
     aggregatorThread.start();
-
-    ScheduledExecutorService executorService = MoreExecutors.getExitingScheduledExecutorService(
-      new ScheduledThreadPoolExecutor(
-        1,
-        r -> new Thread(r, "prefab-match-processor-flusher")
-      ),
-      100,
-      TimeUnit.MILLISECONDS
-    );
-
-    executorService.scheduleAtFixedRate(this::flushStats, 10, 10, TimeUnit.SECONDS);
   }
 
   private static final Set<Prefab.ConfigType> SUPPORTED_CONFIG_TYPES = Sets.immutableEnumSet(
@@ -86,15 +71,15 @@ public class MatchProcessor {
   );
 
   void reportMatch(Match match, LookupContext lookupContext) {
-    if (
-      SUPPORTED_CONFIG_TYPES.contains(
-        match.getConfigElement().getConfig().getConfigType()
-      )
-    ) {
-      if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
-        //TODO increment dropped events
+      if (
+              SUPPORTED_CONFIG_TYPES.contains(
+                      match.getConfigElement().getConfig().getConfigType()
+              )
+      ) {
+        if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
+          //TODO increment dropped events
+        }
       }
-    }
   }
 
   void aggregationLoop() {
@@ -106,27 +91,31 @@ public class MatchProcessor {
         for (Event event : drain) {
           if (event.eventType == Event.EventType.MATCH) {
             MatchEvent matchEvent = (MatchEvent) event;
-            matchStatsAggregator.recordMatch(matchEvent.match, event.timestamp);
-            PrefabContextSet context = matchEvent.lookupContext.getPrefabContextSet();
-            String fingerPrint = context.getFingerPrint();
-            if (!fingerPrint.isBlank()) {
-              if (!contextDeduplicator.recentlySeen(fingerPrint)) {
-                LOG.debug(
-                  "have not seen context with fingerprint {} will add to recently seen contexts",
-                  fingerPrint
-                );
-                recentlySeenContexts.add(
-                  Prefab.ExampleContext
-                    .newBuilder()
-                    .setTimestamp(event.timestamp)
-                    .setContextSet(PrefabContextSet.convert(context).toProto())
-                    .build()
-                );
+            if (options.isConfigEvaluationCountsUploadEnabled()) {
+              matchStatsAggregator.recordMatch(matchEvent.match, event.timestamp);
+            }
+            if (options.isExampleContextUploadEnabled()) {
+              PrefabContextSet context = matchEvent.lookupContext.getPrefabContextSet();
+              String fingerPrint = context.getFingerPrint();
+              if (!fingerPrint.isBlank()) {
+                if (!contextDeduplicator.recentlySeen(fingerPrint)) {
+                  LOG.debug(
+                          "have not seen context with fingerprint {} will add to recently seen contexts",
+                          fingerPrint
+                  );
+                  recentlySeenContexts.add(
+                          Prefab.ExampleContext
+                                  .newBuilder()
+                                  .setTimestamp(event.timestamp)
+                                  .setContextSet(PrefabContextSet.convert(context).toProto())
+                                  .build()
+                  );
+                } else {
+                  LOG.debug("Already saw context with fingerprint {}", fingerPrint);
+                }
               } else {
-                LOG.debug("Already saw context with fingerprint {}", fingerPrint);
+                LOG.trace("ignoring context with no fingerprint {}", context);
               }
-            } else {
-              LOG.trace("ignoring context with no fingerprint {}", context);
             }
           }
           if (event.eventType == Event.EventType.FLUSH) {

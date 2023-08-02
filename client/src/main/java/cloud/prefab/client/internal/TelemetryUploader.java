@@ -6,7 +6,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import dev.failsafe.Bulkhead;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
-import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
@@ -47,7 +46,7 @@ public class TelemetryUploader implements AutoCloseable {
     this.queue = queue;
   }
 
-  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500); //TODO add more
+  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500,503); //TODO add more
 
   void start() {
     if (queue == null) {

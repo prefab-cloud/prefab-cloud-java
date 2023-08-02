@@ -22,6 +22,12 @@ public class Options {
     UNLOCK,
   }
 
+  public enum ContextUploadMode {
+    NONE,
+    SHAPE_ONLY,
+    PERIODIC_EXAMPLE
+  }
+
   private static final String DEFAULT_ENV = "default";
 
   private String prefabApiUrl;
@@ -41,10 +47,11 @@ public class Options {
 
   private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
 
-  private boolean contextShapeUploadEnabled = true;
   private boolean evaluatedConfigKeyUploadEnabled = true;
 
   private boolean configEvaluationCountsUploadEnabled = false;
+
+  private ContextUploadMode contextUploadMode = ContextUploadMode.SHAPE_ONLY;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -190,8 +197,22 @@ public class Options {
     return this;
   }
 
+  public ContextUploadMode getContextUploadMode() {
+    return contextUploadMode;
+  }
+
+  public Options setContextUploadMode(ContextUploadMode contextUploadMode) {
+    this.contextUploadMode = contextUploadMode;
+    return this;
+  }
+
   public boolean isContextShapeUploadEnabled() {
-    return contextShapeUploadEnabled;
+    return contextUploadMode != ContextUploadMode.NONE;
+  }
+
+
+  public boolean isExampleContextUploadEnabled() {
+    return contextUploadMode == ContextUploadMode.PERIODIC_EXAMPLE;
   }
 
   /**
@@ -222,19 +243,10 @@ public class Options {
     return this;
   }
 
-  /**
-   * Configure client to report context shape data
-   * The captured data consists of names and types of context data, NOT the actual values
-   * The data allows prefab to populate options in the rule builder UI
-   * Defaults to true
-   * @param enabled
-   * @return
-   */
 
-  public Options setContextShapeUploadEnabled(boolean enabled) {
-    this.contextShapeUploadEnabled = enabled;
-    return this;
-  }
+
+
+
 
   public String getCDNUrl() {
     String envVar = System.getenv("PREFAB_CDN_URL");

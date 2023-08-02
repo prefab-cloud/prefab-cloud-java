@@ -6,6 +6,11 @@ import cloud.prefab.domain.Prefab;
 import java.time.Clock;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +32,16 @@ public class MatchProcessingManager {
   public void start() {
     uploader.start();
     matchProcessor.start();
+    ScheduledExecutorService executorService = MoreExecutors.getExitingScheduledExecutorService(
+            new ScheduledThreadPoolExecutor(
+                    1,
+                    r -> new Thread(r, "prefab-match-processor-flusher")
+            ),
+            100,
+            TimeUnit.MILLISECONDS
+    );
+
+    executorService.scheduleAtFixedRate(matchProcessor::flushStats, 10, 10, TimeUnit.SECONDS);
   }
 
   public void reportMatch(Match match, LookupContext lookupContext) {
