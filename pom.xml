@@ -138,7 +138,7 @@
         <plugin>
           <groupId>com.github.ekryd.sortpom</groupId>
           <artifactId>sortpom-maven-plugin</artifactId>
-          <version>3.2.0</version>
+          <version>3.3.0</version>
           <configuration>
             <keepBlankLines>true</keepBlankLines>
             <predefinedSortOrder>custom_1</predefinedSortOrder>
