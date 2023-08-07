@@ -49,7 +49,7 @@ public class Options {
 
   private boolean evaluatedConfigKeyUploadEnabled = true;
 
-  private boolean configEvaluationCountsUploadEnabled = false;
+  private boolean configEvaluationCountsUploadEnabled = true;
 
   private ContextUploadMode contextUploadMode = ContextUploadMode.SHAPE_ONLY;
 
