@@ -55,16 +55,24 @@ public class MatchProcessingManager {
   static class OutputBuffer {
 
     static final Logger LOG = LoggerFactory.getLogger(OutputBuffer.class);
+    private final long droppedEventCount;
 
+    private final long startTime;
+    private final long endTime;
     Set<Prefab.ExampleContext> recentlySeenContexts;
     MatchStatsAggregator.StatsAggregate statsAggregate;
 
     public OutputBuffer(
+            long startTime, long endTime,
       Set<Prefab.ExampleContext> recentlySeenContexts,
-      MatchStatsAggregator.StatsAggregate statsAggregate
+      MatchStatsAggregator.StatsAggregate statsAggregate,
+      long droppedEventCount
     ) {
+      this.startTime = startTime;
+      this.endTime = endTime;
       this.recentlySeenContexts = recentlySeenContexts;
       this.statsAggregate = statsAggregate;
+      this.droppedEventCount = droppedEventCount;
     }
 
     Prefab.TelemetryEvents toTelemetryEvents() {
@@ -87,6 +95,9 @@ public class MatchProcessingManager {
         );
       } else {
         LOG.debug("No recently seen contexts for telemetry bundle");
+      }
+      if (droppedEventCount > 0) {
+        telemetryEventsBuilder.addEvents(Prefab.TelemetryEvent.newBuilder().setClientStats(Prefab.ClientStats.newBuilder().setDroppedEventCount(droppedEventCount).setStart(startTime).setEnd(endTime).build()));
       }
       if (!statsAggregate.getCounterData().isEmpty()) {
         telemetryEventsBuilder.addEvents(

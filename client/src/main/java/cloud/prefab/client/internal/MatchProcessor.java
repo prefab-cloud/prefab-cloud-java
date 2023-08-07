@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.LongAccumulator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,9 @@ public class MatchProcessor {
 
   private final MatchStatsAggregator matchStatsAggregator = new MatchStatsAggregator();
   private final ContextDeduplicator contextDeduplicator;
+  private final LongAccumulator droppedEventCount = new LongAccumulator(Long::sum, 0);
+
+  private long recordingPeriodStartTime;
 
   MatchProcessor(
     LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue,
@@ -63,6 +68,7 @@ public class MatchProcessor {
       LOG.error("uncaught exception in thread t {}", t.getName(), e)
     );
     aggregatorThread.start();
+    recordingPeriodStartTime = clock.millis();
   }
 
   private static final Set<Prefab.ConfigType> SUPPORTED_CONFIG_TYPES = Sets.immutableEnumSet(
@@ -77,7 +83,7 @@ public class MatchProcessor {
       )
     ) {
       if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
-        //TODO increment dropped events
+        droppedEventCount.accumulate(1);
       }
     }
   }
@@ -122,14 +128,20 @@ public class MatchProcessor {
             MatchStatsAggregator.StatsAggregate stats = matchStatsAggregator.getAndResetStatsAggregate();
             Set<Prefab.ExampleContext> contextsToSend = recentlySeenContexts;
             recentlySeenContexts = new HashSet<>();
+            long droppedEventCount = this.droppedEventCount.getThenReset();
+            long previousReportingPeriodStart = recordingPeriodStartTime;
+            recordingPeriodStartTime = clock.millis();
+
             if (
               !outputQueue.offer(
-                new MatchProcessingManager.OutputBuffer(contextsToSend, stats)
+                new MatchProcessingManager.OutputBuffer(previousReportingPeriodStart, recordingPeriodStartTime, contextsToSend, stats, droppedEventCount)
               )
             ) {
               //restore state and keep aggregating
               matchStatsAggregator.setStatsAggregate(stats);
               recentlySeenContexts = contextsToSend;
+              this.droppedEventCount.accumulate(droppedEventCount);
+              recordingPeriodStartTime = previousReportingPeriodStart;
             }
           }
         }
