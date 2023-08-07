@@ -84,8 +84,6 @@ public class ConfigClientImpl implements ConfigClient {
 
   private ContextShapeAggregator contextShapeAggregator = null;
 
-  private EvaluatedKeysAggregator evaluatedKeysAggregator = null;
-
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
     ConfigChangeListener... listeners
@@ -157,11 +155,6 @@ public class ConfigClientImpl implements ConfigClient {
           new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
         contextShapeAggregator.start();
       }
-      if (options.isEvaluatedConfigKeyUploadEnabled()) {
-        evaluatedKeysAggregator =
-          new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
-        evaluatedKeysAggregator.start();
-      }
       if (options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()) {
         matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
         matchProcessingManager.start();
@@ -221,9 +214,6 @@ public class ConfigClientImpl implements ConfigClient {
   private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {
     if (contextShapeAggregator != null) {
       contextShapeAggregator.reportContextUsage(prefabContext);
-    }
-    if (evaluatedKeysAggregator != null) {
-      evaluatedKeysAggregator.reportKeyUsage(configKey);
     }
   }
 
