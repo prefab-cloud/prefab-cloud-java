@@ -91,10 +91,10 @@ public class MatchProcessor {
         for (Event event : drain) {
           if (event.eventType == Event.EventType.MATCH) {
             MatchEvent matchEvent = (MatchEvent) event;
-            if (options.isConfigEvaluationCountsUploadEnabled()) {
+            if (options.isCollectEvaluationSummaries()) {
               matchStatsAggregator.recordMatch(matchEvent.match, event.timestamp);
             }
-            if (options.isExampleContextUploadEnabled()) {
+            if (options.isCollectExampleContextEnabled()) {
               PrefabContextSet context = matchEvent.lookupContext.getPrefabContextSet();
               String fingerPrint = context.getFingerPrint();
               if (!fingerPrint.isBlank()) {

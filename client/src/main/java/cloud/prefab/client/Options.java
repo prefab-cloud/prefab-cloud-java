@@ -22,7 +22,7 @@ public class Options {
     UNLOCK,
   }
 
-  public enum ContextUploadMode {
+  public enum CollectContextMode {
     NONE,
     SHAPE_ONLY,
     PERIODIC_EXAMPLE
@@ -41,7 +41,7 @@ public class Options {
   private Datasources prefabDatasources = Datasources.ALL;
   private int initializationTimeoutSec = 10;
   private OnInitializationFailure onInitializationFailure = OnInitializationFailure.RAISE;
-  private boolean reportLogStats = true;
+  private boolean collectLoggerCounts = true;
 
   private ContextStore contextStore = ThreadLocalContextStore.INSTANCE;
 
@@ -49,9 +49,9 @@ public class Options {
 
   private boolean evaluatedConfigKeyUploadEnabled = true;
 
-  private boolean configEvaluationCountsUploadEnabled = true;
+  private boolean collectEvaluationSummaries = true;
 
-  private ContextUploadMode contextUploadMode = ContextUploadMode.SHAPE_ONLY;
+  private CollectContextMode collectContextMode = CollectContextMode.SHAPE_ONLY;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -179,8 +179,8 @@ public class Options {
     return this;
   }
 
-  public boolean isReportLogStats() {
-    return reportLogStats;
+  public boolean isCollectLoggerCounts() {
+    return collectLoggerCounts;
   }
 
   /**
@@ -188,31 +188,31 @@ public class Options {
    * The captured data consists of fully qualified logger name with counts of log messages by level.
    * The data allows prefab to preconfigure the log levels UI.
    * Defaults to true
-   * @param reportLogStats
+   * @param collectLoggerCounts
    * @return
    */
 
-  public Options setReportLogStats(boolean reportLogStats) {
-    this.reportLogStats = reportLogStats;
+  public Options setCollectLoggerCounts(boolean collectLoggerCounts) {
+    this.collectLoggerCounts = collectLoggerCounts;
     return this;
   }
 
-  public ContextUploadMode getContextUploadMode() {
-    return contextUploadMode;
+  public CollectContextMode getContextUploadMode() {
+    return collectContextMode;
   }
 
-  public Options setContextUploadMode(ContextUploadMode contextUploadMode) {
-    this.contextUploadMode = contextUploadMode;
+  public Options setContextUploadMode(CollectContextMode collectContextMode) {
+    this.collectContextMode = collectContextMode;
     return this;
   }
 
-  public boolean isContextShapeUploadEnabled() {
-    return contextUploadMode != ContextUploadMode.NONE;
+  public boolean isCollectContextShapeEnabled() {
+    return collectContextMode != CollectContextMode.NONE;
   }
 
 
-  public boolean isExampleContextUploadEnabled() {
-    return contextUploadMode == ContextUploadMode.PERIODIC_EXAMPLE;
+  public boolean isCollectExampleContextEnabled() {
+    return collectContextMode == CollectContextMode.PERIODIC_EXAMPLE;
   }
 
   /**
@@ -232,14 +232,14 @@ public class Options {
     return evaluatedConfigKeyUploadEnabled;
   }
 
-  public boolean isConfigEvaluationCountsUploadEnabled() {
-    return configEvaluationCountsUploadEnabled;
+  public boolean isCollectEvaluationSummaries() {
+    return collectEvaluationSummaries;
   }
 
-  public Options setConfigEvaluationCountsUploadEnabled(
-    boolean configEvaluationCountsUploadEnabled
+  public Options setCollectEvaluationSummaries(
+    boolean collectEvaluationSummaries
   ) {
-    this.configEvaluationCountsUploadEnabled = configEvaluationCountsUploadEnabled;
+    this.collectEvaluationSummaries = collectEvaluationSummaries;
     return this;
   }
 

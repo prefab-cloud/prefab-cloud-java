@@ -48,7 +48,7 @@ class MatchProcessorTest {
     MatchProcessor matchProcessor = new MatchProcessor(
       outputQueue,
       Clock.systemUTC(),
-      new Options().setContextUploadMode(Options.ContextUploadMode.PERIODIC_EXAMPLE).setConfigEvaluationCountsUploadEnabled(true)
+      new Options().setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE).setCollectEvaluationSummaries(true)
     );
     matchProcessor.start();
 
@@ -80,7 +80,7 @@ class MatchProcessorTest {
     MatchProcessor matchProcessor = new MatchProcessor(
             outputQueue,
             Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.ContextUploadMode.SHAPE_ONLY).setConfigEvaluationCountsUploadEnabled(true)
+            new Options().setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY).setCollectEvaluationSummaries(true)
     );
     matchProcessor.start();
 
@@ -111,7 +111,7 @@ class MatchProcessorTest {
     MatchProcessor matchProcessor = new MatchProcessor(
             outputQueue,
             Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.ContextUploadMode.PERIODIC_EXAMPLE).setConfigEvaluationCountsUploadEnabled(false)
+            new Options().setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE).setCollectEvaluationSummaries(false)
     );
     matchProcessor.start();
 
@@ -136,7 +136,7 @@ class MatchProcessorTest {
     MatchProcessor matchProcessor = new MatchProcessor(
             outputQueue,
             Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.ContextUploadMode.SHAPE_ONLY).setConfigEvaluationCountsUploadEnabled(false)
+            new Options().setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY).setCollectEvaluationSummaries(false)
     );
     matchProcessor.start();
 

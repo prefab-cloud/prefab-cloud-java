@@ -122,7 +122,7 @@ public class ConfigClientImpl implements ConfigClient {
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
     contextStore = options.getContextStore();
-    if (options.isLocalOnly() || !options.isReportLogStats()) {
+    if (options.isLocalOnly() || !options.isCollectLoggerCounts()) {
       loggerStatsAggregator = null;
     } else {
       loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
@@ -152,7 +152,7 @@ public class ConfigClientImpl implements ConfigClient {
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
       startCheckpointExecutor();
-      if (options.isContextShapeUploadEnabled()) {
+      if (options.isCollectContextShapeEnabled()) {
         contextShapeAggregator =
           new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
         contextShapeAggregator.start();
@@ -162,7 +162,7 @@ public class ConfigClientImpl implements ConfigClient {
           new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
         evaluatedKeysAggregator.start();
       }
-      if (options.isConfigEvaluationCountsUploadEnabled() || options.isExampleContextUploadEnabled()) {
+      if (options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()) {
         matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
         matchProcessingManager.start();
       }
