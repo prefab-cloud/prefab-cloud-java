@@ -3,14 +3,13 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.domain.Prefab;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Clock;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,15 +32,20 @@ public class MatchProcessingManager {
     uploader.start();
     matchProcessor.start();
     ScheduledExecutorService executorService = MoreExecutors.getExitingScheduledExecutorService(
-            new ScheduledThreadPoolExecutor(
-                    1,
-                    r -> new Thread(r, "prefab-match-processor-flusher")
-            ),
-            100,
-            TimeUnit.MILLISECONDS
+      new ScheduledThreadPoolExecutor(
+        1,
+        r -> new Thread(r, "prefab-match-processor-flusher")
+      ),
+      100,
+      TimeUnit.MILLISECONDS
     );
 
-    executorService.scheduleAtFixedRate(matchProcessor::flushStats, 10, 10, TimeUnit.SECONDS);
+    executorService.scheduleAtFixedRate(
+      matchProcessor::flushStats,
+      10,
+      10,
+      TimeUnit.SECONDS
+    );
   }
 
   public void reportMatch(Match match, LookupContext lookupContext) {

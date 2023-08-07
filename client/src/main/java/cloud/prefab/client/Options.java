@@ -25,7 +25,7 @@ public class Options {
   public enum CollectContextMode {
     NONE,
     SHAPE_ONLY,
-    PERIODIC_EXAMPLE
+    PERIODIC_EXAMPLE,
   }
 
   private static final String DEFAULT_ENV = "default";
@@ -210,7 +210,6 @@ public class Options {
     return collectContextMode != CollectContextMode.NONE;
   }
 
-
   public boolean isCollectExampleContextEnabled() {
     return collectContextMode == CollectContextMode.PERIODIC_EXAMPLE;
   }
@@ -236,17 +235,10 @@ public class Options {
     return collectEvaluationSummaries;
   }
 
-  public Options setCollectEvaluationSummaries(
-    boolean collectEvaluationSummaries
-  ) {
+  public Options setCollectEvaluationSummaries(boolean collectEvaluationSummaries) {
     this.collectEvaluationSummaries = collectEvaluationSummaries;
     return this;
   }
-
-
-
-
-
 
   public String getCDNUrl() {
     String envVar = System.getenv("PREFAB_CDN_URL");

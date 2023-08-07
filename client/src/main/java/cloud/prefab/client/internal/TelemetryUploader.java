@@ -46,7 +46,7 @@ public class TelemetryUploader implements AutoCloseable {
     this.queue = queue;
   }
 
-  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500,503); //TODO add more
+  private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500, 503); //TODO add more
 
   void start() {
     if (queue == null) {

@@ -71,15 +71,15 @@ public class MatchProcessor {
   );
 
   void reportMatch(Match match, LookupContext lookupContext) {
-      if (
-              SUPPORTED_CONFIG_TYPES.contains(
-                      match.getConfigElement().getConfig().getConfigType()
-              )
-      ) {
-        if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
-          //TODO increment dropped events
-        }
+    if (
+      SUPPORTED_CONFIG_TYPES.contains(
+        match.getConfigElement().getConfig().getConfigType()
+      )
+    ) {
+      if (!matchQueue.offer(new MatchEvent(clock.millis(), match, lookupContext))) {
+        //TODO increment dropped events
       }
+    }
   }
 
   void aggregationLoop() {
@@ -100,15 +100,15 @@ public class MatchProcessor {
               if (!fingerPrint.isBlank()) {
                 if (!contextDeduplicator.recentlySeen(fingerPrint)) {
                   LOG.debug(
-                          "have not seen context with fingerprint {} will add to recently seen contexts",
-                          fingerPrint
+                    "have not seen context with fingerprint {} will add to recently seen contexts",
+                    fingerPrint
                   );
                   recentlySeenContexts.add(
-                          Prefab.ExampleContext
-                                  .newBuilder()
-                                  .setTimestamp(event.timestamp)
-                                  .setContextSet(PrefabContextSet.convert(context).toProto())
-                                  .build()
+                    Prefab.ExampleContext
+                      .newBuilder()
+                      .setTimestamp(event.timestamp)
+                      .setContextSet(PrefabContextSet.convert(context).toProto())
+                      .build()
                   );
                 } else {
                   LOG.debug("Already saw context with fingerprint {}", fingerPrint);

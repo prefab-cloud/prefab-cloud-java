@@ -48,7 +48,9 @@ class MatchProcessorTest {
     MatchProcessor matchProcessor = new MatchProcessor(
       outputQueue,
       Clock.systemUTC(),
-      new Options().setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE).setCollectEvaluationSummaries(true)
+      new Options()
+        .setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE)
+        .setCollectEvaluationSummaries(true)
     );
     matchProcessor.start();
 
@@ -73,14 +75,15 @@ class MatchProcessorTest {
     assertThat(nextItem.statsAggregate.getCounterData()).isEmpty();
   }
 
-
   @Test
   void itRecordsCountsWithoutContexts() throws InterruptedException {
     LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
     MatchProcessor matchProcessor = new MatchProcessor(
-            outputQueue,
-            Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY).setCollectEvaluationSummaries(true)
+      outputQueue,
+      Clock.systemUTC(),
+      new Options()
+        .setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY)
+        .setCollectEvaluationSummaries(true)
     );
     matchProcessor.start();
 
@@ -91,12 +94,12 @@ class MatchProcessorTest {
 
     assertThat(item.recentlySeenContexts).isEmpty();
     assertThat(item.statsAggregate.getCounterData())
-            .containsKey(
-                    new MatchStatsAggregator.ConfigKeyAndTypeKey(
-                            TF_CONFIG.getKey(),
-                            TF_CONFIG.getConfigType()
-                    )
-            );
+      .containsKey(
+        new MatchStatsAggregator.ConfigKeyAndTypeKey(
+          TF_CONFIG.getKey(),
+          TF_CONFIG.getConfigType()
+        )
+      );
 
     matchProcessor.flushStats();
     MatchProcessingManager.OutputBuffer nextItem = outputQueue.poll(10, TimeUnit.SECONDS);
@@ -109,9 +112,11 @@ class MatchProcessorTest {
   void itRecordsContextsWithoutCounts() throws InterruptedException {
     LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
     MatchProcessor matchProcessor = new MatchProcessor(
-            outputQueue,
-            Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE).setCollectEvaluationSummaries(false)
+      outputQueue,
+      Clock.systemUTC(),
+      new Options()
+        .setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE)
+        .setCollectEvaluationSummaries(false)
     );
     matchProcessor.start();
 
@@ -134,9 +139,11 @@ class MatchProcessorTest {
   void itRecordsNothing() throws InterruptedException {
     LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> outputQueue = new LinkedBlockingQueue<>();
     MatchProcessor matchProcessor = new MatchProcessor(
-            outputQueue,
-            Clock.systemUTC(),
-            new Options().setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY).setCollectEvaluationSummaries(false)
+      outputQueue,
+      Clock.systemUTC(),
+      new Options()
+        .setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY)
+        .setCollectEvaluationSummaries(false)
     );
     matchProcessor.start();
 

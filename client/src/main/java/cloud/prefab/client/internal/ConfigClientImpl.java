@@ -155,7 +155,9 @@ public class ConfigClientImpl implements ConfigClient {
           new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
         contextShapeAggregator.start();
       }
-      if (options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()) {
+      if (
+        options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()
+      ) {
         matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
         matchProcessingManager.start();
       }
