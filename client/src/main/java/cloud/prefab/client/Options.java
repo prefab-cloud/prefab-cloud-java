@@ -51,7 +51,7 @@ public class Options {
 
   private boolean collectEvaluationSummaries = true;
 
-  private CollectContextMode collectContextMode = CollectContextMode.SHAPE_ONLY;
+  private CollectContextMode collectContextMode = CollectContextMode.PERIODIC_EXAMPLE;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
