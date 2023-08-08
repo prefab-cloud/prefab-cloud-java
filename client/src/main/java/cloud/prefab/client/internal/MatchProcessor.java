@@ -17,7 +17,6 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.LongAccumulator;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,7 +133,13 @@ public class MatchProcessor {
 
             if (
               !outputQueue.offer(
-                new MatchProcessingManager.OutputBuffer(previousReportingPeriodStart, recordingPeriodStartTime, contextsToSend, stats, droppedEventCount)
+                new MatchProcessingManager.OutputBuffer(
+                  previousReportingPeriodStart,
+                  recordingPeriodStartTime,
+                  contextsToSend,
+                  stats,
+                  droppedEventCount
+                )
               )
             ) {
               //restore state and keep aggregating
