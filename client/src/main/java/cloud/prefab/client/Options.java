@@ -22,6 +22,12 @@ public class Options {
     UNLOCK,
   }
 
+  public enum CollectContextMode {
+    NONE,
+    SHAPE_ONLY,
+    PERIODIC_EXAMPLE,
+  }
+
   private static final String DEFAULT_ENV = "default";
 
   private String prefabApiUrl;
@@ -35,14 +41,17 @@ public class Options {
   private Datasources prefabDatasources = Datasources.ALL;
   private int initializationTimeoutSec = 10;
   private OnInitializationFailure onInitializationFailure = OnInitializationFailure.RAISE;
-  private boolean reportLogStats = true;
+  private boolean collectLoggerCounts = true;
 
   private ContextStore contextStore = ThreadLocalContextStore.INSTANCE;
 
   private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
 
-  private boolean contextShapeUploadEnabled = true;
   private boolean evaluatedConfigKeyUploadEnabled = true;
+
+  private boolean collectEvaluationSummaries = true;
+
+  private CollectContextMode collectContextMode = CollectContextMode.PERIODIC_EXAMPLE;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -170,8 +179,8 @@ public class Options {
     return this;
   }
 
-  public boolean isReportLogStats() {
-    return reportLogStats;
+  public boolean isCollectLoggerCounts() {
+    return collectLoggerCounts;
   }
 
   /**
@@ -179,17 +188,30 @@ public class Options {
    * The captured data consists of fully qualified logger name with counts of log messages by level.
    * The data allows prefab to preconfigure the log levels UI.
    * Defaults to true
-   * @param reportLogStats
+   * @param collectLoggerCounts
    * @return
    */
 
-  public Options setReportLogStats(boolean reportLogStats) {
-    this.reportLogStats = reportLogStats;
+  public Options setCollectLoggerCounts(boolean collectLoggerCounts) {
+    this.collectLoggerCounts = collectLoggerCounts;
     return this;
   }
 
-  public boolean isContextShapeUploadEnabled() {
-    return contextShapeUploadEnabled;
+  public CollectContextMode getContextUploadMode() {
+    return collectContextMode;
+  }
+
+  public Options setContextUploadMode(CollectContextMode collectContextMode) {
+    this.collectContextMode = collectContextMode;
+    return this;
+  }
+
+  public boolean isCollectContextShapeEnabled() {
+    return collectContextMode != CollectContextMode.NONE;
+  }
+
+  public boolean isCollectExampleContextEnabled() {
+    return collectContextMode == CollectContextMode.PERIODIC_EXAMPLE;
   }
 
   /**
@@ -209,17 +231,12 @@ public class Options {
     return evaluatedConfigKeyUploadEnabled;
   }
 
-  /**
-   * Configure client to report context shape data
-   * The captured data consists of names and types of context data, NOT the actual values
-   * The data allows prefab to populate options in the rule builder UI
-   * Defaults to true
-   * @param enabled
-   * @return
-   */
+  public boolean isCollectEvaluationSummaries() {
+    return collectEvaluationSummaries;
+  }
 
-  public Options setContextShapeUploadEnabled(boolean enabled) {
-    this.contextShapeUploadEnabled = enabled;
+  public Options setCollectEvaluationSummaries(boolean collectEvaluationSummaries) {
+    this.collectEvaluationSummaries = collectEvaluationSummaries;
     return this;
   }
 

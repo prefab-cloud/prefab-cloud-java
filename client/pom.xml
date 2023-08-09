@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.3.12</version>
+    <version>0.3.13</version>
   </parent>
 
   <artifactId>client</artifactId>
@@ -35,6 +35,10 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>dev.failsafe</groupId>
+      <artifactId>failsafe</artifactId>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>
@@ -185,6 +189,50 @@
             <goals>
               <goal>jar</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>com.google.guava:guava</include>
+                  <include>cloud.prefab:sse-handler</include>
+                  <include>dev.failsafe:failsafe</include>
+                  <include>org.yaml:snakeyaml</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>prefab.shaded.guava</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml.snakeyaml</pattern>
+                  <shadedPattern>prefab.shaded.snakeyaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>dev.failsafe</pattern>
+                  <shadedPattern>prefab.shaded.failsafe</shadedPattern>
+                </relocation>
+              </relocations>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>uberjar</shadedClassifierName>
+              <shadeSourcesContent>true</shadeSourcesContent>
+              <useDependencyReducedPomInJar>true</useDependencyReducedPomInJar>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+            </configuration>
           </execution>
         </executions>
       </plugin>

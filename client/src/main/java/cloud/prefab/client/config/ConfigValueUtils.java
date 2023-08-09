@@ -15,8 +15,20 @@ public class ConfigValueUtils {
 
   public static final Logger LOG = LoggerFactory.getLogger(ConfigValueUtils.class);
 
-  public static Prefab.ConfigValue fromString(String string) {
+  public static Prefab.ConfigValue from(String string) {
     return Prefab.ConfigValue.newBuilder().setString(string).build();
+  }
+
+  public static Prefab.ConfigValue from(boolean bool) {
+    return Prefab.ConfigValue.newBuilder().setBool(bool).build();
+  }
+
+  public static Prefab.ConfigValue from(long number) {
+    return Prefab.ConfigValue.newBuilder().setInt(number).build();
+  }
+
+  public static Prefab.ConfigValue from(int number) {
+    return Prefab.ConfigValue.newBuilder().setInt(number).build();
   }
 
   public static Map<String, Prefab.ConfigValue> fromStringMap(
@@ -79,5 +91,13 @@ public class ConfigValueUtils {
         );
         return Optional.empty();
     }
+  }
+
+  @Deprecated
+  /**
+   * @deprecated see {@link #from(String)}
+   */
+  public static Prefab.ConfigValue fromString(String string) {
+    return from(string);
   }
 }

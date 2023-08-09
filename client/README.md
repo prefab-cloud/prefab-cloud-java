@@ -8,15 +8,27 @@ Java (11+) Client for Prefab LogLevels, FeatureFlags, Config as a Service: https
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
 
-Maven
+### Maven
 ```xml
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.12</version>
+    <version>0.3.13</version>
 </dependency>
 ```
 
+### Maven Shaded Pom
+
+For an uber-jar including relocated guava and failsafe dependencies add the "uberjar" classifier as below
+
+```xml
+<dependency>
+    <groupId>cloud.prefab</groupId>
+    <artifactId>client</artifactId>
+    <version>0.3.13</version>
+    <classifier>uberjar</classifier>
+</dependency>
+```
 
 ## Logging Setup
 

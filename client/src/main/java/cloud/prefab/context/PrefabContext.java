@@ -45,6 +45,14 @@ public class PrefabContext implements PrefabContextSetReadable {
     return Collections.singleton(this);
   }
 
+  public Prefab.Context toProtoContext() {
+    return Prefab.Context
+      .newBuilder()
+      .setType(getName())
+      .putAllValues(getProperties())
+      .build();
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {

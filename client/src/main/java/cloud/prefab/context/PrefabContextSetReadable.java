@@ -1,7 +1,10 @@
 package cloud.prefab.context;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public interface PrefabContextSetReadable {
   Optional<PrefabContext> getByName(String contextName);
@@ -56,5 +59,20 @@ public interface PrefabContextSetReadable {
         return contextSet.toString();
       }
     };
+  }
+
+  default String getFingerPrint() {
+    return StreamSupport
+      .stream(getContexts().spliterator(), false)
+      .filter(c -> !c.getName().isBlank())
+      .filter(c -> c.getProperties().containsKey("key"))
+      .sorted(Comparator.comparing(PrefabContext::getName))
+      .map(c ->
+        new StringBuilder()
+          .append(c.getName())
+          .append("--")
+          .append(c.getProperties().get("key").toString().trim())
+      )
+      .collect(Collectors.joining());
   }
 }

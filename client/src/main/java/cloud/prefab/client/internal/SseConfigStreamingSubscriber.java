@@ -53,7 +53,11 @@ public class SseConfigStreamingSubscriber {
         sseHandler.subscribe(flowSubscriber);
         prefabHttpClient.requestConfigSSE(highwaterMarkSupplier.get(), sseHandler);
       } catch (Exception e) {
-        LOG.warn("Unexpected exception starting SSE config stream, will retry", e);
+        if (e.getMessage().contains("GOAWAY")) {
+          LOG.info("Got GOAWAY on SSE config stream, will restart connection.");
+        } else {
+          LOG.warn("Unexpected exception starting SSE config stream, will retry", e);
+        }
       }
     };
 

@@ -6,11 +6,13 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
+import cloud.prefab.client.value.LiveStringList;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
@@ -27,7 +29,6 @@ import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -79,10 +80,9 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
+  private MatchProcessingManager matchProcessingManager;
 
   private ContextShapeAggregator contextShapeAggregator = null;
-
-  private EvaluatedKeysAggregator evaluatedKeysAggregator = null;
 
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
@@ -120,7 +120,7 @@ public class ConfigClientImpl implements ConfigClient {
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
     contextStore = options.getContextStore();
-    if (options.isLocalOnly() || !options.isReportLogStats()) {
+    if (options.isLocalOnly() || !options.isCollectLoggerCounts()) {
       loggerStatsAggregator = null;
     } else {
       loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
@@ -150,15 +150,16 @@ public class ConfigClientImpl implements ConfigClient {
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
       startCheckpointExecutor();
-      if (options.isContextShapeUploadEnabled()) {
+      if (options.isCollectContextShapeEnabled()) {
         contextShapeAggregator =
           new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
         contextShapeAggregator.start();
       }
-      if (options.isEvaluatedConfigKeyUploadEnabled()) {
-        evaluatedKeysAggregator =
-          new EvaluatedKeysAggregator(options, prefabHttpClient, Clock.systemUTC());
-        evaluatedKeysAggregator.start();
+      if (
+        options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()
+      ) {
+        matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
+        matchProcessingManager.start();
       }
     }
   }
@@ -166,6 +167,11 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Value<String> liveString(String key) {
     return new LiveString(this, key);
+  }
+
+  @Override
+  public Value<List<String>> liveStringList(String key) {
+    return new LiveStringList(this, key);
   }
 
   @Override
@@ -204,16 +210,12 @@ public class ConfigClientImpl implements ConfigClient {
     PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
     reportUsage(configKey, resolvedContext);
     LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
-
     return getInternal(configKey, lookupContext);
   }
 
   private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {
     if (contextShapeAggregator != null) {
       contextShapeAggregator.reportContextUsage(prefabContext);
-    }
-    if (evaluatedKeysAggregator != null) {
-      evaluatedKeysAggregator.reportKeyUsage(configKey);
     }
   }
 
@@ -244,7 +246,25 @@ public class ConfigClientImpl implements ConfigClient {
     LookupContext lookupContext
   ) {
     waitForInitialization();
-    return updatingConfigResolver.getConfigValue(configKey, lookupContext);
+    Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
+
+    matchMaybe.ifPresent(match -> reportMatchResult(match, lookupContext));
+
+    return matchMaybe.map(Match::getConfigValue);
+  }
+
+  private void reportMatchResult(Match match, LookupContext lookupContext) {
+    if (matchProcessingManager != null) {
+      matchProcessingManager.reportMatch(match, lookupContext);
+    }
+  }
+
+  private Optional<Match> getMatchInternal(
+    String configKey,
+    LookupContext lookupContext
+  ) {
+    waitForInitialization();
+    return updatingConfigResolver.getMatch(configKey, lookupContext);
   }
 
   @Override
@@ -427,11 +447,6 @@ public class ConfigClientImpl implements ConfigClient {
       LOG.info("Got exception with message {} loading configs from API", e.getMessage());
     }
     return false;
-  }
-
-  private static String getBasicAuthenticationHeader(String username, String password) {
-    String valueToEncode = username + ":" + password;
-    return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
   }
 
   private ScheduledExecutorService startStreamingExecutor() {

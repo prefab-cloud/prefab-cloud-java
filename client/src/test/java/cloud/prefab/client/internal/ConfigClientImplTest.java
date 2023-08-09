@@ -169,7 +169,7 @@ class ConfigClientImplTest {
     void requestWithNoPassedContextHasAnEmptyLookupContext() {
       configClient.get("foobar");
       verify(updatingConfigResolver)
-        .getConfigValue(
+        .getMatch(
           "foobar",
           new LookupContext(Optional.of(NAMESPACE), PrefabContextSetReadable.EMPTY)
         );
@@ -185,10 +185,7 @@ class ConfigClientImplTest {
 
       configClient.get("foobar", prefabContext);
       verify(updatingConfigResolver)
-        .getConfigValue(
-          "foobar",
-          new LookupContext(Optional.of(NAMESPACE), prefabContext)
-        );
+        .getMatch("foobar", new LookupContext(Optional.of(NAMESPACE), prefabContext));
     }
 
     @Test
@@ -206,7 +203,7 @@ class ConfigClientImplTest {
       ) {
         configClient.get("foobar");
         verify(updatingConfigResolver)
-          .getConfigValue(eq("foobar"), lookupContextArgumentCaptor.capture());
+          .getMatch(eq("foobar"), lookupContextArgumentCaptor.capture());
       }
 
       LookupContext lookupContext = lookupContextArgumentCaptor.getValue();
@@ -246,7 +243,7 @@ class ConfigClientImplTest {
       ) {
         configClient.get("foobar", localUserContext);
         verify(updatingConfigResolver)
-          .getConfigValue(eq("foobar"), lookupContextArgumentCaptor.capture());
+          .getMatch(eq("foobar"), lookupContextArgumentCaptor.capture());
       }
       LookupContext lookupContext = lookupContextArgumentCaptor.getValue();
 
