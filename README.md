@@ -11,7 +11,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.12</version>
+    <version>0.3.13</version>
 </dependency>
 ```
 
