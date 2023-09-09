@@ -15,6 +15,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -45,6 +46,8 @@ class LoggerStatsAggregator {
   private final LinkedBlockingQueue<Prefab.Logger> loggerCountQueue = new LinkedBlockingQueue<>(
     QUEUE_SIZE
   );
+
+  private final LongAccumulator dropCounts = new LongAccumulator(Long::sum, 0);
 
   LoggerStatsAggregator(Clock clock) {
     this.clock = clock;
@@ -124,10 +127,8 @@ class LoggerStatsAggregator {
         break;
     }
 
-    try {
-      loggerCountQueue.offer(loggerBuilder.build(), 100, TimeUnit.NANOSECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+    if (!loggerCountQueue.offer(loggerBuilder.build())) {
+      dropCounts.accumulate(1);
     }
   }
 
