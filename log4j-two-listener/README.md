@@ -3,11 +3,12 @@ Java Client for Prefab LogLevels, FeatureFlags, Config as a Service: https://www
 
 See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 
-## Log4J Two Config Change Listener
+_This logger is for the `org.apache.logging.log4j:log4j-core` version of Log4j_
 
-This logger is for the `org.apache.logging.log4j:log4j-core` version of Log4j
+## Log4J Logging Filter
 
-Maven
+
+### Maven
 ```xml
 <dependency>
     <groupId>cloud.prefab</groupId>
@@ -15,6 +16,16 @@ Maven
     <version>0.3.13</version>
 </dependency>
 ```
+
+### Install
+
+```java
+PrefabContextTurboFilter.install(configClient);
+```
+
+Please contact us for assistance if this installation approach won't work with your system.
+
+
 
 ## Copyright
 
