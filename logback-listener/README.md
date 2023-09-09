@@ -21,7 +21,7 @@ Maven
 
 Install
 ```java
-PrefabContextTurboFilter.install(client);
+PrefabContextTurboFilter.install(configClient);
 ```
 
 ## Copyright
