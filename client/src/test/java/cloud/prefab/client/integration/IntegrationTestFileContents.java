@@ -1,37 +1,32 @@
 package cloud.prefab.client.integration;
 
 import cloud.prefab.context.PrefabContextSetReadable;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 
-public class IntegrationTestFile {
+public class IntegrationTestFileContents {
 
-  private final IntegrationTestFileContents contents;
-  private final Path path;
+  private final String version;
+  private final String function;
+  private final List<IntegrationTestDescriptor> tests;
 
-  public IntegrationTestFile(IntegrationTestFileContents contents, Path path) {
-    this.contents = contents;
-    this.path = path;
-  }
-
-  public String getVersion() {
-    return contents.getVersion();
-  }
-
-  public String getFunction() {
-    return contents.getFunction();
-  }
-
-  public List<IntegrationTestDescriptor> getTests() {
-    return contents.getTests();
+  @JsonCreator
+  public IntegrationTestFileContents(
+    @JsonProperty("version") String version,
+    @JsonProperty("function") String function,
+    @JsonProperty("tests") List<IntegrationTestDescriptor> tests
+  ) {
+    this.version = version;
+    this.function = function;
+    this.tests = tests;
   }
 
   public Stream<DynamicTest> buildDynamicTests() {
-    return getTests()
+    return tests
       .stream()
       .flatMap(testDescriptor -> {
         PrefabContextSetReadable contextSetReadable = testDescriptor.getPrefabContext();
@@ -43,9 +38,8 @@ public class IntegrationTestFile {
               .on(" : ")
               .useForNull("")
               .join(
-                getVersion(),
-                getFunction(),
-                path.getFileName().toString(),
+                version,
+                function,
                 testDescriptor.getName().orElse(null),
                 testCaseDescriptor.getName()
               );
@@ -55,5 +49,17 @@ public class IntegrationTestFile {
             );
           });
       });
+  }
+
+  public String getVersion() {
+    return version;
+  }
+
+  public String getFunction() {
+    return function;
+  }
+
+  public List<IntegrationTestDescriptor> getTests() {
+    return tests;
   }
 }

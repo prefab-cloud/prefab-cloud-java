@@ -9,9 +9,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.errorprone.annotations.MustBeClosed;
+import java.util.Optional;
 import org.junit.jupiter.api.function.Executable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IntegrationTestCaseDescriptor {
+
+  private static final Logger LOG = LoggerFactory.getLogger(
+    IntegrationTestCaseDescriptor.class
+  );
 
   private final String name;
   private final String client;
@@ -27,15 +34,32 @@ public class IntegrationTestCaseDescriptor {
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("client_overrides") IntegrationTestClientOverrides clientOverrides,
     @JsonProperty("input") IntegrationTestInput input,
-    @JsonProperty("expected") IntegrationTestExpectation expected
+    @JsonProperty("expected") IntegrationTestExpectation expected,
+    @JsonProperty("aggregator") Optional<String> aggregator,
+    @JsonProperty("endpoint") Optional<String> endpoint,
+    @JsonProperty("data") Optional<Object> data,
+    @JsonProperty("expected_data") Optional<Object> expectedData
   ) {
     this.name = name;
     this.client = client;
     this.function = function;
+    LOG.info("test with name {} has function {}", name, function);
     this.clientOverrides =
       MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty());
     this.input = input;
     this.expected = expected;
+    if (aggregator.isPresent()) {
+      LOG.error("aggregator is not yet supported");
+    }
+    if (endpoint.isPresent()) {
+      LOG.error("endpoint is not yet supported");
+    }
+    if (data.isPresent()) {
+      LOG.error("data is not yet supported");
+    }
+    if (expectedData.isPresent()) {
+      LOG.error("expected_data is not yet supported");
+    }
   }
 
   public Executable asExecutable(PrefabContextSetReadable prefabContext) {
@@ -92,9 +116,19 @@ public class IntegrationTestCaseDescriptor {
       .setInitializationTimeoutSec(1000);
 
     clientOverrides.getNamespace().ifPresent(options::setNamespace);
-    clientOverrides.getInitTimeoutSeconds().ifPresent(options::setInitializationTimeoutSec);
+    clientOverrides
+      .getInitTimeoutSeconds()
+      .ifPresent(options::setInitializationTimeoutSec);
+    clientOverrides.getPrefabApiUrl().ifPresent(options::setPrefabApiUrl);
+    clientOverrides.getOnInitFailure().ifPresent(options::setOnInitializationFailure);
+    clientOverrides.getContextUploadMode().ifPresent(options::setContextUploadMode);
 
-
+    if (clientOverrides.getAggregator().isPresent()) {
+      LOG.error("clientOverrides-aggregator is not yet supported");
+    }
+    if (clientOverrides.getOnNoDefault().isPresent()) {
+      LOG.error("clientOverrides-onNoDefault is not yet supported");
+    }
     return new PrefabCloudClient(options);
   }
 }
