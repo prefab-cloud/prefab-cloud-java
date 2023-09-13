@@ -92,6 +92,8 @@ public class IntegrationTestCaseDescriptor {
       .setInitializationTimeoutSec(1000);
 
     clientOverrides.getNamespace().ifPresent(options::setNamespace);
+    clientOverrides.getInitTimeoutSeconds().ifPresent(options::setInitializationTimeoutSec);
+
 
     return new PrefabCloudClient(options);
   }
