@@ -35,16 +35,15 @@ public abstract class BaseTurboFilter extends TurboFilter {
     }
     if (recursionCheck.get()) {
       return FilterReply.NEUTRAL;
-    } else {
-      recursionCheck.set(true);
     }
-    configClient.reportLoggerUsage(
-      logger.getName(),
-      LogbackLevelMapper.REVERSE_LEVEL_MAP.get(level),
-      1
-    );
 
     try {
+      recursionCheck.set(true);
+      configClient.reportLoggerUsage(
+        logger.getName(),
+        LogbackLevelMapper.REVERSE_LEVEL_MAP.get(level),
+        1
+      );
       Optional<Prefab.LogLevel> loglevelMaybe = getLogLevel(logger, level);
       if (loglevelMaybe.isPresent()) {
         Level calculatedMinLogLevelToAccept = LogbackLevelMapper.LEVEL_MAP.get(
