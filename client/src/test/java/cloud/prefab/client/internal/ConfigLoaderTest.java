@@ -145,7 +145,7 @@ public class ConfigLoaderTest {
 
   private Optional<Prefab.Config> getConfig(String configKey) {
     return Optional
-      .ofNullable(configLoader.calcConfig().get(configKey))
+      .ofNullable(configLoader.calcConfig().getConfigMap().get(configKey))
       .map(ConfigElement::getConfig);
   }
 
@@ -236,7 +236,7 @@ public class ConfigLoaderTest {
 
   @Test
   public void testLoadingTombstonesRemoves() {
-    assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
+    assertThat(configLoader.calcConfig().getConfigMap().get("val_from_api")).isNull();
 
     configLoader.set(cd(2, "val_from_api", 456));
     assertThat(getValue("val_from_api"))
@@ -251,7 +251,7 @@ public class ConfigLoaderTest {
         new Provenance(ConfigClient.Source.LOCAL_ONLY, "unit_tests")
       )
     );
-    assertThat(configLoader.calcConfig().get("val_from_api")).isNull();
+    assertThat(configLoader.calcConfig().getConfigMap().get("val_from_api")).isNull();
   }
 
   private ConfigElement cd(int id, String key, int val) {

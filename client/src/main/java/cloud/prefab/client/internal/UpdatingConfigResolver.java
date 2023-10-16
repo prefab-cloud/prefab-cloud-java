@@ -5,9 +5,9 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
-import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +82,8 @@ public class UpdatingConfigResolver {
     final long startingHighWaterMark = configLoader.getHighwaterMark();
     Provenance provenance = new Provenance(source);
 
+    configLoader.setDefaultContext(configs.getDefaultContext());
+
     for (Prefab.Config config : configs.getConfigsList()) {
       configLoader.set(new ConfigElement(config, provenance));
     }
@@ -108,15 +110,11 @@ public class UpdatingConfigResolver {
    * set the localMap
    */
   private void makeLocal() {
-    ImmutableMap.Builder<String, ConfigElement> store = ImmutableMap.builder();
+    configStore.set(configLoader.calcConfig());
+  }
 
-    configLoader
-      .calcConfig()
-      .forEach((key, configElement) -> {
-        store.put(key, configElement);
-      });
-
-    configStore.set(store.buildKeepingLast());
+  public PrefabContextSetReadable getDefaultContext() {
+    return configStore.getDefaultContext();
   }
 
   public String contentsString() {

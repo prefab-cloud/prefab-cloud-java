@@ -80,6 +80,7 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
+  private final ContextResolver contextResolver;
   private MatchProcessingManager matchProcessingManager;
 
   private ContextShapeAggregator contextShapeAggregator = null;
@@ -108,6 +109,8 @@ public class ConfigClientImpl implements ConfigClient {
     this.uniqueClientId = UUID.randomUUID().toString();
     this.options = baseClient.getOptions();
     this.updatingConfigResolver = updatingConfigResolver;
+    this.contextResolver =
+      new ContextResolver(updatingConfigResolver::getDefaultContext, getContextStore());
     configChangeListeners.add(
       new LoggingConfigListener(() -> initializedLatch.getCount() == 0)
     );
@@ -209,8 +212,7 @@ public class ConfigClientImpl implements ConfigClient {
   ) {
     PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
     reportUsage(configKey, resolvedContext);
-    LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
-    return getInternal(configKey, lookupContext);
+    return getInternal(configKey, contextResolver.resolve(prefabContext));
   }
 
   private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {

@@ -5,6 +5,8 @@ import cloud.prefab.client.Options;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.collect.ImmutableMap;
@@ -39,6 +41,7 @@ public class ConfigLoader {
   private final AtomicLong highwaterMark;
   private final ImmutableMap<String, ConfigElement> classPathConfig;
   private final ImmutableMap<String, ConfigElement> overrideConfig;
+  private PrefabContextSet defaultContext;
 
   public ConfigLoader(Options options) {
     this.options = options;
@@ -53,14 +56,15 @@ public class ConfigLoader {
    * merge the live API configs on next
    * layer the overrides on last
    */
-  public Map<String, ConfigElement> calcConfig() {
-    ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
+  public ConfigMapAndDefaultContext calcConfig() {
+    ImmutableMap<String, ConfigElement> map = ImmutableMap
+      .<String, ConfigElement>builder()
+      .putAll(classPathConfig)
+      .putAll(apiConfig)
+      .putAll(overrideConfig)
+      .buildKeepingLast();
 
-    builder.putAll(classPathConfig);
-    builder.putAll(apiConfig);
-    builder.putAll(overrideConfig);
-
-    return builder.buildKeepingLast();
+    return new ConfigMapAndDefaultContext(map, defaultContext);
   }
 
   public void set(ConfigElement configElement) {
@@ -311,5 +315,19 @@ public class ConfigLoader {
 
   public long getHighwaterMark() {
     return highwaterMark.get();
+  }
+
+  public void setDefaultContext(Prefab.ContextSet defaultContext) {
+    this.defaultContext = fromProto(defaultContext);
+  }
+
+  public static PrefabContextSet fromProto(Prefab.ContextSet contextSetProto) {
+    PrefabContextSet prefabContextSet = new PrefabContextSet();
+    for (Prefab.Context context : contextSetProto.getContextsList()) {
+      prefabContextSet.addContext(
+        PrefabContext.fromMap(context.getType(), context.getValuesMap())
+      );
+    }
+    return prefabContextSet;
   }
 }

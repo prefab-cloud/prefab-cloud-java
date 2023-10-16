@@ -66,7 +66,7 @@ public class ConfigResolver {
       return Optional.empty();
     }
 
-    return evalConfigElementMatch(configElement, lookupContext);
+    return mergeDefaultContextAndEvalConfigElementMatch(configElement, lookupContext);
   }
 
   private Optional<Match> getMatch(
@@ -151,12 +151,13 @@ public class ConfigResolver {
 
   /**
    * find if we have a match for the given properties
+   * Called before evalConfigElementMatch to merge
    *
    * @param configElement
    * @param lookupContext
    * @return
    */
-  Optional<Match> evalConfigElementMatch(
+  private Optional<Match> mergeDefaultContextAndEvalConfigElementMatch(
     ConfigElement configElement,
     LookupContext lookupContext
   ) {
@@ -488,7 +489,7 @@ public class ConfigResolver {
     Collections.sort(sortedKeys);
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
-      final Optional<Match> match = evalConfigElementMatch(
+      final Optional<Match> match = mergeDefaultContextAndEvalConfigElementMatch(
         configElement,
         LookupContext.EMPTY
       );

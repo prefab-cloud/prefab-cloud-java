@@ -11,6 +11,7 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -33,7 +34,8 @@ public class UpdatingConfigResolverTest {
     mockLoader = mock(ConfigLoader.class);
     mockOptions = mock(Options.class);
 
-    when(mockLoader.calcConfig()).thenReturn(testData());
+    when(mockLoader.calcConfig())
+      .thenReturn(new ConfigMapAndDefaultContext(testData(), PrefabContextSet.EMPTY));
     mockBaseClient = mock(PrefabCloudClient.class);
     when(mockBaseClient.getOptions()).thenReturn(mockOptions);
     resolver =
@@ -63,7 +65,13 @@ public class UpdatingConfigResolverTest {
         )
       );
 
-    when(mockLoader.calcConfig()).thenReturn(testDataAddingKey3andTombstoningKey1());
+    when(mockLoader.calcConfig())
+      .thenReturn(
+        new ConfigMapAndDefaultContext(
+          testDataAddingKey3andTombstoningKey1(),
+          PrefabContextSet.EMPTY
+        )
+      );
     assertThat(resolver.update())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
