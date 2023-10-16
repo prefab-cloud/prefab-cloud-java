@@ -5,7 +5,6 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
-import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
@@ -77,6 +76,11 @@ public class UpdatingConfigResolver {
     Prefab.Configs configs,
     ConfigClient.Source source
   ) {
+    if (configs.hasKeepAlive() && configs.getKeepAlive()) {
+      LOG.debug("config is keep-alive packet, ignoring");
+      return;
+    }
+
     setProjectEnvId(configs);
 
     final long startingHighWaterMark = configLoader.getHighwaterMark();
