@@ -4,7 +4,7 @@
 
 Java (11+) Client and Logging adapters for Prefab LogLevels, FeatureFlags, Config as a Service: https://www.prefab.cloud
 
-See full documentation https://docs.prefab.cloud/docs/java-sdk/java
+See full documentation [https://docs.prefab.cloud/docs/java-sdk/java](https://docs.prefab.cloud/docs/sdks/java)
 
 Maven
 ```xml
