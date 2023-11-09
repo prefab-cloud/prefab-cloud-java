@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.Assertions.fail;
 
 import cloud.prefab.client.PrefabCloudClient;
+import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyReturnValue;
 import cloud.prefab.client.value.UndefinedKeyException;
@@ -73,7 +74,9 @@ public interface IntegrationTestExpectation {
 
     private static final Map<String, Class<?>> ERROR_TYPES = ImmutableMap.of(
       "missing_default",
-      UndefinedKeyException.class
+      UndefinedKeyException.class,
+      "initialization_timeout",
+      PrefabInitializationTimeoutException.class
     );
 
     private final String error;

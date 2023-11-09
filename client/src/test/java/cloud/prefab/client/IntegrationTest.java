@@ -1,6 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.integration.IntegrationTestFile;
+import cloud.prefab.client.integration.IntegrationTestFileContents;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -48,7 +49,11 @@ public class IntegrationTest {
 
   private static IntegrationTestFile parseTestFile(Path testFile) {
     try {
-      return YAML_READER.readValue(testFile.toFile(), IntegrationTestFile.class);
+      IntegrationTestFileContents fileContents = YAML_READER.readValue(
+        testFile.toFile(),
+        IntegrationTestFileContents.class
+      );
+      return new IntegrationTestFile(fileContents, testFile);
     } catch (IOException e) {
       throw new RuntimeException("Error parsing test file: " + testFile, e);
     }
