@@ -1,6 +1,8 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.internal.PrefabInternal;
+import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.context.ContextStore;
 import com.google.common.collect.ImmutableSet;
@@ -9,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public class Options {
 
@@ -52,6 +55,9 @@ public class Options {
   private boolean collectEvaluationSummaries = true;
 
   private CollectContextMode collectContextMode = CollectContextMode.PERIODIC_EXAMPLE;
+
+  @Nullable
+  private TelemetryListener telemetryListener;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -279,5 +285,16 @@ public class Options {
 
   public Set<ConfigChangeListener> getChangeListeners() {
     return ImmutableSet.copyOf(changeListenerSet);
+  }
+
+  @PrefabInternal
+  public Options setTelemetryListener(@Nullable TelemetryListener telemetryListener) {
+    this.telemetryListener = telemetryListener;
+    return this;
+  }
+
+  @PrefabInternal
+  public Optional<TelemetryListener> getTelemetryListener() {
+    return Optional.ofNullable(telemetryListener);
   }
 }

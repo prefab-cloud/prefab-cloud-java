@@ -21,6 +21,7 @@ public class TelemetryUploader implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(TelemetryUploader.class);
 
   private final LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> queue;
+  private final Options options;
   private final PrefabHttpClient prefabHttpClient;
 
   private final Bulkhead<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> bulkhead = Bulkhead
@@ -44,6 +45,7 @@ public class TelemetryUploader implements AutoCloseable {
   ) {
     this.prefabHttpClient = prefabHttpClient;
     this.queue = queue;
+    this.options = options;
   }
 
   private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500, 503); //TODO add more
@@ -80,6 +82,13 @@ public class TelemetryUploader implements AutoCloseable {
             .with(retryPolicy)
             .getStageAsync(() -> prefabHttpClient.reportTelemetryEvents(telemetryEvents))
             .whenComplete((r, t) -> {
+              options
+                .getTelemetryListener()
+                .ifPresent(telemetryListener -> {
+                  if (r != null && r.statusCode() >= 200 && r.statusCode() < 300) {
+                    telemetryListener.telemetryUpload(telemetryEvents);
+                  }
+                });
               // don't care if error or not here, just want to release the permit
               bulkhead.releasePermit();
             });
