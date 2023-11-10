@@ -2,11 +2,12 @@ package cloud.prefab.client.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
-import static org.assertj.core.api.Assertions.fail;
+import static org.awaitility.Awaitility.await;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
+import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyPost;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyReturnValue;
 import cloud.prefab.client.value.UndefinedKeyException;
 import cloud.prefab.domain.Prefab;
@@ -17,11 +18,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.google.common.collect.ImmutableMap;
-import java.math.BigDecimal;
-import java.util.List;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,6 +105,33 @@ public interface IntegrationTestExpectation {
       // TODO: the error messages are not currently standard across our clients.
       //assertThat(t).isInstanceOf(errorClass).hasMessageContaining(message);
       assertThat(t).isInstanceOf(errorClass);
+    }
+  }
+
+  class VerifyPost implements IntegrationTestExpectation {
+
+    @Override
+    public void verifyScenario(
+      PrefabCloudClient client,
+      IntegrationTestFunction function,
+      IntegrationTestInput input
+    ) {
+      function.apply(client, input);
+
+      assertThat(client.getOptions().getTelemetryListener()).isPresent();
+      assertThat(client.getOptions().getTelemetryListener().get())
+        .isInstanceOf(TelemetryAccumulator.class);
+
+      TelemetryAccumulator telemetryAccumulator = (TelemetryAccumulator) client
+        .getOptions()
+        .getTelemetryListener()
+        .orElseThrow();
+
+      await()
+        .atMost(Duration.of(30, ChronoUnit.SECONDS))
+        .untilAsserted(() -> {
+          assertThat(telemetryAccumulator.getTelemetryEventsList()).hasSize(10);
+        });
     }
   }
 }

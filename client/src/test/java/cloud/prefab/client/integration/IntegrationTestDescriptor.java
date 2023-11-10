@@ -10,12 +10,12 @@ public class IntegrationTestDescriptor {
 
   private final Optional<String> name;
   private final Map<String, Map<String, Object>> context;
-  private final List<IntegrationTestCaseDescriptor> testCaseDescriptors;
+  private final List<IntegrationTestCaseDescriptorIF> testCaseDescriptors;
 
   public IntegrationTestDescriptor(
     @JsonProperty("name") Optional<String> name,
     @JsonProperty("context") Map<String, Map<String, Object>> context,
-    @JsonProperty("cases") List<IntegrationTestCaseDescriptor> testCaseDescriptors
+    @JsonProperty("cases") List<IntegrationTestCaseDescriptorIF> testCaseDescriptors
   ) {
     this.name = name;
     this.context = context;
@@ -30,7 +30,7 @@ public class IntegrationTestDescriptor {
     return PrefabContextFactory.from(getContext());
   }
 
-  public List<IntegrationTestCaseDescriptor> getTestCaseDescriptors() {
+  public List<IntegrationTestCaseDescriptorIF> getTestCaseDescriptors() {
     return testCaseDescriptors;
   }
 
