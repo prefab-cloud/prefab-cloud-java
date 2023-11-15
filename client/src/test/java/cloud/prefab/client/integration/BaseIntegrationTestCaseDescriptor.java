@@ -17,7 +17,7 @@ public abstract class BaseIntegrationTestCaseDescriptor {
   private final String name;
   private final IntegrationTestClientOverrides clientOverrides;
 
-  BaseIntegrationTestCaseDescriptor(
+  public BaseIntegrationTestCaseDescriptor(
     String name,
     IntegrationTestClientOverrides clientOverrides
   ) {
@@ -74,7 +74,10 @@ public abstract class BaseIntegrationTestCaseDescriptor {
     if (clientOverrides.getOnNoDefault().isPresent()) {
       LOG.error("clientOverrides-onNoDefault is not yet supported");
     }
-    options.setTelemetryListener(new TelemetryAccumulator());
+
+    customizeOptions(options);
     return new PrefabCloudClient(options);
   }
+
+  protected void customizeOptions(Options options) {}
 }

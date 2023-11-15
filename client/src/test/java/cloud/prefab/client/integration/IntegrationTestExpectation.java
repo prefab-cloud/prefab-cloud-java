@@ -7,7 +7,6 @@ import static org.awaitility.Awaitility.await;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
-import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyPost;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyReturnValue;
 import cloud.prefab.client.value.UndefinedKeyException;
 import cloud.prefab.domain.Prefab;
@@ -105,33 +104,6 @@ public interface IntegrationTestExpectation {
       // TODO: the error messages are not currently standard across our clients.
       //assertThat(t).isInstanceOf(errorClass).hasMessageContaining(message);
       assertThat(t).isInstanceOf(errorClass);
-    }
-  }
-
-  class VerifyPost implements IntegrationTestExpectation {
-
-    @Override
-    public void verifyScenario(
-      PrefabCloudClient client,
-      IntegrationTestFunction function,
-      IntegrationTestInput input
-    ) {
-      function.apply(client, input);
-
-      assertThat(client.getOptions().getTelemetryListener()).isPresent();
-      assertThat(client.getOptions().getTelemetryListener().get())
-        .isInstanceOf(TelemetryAccumulator.class);
-
-      TelemetryAccumulator telemetryAccumulator = (TelemetryAccumulator) client
-        .getOptions()
-        .getTelemetryListener()
-        .orElseThrow();
-
-      await()
-        .atMost(Duration.of(30, ChronoUnit.SECONDS))
-        .untilAsserted(() -> {
-          assertThat(telemetryAccumulator.getTelemetryEventsList()).hasSize(10);
-        });
     }
   }
 }

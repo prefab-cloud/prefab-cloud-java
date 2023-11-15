@@ -56,6 +56,8 @@ public class Options {
 
   private CollectContextMode collectContextMode = CollectContextMode.PERIODIC_EXAMPLE;
 
+  private int telemetryUploadIntervalSeconds = 15;
+
   @Nullable
   private TelemetryListener telemetryListener;
 
@@ -296,5 +298,14 @@ public class Options {
   @PrefabInternal
   public Optional<TelemetryListener> getTelemetryListener() {
     return Optional.ofNullable(telemetryListener);
+  }
+
+  public int getTelemetryUploadIntervalSeconds() {
+    return telemetryUploadIntervalSeconds;
+  }
+
+  public Options setTelemetryUploadIntervalSeconds(int telemetryUploadIntervalSeconds) {
+    this.telemetryUploadIntervalSeconds = telemetryUploadIntervalSeconds;
+    return this;
   }
 }

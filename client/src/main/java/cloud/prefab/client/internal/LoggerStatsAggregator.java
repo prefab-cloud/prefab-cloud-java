@@ -3,9 +3,11 @@ package cloud.prefab.client.internal;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -13,10 +15,14 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAccumulator;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +40,8 @@ import org.slf4j.LoggerFactory;
 class LoggerStatsAggregator {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoggerStatsAggregator.class);
+
+  private final AtomicBoolean running = new AtomicBoolean(false);
 
   private final Clock clock;
 
@@ -54,52 +62,12 @@ class LoggerStatsAggregator {
     currentLogCollection.set(new LogCounts(clock.millis()));
   }
 
-  void start() {
-    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(
-      1,
-      r -> new Thread(r, "prefab-log-stats-aggregator")
-    );
-    ScheduledExecutorService executorService = MoreExecutors.getExitingScheduledExecutorService(
-      executor,
-      100,
-      TimeUnit.MILLISECONDS
-    );
-    executorService.scheduleWithFixedDelay(
-      () -> {
-        try {
-          aggregate();
-        } catch (Exception e) {
-          LOG.debug("error in aggregator", e);
-        }
-      },
-      10,
-      50,
-      TimeUnit.MILLISECONDS
-    );
-  }
-
-  @VisibleForTesting
-  void aggregate() {
-    drain.clear();
-    while (loggerCountQueue.drainTo(drain, DRAIN_SIZE) > 0) {
-      Map<String, Prefab.Logger> aggregates = drain
-        .stream()
-        .collect(
-          Collectors.groupingBy(
-            Prefab.Logger::getLoggerName,
-            Collectors.collectingAndThen(
-              Collectors.toList(),
-              LoggerStatsAggregator::mergeLoggerCollection
-            )
-          )
-        );
-      currentLogCollection.get().updateLoggerMap(aggregates.values());
-      drain.clear();
-    }
-  }
-
   LogCounts getAndResetStats() {
     return currentLogCollection.getAndSet(new LogCounts(clock.millis()));
+  }
+
+  void setStats(LogCounts logCounts) {
+    currentLogCollection.set(logCounts);
   }
 
   void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count) {
@@ -126,10 +94,9 @@ class LoggerStatsAggregator {
         loggerBuilder.setFatals(count);
         break;
     }
-
-    if (!loggerCountQueue.offer(loggerBuilder.build())) {
-      dropCounts.accumulate(1);
-    }
+    currentLogCollection
+      .get()
+      .updateLoggerMap(Collections.singleton(loggerBuilder.build()));
   }
 
   static Prefab.Logger mergeLoggerCollection(Collection<Prefab.Logger> loggers) {
@@ -163,16 +130,23 @@ class LoggerStatsAggregator {
       .build();
   }
 
+  static void updateFieldIfNotZero(long total, Consumer<Long> method) {
+    if (total > 0) {
+      method.accept(total);
+    }
+  }
+
   static Prefab.Logger mergeLoggers(Prefab.Logger a, Prefab.Logger b) {
-    return a
-      .toBuilder()
-      .setTraces(a.getTraces() + b.getTraces())
-      .setDebugs(a.getDebugs() + b.getDebugs())
-      .setInfos(a.getInfos() + b.getInfos())
-      .setWarns(a.getWarns() + b.getWarns())
-      .setErrors(a.getErrors() + b.getErrors())
-      .setFatals(a.getFatals() + b.getFatals())
-      .build();
+    Prefab.Logger.Builder bldr = Prefab.Logger
+      .newBuilder()
+      .setLoggerName(a.getLoggerName());
+    updateFieldIfNotZero(a.getTraces() + b.getTraces(), bldr::setTraces);
+    updateFieldIfNotZero(a.getDebugs() + b.getDebugs(), bldr::setDebugs);
+    updateFieldIfNotZero(a.getInfos() + b.getInfos(), bldr::setInfos);
+    updateFieldIfNotZero(a.getWarns() + b.getWarns(), bldr::setWarns);
+    updateFieldIfNotZero(a.getErrors() + b.getErrors(), bldr::setErrors);
+    updateFieldIfNotZero(a.getFatals() + b.getFatals(), bldr::setFatals);
+    return bldr.build();
   }
 
   static class LogCounts {

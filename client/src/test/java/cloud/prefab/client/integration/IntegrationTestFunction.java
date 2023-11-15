@@ -30,6 +30,13 @@ public enum IntegrationTestFunction {
     public Object apply(PrefabCloudClient client, IntegrationTestInput input) {
       return input.featureIsOnFor(client);
     }
+  },
+
+  POST("post") {
+    @Override
+    public Object apply(PrefabCloudClient client, IntegrationTestInput input) {
+      return null;
+    }
   };
 
   private static final Map<String, IntegrationTestFunction> JSON_INDEX = Arrays
