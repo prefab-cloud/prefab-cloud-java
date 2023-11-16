@@ -1,6 +1,7 @@
 package cloud.prefab.client.integration.telemetry;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
@@ -86,28 +87,73 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
           .flatMap(s -> s.getSummaries().getSummariesList().stream())
           .collect(Collectors.toList());
 
-        Map<String, List<Prefab.ConfigEvaluationSummary>> actualSummariesByKey = actualSummaries
+        Map<String, Prefab.ConfigEvaluationSummary> mergedActualSummariesByKey = actualSummaries
           .stream()
-          .collect(Collectors.groupingBy(Prefab.ConfigEvaluationSummary::getKey));
-        assertThat(actualSummariesByKey.keySet()).containsAll(Set.copyOf(keysToEvaluate));
-        // may need to sum the actual values because telemetry could be split over more than one upload
+          .collect(Collectors.groupingBy(Prefab.ConfigEvaluationSummary::getKey))
+          .entrySet()
+          .stream()
+          .map(entry -> entry(entry.getKey(), merge(entry.getValue())))
+          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        assertThat(mergedActualSummariesByKey.keySet())
+          .containsAll(Set.copyOf(keysToEvaluate));
+
         expectedDataByKey
           .entrySet()
           .forEach(entry -> {
             String key = entry.getKey();
             ExpectedDatum expectedDatum = entry.getValue();
-            List<Prefab.ConfigEvaluationSummary> summaries = actualSummariesByKey.get(
+            Prefab.ConfigEvaluationSummary actualSummary = mergedActualSummariesByKey.get(
               key
             );
-            long expectedTotalCount = summaries
-              .stream()
-              .flatMap(s -> s.getCountersList().stream())
-              .mapToLong(Prefab.ConfigEvaluationCounter::getCount)
-              .sum();
-            assertThat(expectedDatum.count).isEqualTo(expectedTotalCount);
+            assertThat(actualSummary.getCountersCount()).isEqualTo(1);
+            Prefab.ConfigEvaluationCounter onlyCount = actualSummary
+              .getCountersList()
+              .get(0);
+            assertThat(expectedDatum.configType).isEqualTo(actualSummary.getType());
+            assertThat(expectedDatum.count).isEqualTo(onlyCount.getCount());
+            assertThat(expectedDatum.configValue).isEqualTo(onlyCount.getSelectedValue());
+            assertThat(expectedDatum.summaryNode.conditionalValueIndex)
+              .isEqualTo(onlyCount.getConditionalValueIndex());
+            assertThat(expectedDatum.summaryNode.configRowIndex)
+              .isEqualTo(onlyCount.getConfigRowIndex());
+            assertThat(expectedDatum.summaryNode.weightedValueIndex)
+              .isEqualTo(
+                onlyCount.hasWeightedValueIndex()
+                  ? Optional.of(onlyCount.getWeightedValueIndex())
+                  : Optional.empty()
+              );
           });
-        //TODO compare the value types etc
       });
+  }
+
+  Prefab.ConfigEvaluationSummary merge(List<Prefab.ConfigEvaluationSummary> summaryList) {
+    if (summaryList.size() == 1) {
+      return summaryList.get(0);
+    }
+    Map<Prefab.ConfigEvaluationCounter, Optional<Prefab.ConfigEvaluationCounter>> foo = summaryList
+      .stream()
+      .flatMap(summary -> summary.getCountersList().stream())
+      .collect(
+        Collectors.groupingBy(
+          c -> c.toBuilder().setCount(0).build(),
+          Collectors.reducing((configEvaluationCounter, configEvaluationCounter2) ->
+            configEvaluationCounter
+              .toBuilder()
+              .setCount(
+                configEvaluationCounter.getCount() + configEvaluationCounter2.getCount()
+              )
+              .build()
+          )
+        )
+      );
+    return summaryList
+      .get(0)
+      .toBuilder()
+      .clearCounters()
+      .addAllCounters(
+        foo.values().stream().flatMap(Optional::stream).collect(Collectors.toList())
+      )
+      .build();
   }
 
   static class ExpectedDatum {
@@ -129,6 +175,8 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
         this.weightedValueIndex = weightedValueIndex;
       }
     }
+
+    private final Summary summaryNode;
 
     private final String key;
     private final String valueType;
@@ -168,6 +216,7 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
       @JsonProperty("value") JsonNode valueNode,
       @JsonProperty("summary") Summary summaryNode
     ) {
+      this.summaryNode = summaryNode;
       LOG.info("parsing expected datum {}", key);
       this.key = key;
       this.configType = Prefab.ConfigType.valueOf(configType);
