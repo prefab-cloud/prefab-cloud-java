@@ -153,19 +153,22 @@ public class TelemetryManager implements AutoCloseable {
 
   private void handleMatchEvent(IncomingTelemetryEvent telemetryEvent) {
     MatchEvent matchEvent = (MatchEvent) telemetryEvent;
-    if (options.isCollectContextShapeEnabled()) {
-      contextShapeAggregator.reportContextUsage(
-        matchEvent.lookupContext.getPrefabContextSet()
-      );
+    if (!matchEvent.lookupContext.getPrefabContextSet().isEmpty()) {
+      if (options.isCollectContextShapeEnabled()) {
+        contextShapeAggregator.reportContextUsage(
+          matchEvent.lookupContext.getPrefabContextSet()
+        );
+      }
+      if (options.isCollectExampleContextEnabled()) {
+        exampleContextBuffer.recordContext(
+          matchEvent.timestamp,
+          matchEvent.lookupContext.getPrefabContextSet()
+        );
+      }
     }
+
     if (matchEvent.match != null && options.isCollectEvaluationSummaries()) {
       matchStatsAggregator.recordMatch(matchEvent.match, matchEvent.timestamp);
-    }
-    if (options.isCollectExampleContextEnabled()) {
-      exampleContextBuffer.recordContext(
-        matchEvent.timestamp,
-        matchEvent.lookupContext.getPrefabContextSet()
-      );
     }
   }
 
