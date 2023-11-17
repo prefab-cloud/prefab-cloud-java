@@ -220,7 +220,6 @@ public class TelemetryManager implements AutoCloseable {
   void eventLoop() {
     do {
       try {
-        LOG.debug("Input queue size is {}", inputQueue.size());
         IncomingTelemetryEvent incomingTelemetryEvent = inputQueue.poll(
           500,
           TimeUnit.MILLISECONDS
