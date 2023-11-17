@@ -125,7 +125,7 @@ public class TelemetryManager implements AutoCloseable {
     start(options.getTelemetryUploadIntervalSeconds());
   }
 
-  void reportMatch(@Nullable Match match, LookupContext lookupContext) {
+  void reportMatch(String configKey, @Nullable Match match, LookupContext lookupContext) {
     long now = clock.millis();
     if (!inputQueue.offer(new MatchEvent(now, match, lookupContext))) {
       droppedEventCount.accumulate(1);
@@ -371,13 +371,21 @@ public class TelemetryManager implements AutoCloseable {
 
   static class MatchEvent extends IncomingTelemetryEvent {
 
+    private final String configKey;
+
     @Nullable
     Match match;
 
     LookupContext lookupContext;
 
-    MatchEvent(long timestamp, @Nullable Match match, LookupContext lookupContext) {
+    MatchEvent(
+      long timestamp,
+      String configKey,
+      @Nullable Match match,
+      LookupContext lookupContext
+    ) {
       super(EventType.MATCH, timestamp);
+      this.configKey = configKey;
       this.match = match;
       this.lookupContext = lookupContext;
     }

@@ -231,13 +231,17 @@ public class ConfigClientImpl implements ConfigClient {
   ) {
     waitForInitialization();
     Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
-    reportMatchResult(matchMaybe.orElse(null), lookupContext);
+    reportMatchResult(configKey, matchMaybe.orElse(null), lookupContext);
     return matchMaybe.map(Match::getConfigValue);
   }
 
-  private void reportMatchResult(Match match, LookupContext lookupContext) {
+  private void reportMatchResult(
+    String configKey,
+    @Nullable Match match,
+    LookupContext lookupContext
+  ) {
     if (telemetryManager != null) {
-      telemetryManager.reportMatch(match, lookupContext);
+      telemetryManager.reportMatch(configKey, match, lookupContext);
     }
   }
 

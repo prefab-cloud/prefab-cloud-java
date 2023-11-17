@@ -415,6 +415,7 @@ class TelemetryManagerTest {
       .build();
 
     telemetryManager.reportMatch(
+      "a.key",
       new Match(
         ConfigValueUtils.from(false),
         new ConfigElement(
@@ -436,6 +437,7 @@ class TelemetryManagerTest {
     );
 
     telemetryManager.reportMatch(
+      "a.key",
       new Match(
         ConfigValueUtils.from(true),
         new ConfigElement(
@@ -457,6 +459,7 @@ class TelemetryManagerTest {
     );
 
     telemetryManager.reportMatch(
+      "a.key",
       new Match(
         ConfigValueUtils.from(true),
         new ConfigElement(
@@ -478,6 +481,7 @@ class TelemetryManagerTest {
     );
 
     telemetryManager.reportMatch(
+      "a.key",
       new Match(
         ConfigValueUtils.from(1),
         new ConfigElement(TEST_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
