@@ -127,7 +127,7 @@ public class TelemetryManager implements AutoCloseable {
 
   void reportMatch(String configKey, @Nullable Match match, LookupContext lookupContext) {
     long now = clock.millis();
-    if (!inputQueue.offer(new MatchEvent(now, match, lookupContext))) {
+    if (!inputQueue.offer(new MatchEvent(now, configKey, match, lookupContext))) {
       droppedEventCount.accumulate(1);
     }
   }

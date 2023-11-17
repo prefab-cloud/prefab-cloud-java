@@ -21,6 +21,9 @@ public class ExampleContextBuffer {
   }
 
   void recordContext(long timestamp, PrefabContextSet context) {
+    if (context.isEmpty()) {
+      return;
+    }
     String fingerPrint = context.getFingerPrint();
     if (!fingerPrint.isBlank()) {
       if (!contextDeduplicator.recentlySeen(fingerPrint)) {
