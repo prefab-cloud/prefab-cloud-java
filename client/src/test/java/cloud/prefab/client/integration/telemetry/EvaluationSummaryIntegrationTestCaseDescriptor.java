@@ -109,14 +109,23 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
             Prefab.ConfigEvaluationCounter onlyCount = actualSummary
               .getCountersList()
               .get(0);
-            assertThat(expectedDatum.configType).isEqualTo(actualSummary.getType());
-            assertThat(expectedDatum.count).isEqualTo(onlyCount.getCount());
-            assertThat(expectedDatum.configValue).isEqualTo(onlyCount.getSelectedValue());
+            assertThat(expectedDatum.configType)
+              .as("expected config type should match")
+              .isEqualTo(actualSummary.getType());
+            assertThat(expectedDatum.count)
+              .as("count should match")
+              .isEqualTo(onlyCount.getCount());
+            assertThat(expectedDatum.configValue)
+              .as("config value should match")
+              .isEqualTo(onlyCount.getSelectedValue());
             assertThat(expectedDatum.summaryNode.conditionalValueIndex)
+              .as("conditional value index should match")
               .isEqualTo(onlyCount.getConditionalValueIndex());
             assertThat(expectedDatum.summaryNode.configRowIndex)
+              .as("config row index should match")
               .isEqualTo(onlyCount.getConfigRowIndex());
             assertThat(expectedDatum.summaryNode.weightedValueIndex)
+              .as("weighted value index should match")
               .isEqualTo(
                 onlyCount.hasWeightedValueIndex()
                   ? Optional.of(onlyCount.getWeightedValueIndex())
