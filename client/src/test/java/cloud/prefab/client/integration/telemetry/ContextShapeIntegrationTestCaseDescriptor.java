@@ -58,7 +58,7 @@ public class ContextShapeIntegrationTestCaseDescriptor
       .as("expected data node should be an array")
       .isTrue();
     List<Prefab.ContextShape> expectedShapes = buildExpectedShapesFromExpectedDataNode();
-    prefabCloudClient.configClient().get("foo.bar", contextSet);
+    prefabCloudClient.configClient().get("my-test-key", contextSet);
     TelemetryAccumulator telemetryAccumulator = getTelemetryAccumulator(
       prefabCloudClient
     );

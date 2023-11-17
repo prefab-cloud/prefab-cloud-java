@@ -64,7 +64,7 @@ public class ExampleContextIntegrationTestCaseDescriptor
     LOG.info("context set = {}", contextSetToSend);
     LOG.info("expected context set = {}", expectedContextSet);
 
-    prefabCloudClient.configClient().get("foo.bar", contextSetToSend);
+    prefabCloudClient.configClient().get("my-test-key", contextSetToSend);
     TelemetryAccumulator telemetryAccumulator = getTelemetryAccumulator(
       prefabCloudClient
     );
