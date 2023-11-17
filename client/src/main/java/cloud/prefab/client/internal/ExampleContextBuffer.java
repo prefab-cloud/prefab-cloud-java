@@ -38,11 +38,7 @@ public class ExampleContextBuffer {
             .setContextSet(PrefabContextSet.convert(context).toProto())
             .build()
         );
-      } else {
-        LOG.debug("Already saw context with fingerprint {}", fingerPrint);
       }
-    } else {
-      LOG.trace("ignoring context with no fingerprint {}", context);
     }
   }
 
