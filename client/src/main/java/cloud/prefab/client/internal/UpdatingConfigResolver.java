@@ -78,6 +78,7 @@ public class UpdatingConfigResolver {
     ConfigClient.Source source
   ) {
     setProjectEnvId(configs);
+    configResolver.setDefaultContext(configs);
 
     final long startingHighWaterMark = configLoader.getHighwaterMark();
     Provenance provenance = new Provenance(source);
