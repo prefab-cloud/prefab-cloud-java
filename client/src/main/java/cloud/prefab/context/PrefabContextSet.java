@@ -38,6 +38,15 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     return set;
   }
 
+  public static PrefabContextSet from(Prefab.ContextSet contextSet) {
+    PrefabContextSet set = new PrefabContextSet();
+    contextSet
+      .getContextsList()
+      .stream()
+      .forEach(p -> set.addContext(PrefabContext.fromProto(p)));
+    return set;
+  }
+
   /**
    * Converts the given `PrefabContextSetReadable` instance into a PrefabContextSet
    * If the argument is already a PrefabContextSet return it, othewise create a new PrefabContextSet and add the contents

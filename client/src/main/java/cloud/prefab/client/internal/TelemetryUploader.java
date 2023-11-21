@@ -20,7 +20,8 @@ public class TelemetryUploader implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(TelemetryUploader.class);
 
-  private final LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> queue;
+  private final LinkedBlockingQueue<TelemetryManager.OutputBuffer> queue;
+  private final Options options;
   private final PrefabHttpClient prefabHttpClient;
 
   private final Bulkhead<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> bulkhead = Bulkhead
@@ -38,12 +39,13 @@ public class TelemetryUploader implements AutoCloseable {
   private Thread uploaderThread;
 
   TelemetryUploader(
-    LinkedBlockingQueue<MatchProcessingManager.OutputBuffer> queue,
+    LinkedBlockingQueue<TelemetryManager.OutputBuffer> queue,
     PrefabHttpClient prefabHttpClient,
     Options options
   ) {
     this.prefabHttpClient = prefabHttpClient;
     this.queue = queue;
+    this.options = options;
   }
 
   private static final Set<Integer> RETRYABLE_STATUS_CODES = Set.of(429, 500, 503); //TODO add more
@@ -55,7 +57,7 @@ public class TelemetryUploader implements AutoCloseable {
     if (running.compareAndSet(false, true)) {
       ThreadFactory uploaderFactory = new ThreadFactoryBuilder()
         .setDaemon(true)
-        .setNameFormat("prefab-match-processor-uploader-%d")
+        .setNameFormat("prefab-telemetry-uploader-%d")
         .build();
 
       uploaderThread = uploaderFactory.newThread(this::uploadLoop);
@@ -72,7 +74,7 @@ public class TelemetryUploader implements AutoCloseable {
     do {
       try {
         bulkhead.acquirePermit();
-        MatchProcessingManager.OutputBuffer outputBuffer = queue.take();
+        TelemetryManager.OutputBuffer outputBuffer = queue.take();
         Prefab.TelemetryEvents telemetryEvents = outputBuffer.toTelemetryEvents();
         if (!telemetryEvents.getEventsList().isEmpty()) {
           LOG.debug("Uploading {}", telemetryEvents);
@@ -80,10 +82,19 @@ public class TelemetryUploader implements AutoCloseable {
             .with(retryPolicy)
             .getStageAsync(() -> prefabHttpClient.reportTelemetryEvents(telemetryEvents))
             .whenComplete((r, t) -> {
+              outputBuffer.complete();
+              options
+                .getTelemetryListener()
+                .ifPresent(telemetryListener -> {
+                  if (r != null && r.statusCode() >= 200 && r.statusCode() < 300) {
+                    telemetryListener.telemetryUpload(telemetryEvents);
+                  }
+                });
               // don't care if error or not here, just want to release the permit
               bulkhead.releasePermit();
             });
         } else {
+          outputBuffer.complete();
           bulkhead.releasePermit();
         }
       } catch (InterruptedException e) {

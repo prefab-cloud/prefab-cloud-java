@@ -6,6 +6,7 @@ import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
@@ -13,11 +14,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +37,10 @@ public class ConfigResolver {
   private final WeightedValueEvaluator weightedValueEvaluator;
 
   private long projectEnvId = 0;
+
+  private AtomicReference<Map<String, Prefab.ConfigValue>> defaultContext = new AtomicReference<>(
+    Collections.emptyMap()
+  );
 
   public ConfigResolver(
     ConfigStore configStoreImpl,
@@ -251,6 +258,12 @@ public class ConfigResolver {
         return Optional.of(rowProperties.get(key));
       }
     }
+
+    Prefab.ConfigValue configFromDefaultContext = defaultContext.get().get(key);
+    if (configFromDefaultContext != null) {
+      return Optional.of(configFromDefaultContext);
+    }
+
     Prefab.ConfigValue valueFromLookupContext = lookupContext
       .getExpandedProperties()
       .get(key);
@@ -458,6 +471,20 @@ public class ConfigResolver {
       return true;
     }
     return false;
+  }
+
+  public void setDefaultContext(Prefab.Configs configs) {
+    if (configs.getDefaultContext().getContextsCount() == 0) {
+      defaultContext.set(Collections.emptyMap());
+    }
+    Map<String, Prefab.ConfigValue> mergedMap = new HashMap<>();
+    configs
+      .getDefaultContext()
+      .getContextsList()
+      .forEach(c ->
+        mergedMap.putAll(PrefabContext.fromProto(c).getNameQualifiedProperties())
+      );
+    defaultContext.set(mergedMap);
   }
 
   public Collection<String> getKeys() {

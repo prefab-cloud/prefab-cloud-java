@@ -49,8 +49,6 @@ class LoggerStatsAggregatorTest {
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.TRACE, 11);
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.ERROR, 12);
 
-    instance.aggregate(); // force intermediate accumulation
-
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.TRACE, 100);
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.TRACE, 101);
     instance.reportLoggerUsage(LOGGER_A, Prefab.LogLevel.DEBUG, 200);
@@ -58,8 +56,6 @@ class LoggerStatsAggregatorTest {
 
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.TRACE, 50);
     instance.reportLoggerUsage(LOGGER_B, Prefab.LogLevel.ERROR, 51);
-
-    instance.aggregate(); // force intermediate accumulation again
 
     LoggerStatsAggregator.LogCounts counts = instance.getAndResetStats();
 
@@ -85,11 +81,7 @@ class LoggerStatsAggregatorTest {
             .newBuilder()
             .setLoggerName(LOGGER_B)
             .setTraces(61)
-            .setDebugs(0)
-            .setInfos(0)
-            .setWarns(0)
             .setErrors(63)
-            .setFatals(0)
             .build()
         )
       );

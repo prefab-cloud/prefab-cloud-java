@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -19,6 +20,13 @@ public class ConfigValueUtils {
     return Prefab.ConfigValue.newBuilder().setString(string).build();
   }
 
+  public static Prefab.ConfigValue from(List<String> stringList) {
+    return Prefab.ConfigValue
+      .newBuilder()
+      .setStringList(Prefab.StringList.newBuilder().addAllValues(stringList))
+      .build();
+  }
+
   public static Prefab.ConfigValue from(boolean bool) {
     return Prefab.ConfigValue.newBuilder().setBool(bool).build();
   }
@@ -29,6 +37,10 @@ public class ConfigValueUtils {
 
   public static Prefab.ConfigValue from(int number) {
     return Prefab.ConfigValue.newBuilder().setInt(number).build();
+  }
+
+  public static Prefab.ConfigValue from(double number) {
+    return Prefab.ConfigValue.newBuilder().setDouble(number).build();
   }
 
   public static Map<String, Prefab.ConfigValue> fromStringMap(

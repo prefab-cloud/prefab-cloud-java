@@ -1,8 +1,11 @@
 package cloud.prefab.client;
 
+import cloud.prefab.client.integration.IntegrationCaseTestCaseDescriptorDeserializer;
+import cloud.prefab.client.integration.IntegrationTestCaseDescriptorIF;
 import cloud.prefab.client.integration.IntegrationTestFile;
 import cloud.prefab.client.integration.IntegrationTestFileContents;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import java.io.IOException;
@@ -24,6 +27,16 @@ public class IntegrationTest {
 
   private static final ObjectReader YAML_READER = new YAMLMapper()
     .registerModule(new Jdk8Module())
+    .registerModule(
+      new SimpleModule() {
+        {
+          addDeserializer(
+            IntegrationTestCaseDescriptorIF.class,
+            new IntegrationCaseTestCaseDescriptorDeserializer()
+          );
+        }
+      }
+    )
     .reader();
 
   @TestFactory

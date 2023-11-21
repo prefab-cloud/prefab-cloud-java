@@ -69,8 +69,6 @@ public class ConfigClientImpl implements ConfigClient {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
-  private final LoggerStatsAggregator loggerStatsAggregator;
-
   private final String uniqueClientId;
 
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
@@ -80,7 +78,7 @@ public class ConfigClientImpl implements ConfigClient {
   private final PrefabHttpClient prefabHttpClient;
 
   private final ContextStore contextStore;
-  private MatchProcessingManager matchProcessingManager;
+  private final TelemetryManager telemetryManager;
 
   private ContextShapeAggregator contextShapeAggregator = null;
 
@@ -120,17 +118,10 @@ public class ConfigClientImpl implements ConfigClient {
         .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
 
     contextStore = options.getContextStore();
-    if (options.isLocalOnly() || !options.isCollectLoggerCounts()) {
-      loggerStatsAggregator = null;
-    } else {
-      loggerStatsAggregator = new LoggerStatsAggregator(Clock.systemUTC());
-      loggerStatsAggregator.start();
-      startLogStatsUploadExecutor();
-    }
-
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
       prefabHttpClient = null;
+      telemetryManager = null;
     } else {
       HttpClient httpClient = HttpClient
         .newBuilder()
@@ -150,17 +141,17 @@ public class ConfigClientImpl implements ConfigClient {
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       startStreaming();
       startCheckpointExecutor();
-      if (options.isCollectContextShapeEnabled()) {
-        contextShapeAggregator =
-          new ContextShapeAggregator(options, prefabHttpClient, Clock.systemUTC());
-        contextShapeAggregator.start();
-      }
-      if (
-        options.isCollectEvaluationSummaries() || options.isCollectExampleContextEnabled()
-      ) {
-        matchProcessingManager = new MatchProcessingManager(prefabHttpClient, options);
-        matchProcessingManager.start();
-      }
+      telemetryManager =
+        new TelemetryManager(
+          new LoggerStatsAggregator(Clock.systemUTC()),
+          new MatchStatsAggregator(),
+          new ContextShapeAggregator(),
+          new ExampleContextBuffer(),
+          prefabHttpClient,
+          options,
+          Clock.systemUTC()
+        );
+      telemetryManager.start();
     }
   }
 
@@ -208,15 +199,8 @@ public class ConfigClientImpl implements ConfigClient {
     @Nullable PrefabContextSetReadable prefabContext
   ) {
     PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
-    reportUsage(configKey, resolvedContext);
     LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
     return getInternal(configKey, lookupContext);
-  }
-
-  private void reportUsage(String configKey, PrefabContextSetReadable prefabContext) {
-    if (contextShapeAggregator != null) {
-      contextShapeAggregator.reportContextUsage(prefabContext);
-    }
   }
 
   @Override
@@ -247,15 +231,17 @@ public class ConfigClientImpl implements ConfigClient {
   ) {
     waitForInitialization();
     Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
-
-    matchMaybe.ifPresent(match -> reportMatchResult(match, lookupContext));
-
+    reportMatchResult(configKey, matchMaybe.orElse(null), lookupContext);
     return matchMaybe.map(Match::getConfigValue);
   }
 
-  private void reportMatchResult(Match match, LookupContext lookupContext) {
-    if (matchProcessingManager != null) {
-      matchProcessingManager.reportMatch(match, lookupContext);
+  private void reportMatchResult(
+    String configKey,
+    @Nullable Match match,
+    LookupContext lookupContext
+  ) {
+    if (telemetryManager != null) {
+      telemetryManager.reportMatch(configKey, match, lookupContext);
     }
   }
 
@@ -279,8 +265,8 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public void reportLoggerUsage(String loggerName, Prefab.LogLevel logLevel, long count) {
-    if (logLevel != null && loggerStatsAggregator != null) {
-      loggerStatsAggregator.reportLoggerUsage(loggerName, logLevel, count);
+    if (logLevel != null && telemetryManager != null) {
+      telemetryManager.reportLoggerUsage(loggerName, logLevel, count);
     }
   }
 
@@ -473,50 +459,6 @@ public class ConfigClientImpl implements ConfigClient {
       scheduledExecutorService
     );
     sseConfigStreamingSubscriber.start();
-  }
-
-  private void startLogStatsUploadExecutor() {
-    LOG.info("Starting log stats uploader");
-    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
-      1,
-      r -> new Thread(r, "prefab-logger-stats-uploader")
-    );
-
-    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
-      (ScheduledThreadPoolExecutor) executor,
-      100,
-      TimeUnit.MILLISECONDS
-    );
-
-    scheduledExecutorService.scheduleAtFixedRate(
-      () -> {
-        // allowing an exception to reach the ScheduledExecutor cancels future execution
-        // To prevent that we need to catch and log here
-        try {
-          long now = System.currentTimeMillis();
-          LoggerStatsAggregator.LogCounts logCounts = loggerStatsAggregator.getAndResetStats();
-
-          Prefab.Loggers.Builder loggersBuilder = Prefab.Loggers
-            .newBuilder()
-            .setStartAt(logCounts.getStartTime())
-            .setEndAt(now)
-            .addAllLoggers(logCounts.getLoggerMap().values())
-            .setInstanceHash(uniqueClientId);
-          options.getNamespace().ifPresent(loggersBuilder::setNamespace);
-
-          LOG.info(
-            "Uploading stats for {} loggers via HTTP",
-            logCounts.getLoggerMap().size()
-          );
-          prefabHttpClient.reportLoggers(loggersBuilder.build());
-        } catch (Exception e) {
-          LOG.warn("Error setting up aggregated log stats transmission", e);
-        }
-      },
-      INITIAL_LOG_STATS_UPLOAD_SEC,
-      DEFAULT_LOG_STATS_UPLOAD_SEC,
-      TimeUnit.SECONDS
-    );
   }
 
   private void startCheckpointExecutor() {

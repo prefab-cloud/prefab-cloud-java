@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.3.17-pre1</version>
+    <version>0.3.17-pre4</version>
   </parent>
 
   <artifactId>client</artifactId>
@@ -63,6 +63,11 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

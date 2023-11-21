@@ -3,14 +3,20 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 public class MatchStatsAggregator {
 
+  private static final Set<Prefab.ConfigType> SUPPORTED_CONFIG_TYPES = Sets.immutableEnumSet(
+    Prefab.ConfigType.CONFIG,
+    Prefab.ConfigType.FEATURE_FLAG
+  );
   private StatsAggregate statsAggregate = new StatsAggregate();
 
   void setStatsAggregate(StatsAggregate statsAggregate) {
@@ -28,7 +34,13 @@ public class MatchStatsAggregator {
   }
 
   void recordMatch(Match match, long timeStamp) {
-    statsAggregate.recordMatch(match, timeStamp);
+    if (
+      SUPPORTED_CONFIG_TYPES.contains(
+        match.getConfigElement().getConfig().getConfigType()
+      )
+    ) {
+      statsAggregate.recordMatch(match, timeStamp);
+    }
   }
 
   static class StatsAggregate {

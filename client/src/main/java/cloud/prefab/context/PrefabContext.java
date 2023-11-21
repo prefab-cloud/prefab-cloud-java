@@ -1,11 +1,14 @@
 package cloud.prefab.context;
 
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class PrefabContext implements PrefabContextSetReadable {
 
@@ -29,6 +32,19 @@ public class PrefabContext implements PrefabContextSetReadable {
 
   public Map<String, Prefab.ConfigValue> getProperties() {
     return properties;
+  }
+
+  public Map<String, Prefab.ConfigValue> getNameQualifiedProperties() {
+    if (name.isBlank()) {
+      return getProperties();
+    }
+    String prefix = getName().toLowerCase() + ".";
+
+    return properties
+      .entrySet()
+      .stream()
+      .map(entry -> Map.entry(prefix + entry.getKey(), entry.getValue()))
+      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   // implementation of PrefabContextSetReadable so one context is interchangable with many
@@ -104,6 +120,10 @@ public class PrefabContext implements PrefabContextSetReadable {
     return new PrefabContext(name, configValueMap);
   }
 
+  public static PrefabContext fromProto(Prefab.Context protoContext) {
+    return new PrefabContext(protoContext.getType(), protoContext.getValuesMap());
+  }
+
   public static class Builder {
 
     private final String contextType;
@@ -114,31 +134,27 @@ public class PrefabContext implements PrefabContextSetReadable {
     }
 
     public Builder put(String propertyName, String value) {
-      properties.put(
-        propertyName,
-        Prefab.ConfigValue.newBuilder().setString(value).build()
-      );
-      return this;
+      return put(propertyName, ConfigValueUtils.from(value));
     }
 
     public Builder put(String propertyName, boolean value) {
-      properties.put(
-        propertyName,
-        Prefab.ConfigValue.newBuilder().setBool(value).build()
-      );
-      return this;
+      return put(propertyName, ConfigValueUtils.from(value));
     }
 
     public Builder put(String propertyName, long value) {
-      properties.put(propertyName, Prefab.ConfigValue.newBuilder().setInt(value).build());
-      return this;
+      return put(propertyName, ConfigValueUtils.from(value));
     }
 
     public Builder put(String propertyName, double value) {
-      properties.put(
-        propertyName,
-        Prefab.ConfigValue.newBuilder().setDouble(value).build()
-      );
+      return put(propertyName, ConfigValueUtils.from(value));
+    }
+
+    public Builder put(String propertyName, List<String> value) {
+      return put(propertyName, ConfigValueUtils.from(value));
+    }
+
+    public Builder put(String propertyName, Prefab.ConfigValue configValue) {
+      properties.put(propertyName, configValue);
       return this;
     }
 
