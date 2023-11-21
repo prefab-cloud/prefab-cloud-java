@@ -34,9 +34,7 @@ public class Options {
   private static final String DEFAULT_ENV = "default";
 
   private String prefabApiUrl;
-  private boolean ssl = true;
   private String apikey;
-
   private String configOverrideDir;
   private List<String> prefabEnvs = new ArrayList<>();
 
@@ -59,6 +57,9 @@ public class Options {
   private int telemetryUploadIntervalSeconds = 15;
 
   @Nullable
+  private String localDatafile;
+
+  @Nullable
   private TelemetryListener telemetryListener;
 
   public Options() {
@@ -71,6 +72,7 @@ public class Options {
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
     }
+    localDatafile = System.getProperty("PREFAB_DATAFILE");
   }
 
   public boolean isLocalOnly() {
@@ -307,5 +309,19 @@ public class Options {
   public Options setTelemetryUploadIntervalSeconds(int telemetryUploadIntervalSeconds) {
     this.telemetryUploadIntervalSeconds = telemetryUploadIntervalSeconds;
     return this;
+  }
+
+  @Nullable
+  public String getLocalDatafile() {
+    return localDatafile;
+  }
+
+  public Options setLocalDatafile(@Nullable String localDatafile) {
+    this.localDatafile = localDatafile;
+    return this;
+  }
+
+  public boolean isLocalDatafileMode() {
+    return localDatafile != null;
   }
 }

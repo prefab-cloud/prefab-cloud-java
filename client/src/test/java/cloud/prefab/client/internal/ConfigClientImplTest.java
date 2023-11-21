@@ -111,6 +111,17 @@ class ConfigClientImplTest {
   }
 
   @Test
+  void localDataFileMode() {
+    final PrefabCloudClient baseClient = new PrefabCloudClient(
+      new Options()
+        .setLocalDatafile("src/test/resources/prefab.Development.5.config.json")
+    );
+    ConfigClient configClient = new ConfigClientImpl(baseClient);
+    final Optional<Prefab.ConfigValue> key = configClient.get("cool.bool.enabled");
+    assertThat(key).isPresent();
+  }
+
+  @Test
   void itLooksUpLogLevelsWithProvidedEmptyContext() {
     ConfigClient configClient = TestData
       .clientWithEnv("logging_multilevel")
