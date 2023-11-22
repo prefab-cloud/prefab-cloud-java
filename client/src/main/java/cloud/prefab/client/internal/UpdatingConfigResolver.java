@@ -73,6 +73,10 @@ public class UpdatingConfigResolver {
     return configLoader.getHighwaterMark();
   }
 
+  public synchronized void loadConfigsFromLocalFile() {
+    loadConfigs(configLoader.loadFromJsonFile(), ConfigClient.Source.LOCAL_FILE);
+  }
+
   public synchronized void loadConfigs(
     Prefab.Configs configs,
     ConfigClient.Source source
@@ -82,11 +86,7 @@ public class UpdatingConfigResolver {
 
     final long startingHighWaterMark = configLoader.getHighwaterMark();
     Provenance provenance = new Provenance(source);
-
-    for (Prefab.Config config : configs.getConfigsList()) {
-      configLoader.set(new ConfigElement(config, provenance));
-    }
-
+    configLoader.setConfigs(configs, provenance);
     if (configLoader.getHighwaterMark() > startingHighWaterMark) {
       LOG.info(
         "Found new checkpoint with highwater id {} from {} in project {} environment: {} with {} configs",

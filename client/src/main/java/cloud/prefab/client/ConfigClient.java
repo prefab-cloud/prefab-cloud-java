@@ -154,5 +154,6 @@ public interface ConfigClient {
     INIT_TIMEOUT,
     CLASSPATH,
     LOCAL_OVERRIDE,
+    LOCAL_FILE,
   }
 }

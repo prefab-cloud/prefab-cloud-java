@@ -24,6 +24,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.protobuf.util.JsonFormat;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.time.Clock;
@@ -53,11 +57,7 @@ import org.slf4j.LoggerFactory;
 public class ConfigClientImpl implements ConfigClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigClientImpl.class);
-  private static final String AUTH_USER = "authuser";
   private static final long DEFAULT_CHECKPOINT_SEC = 60;
-
-  private static final long DEFAULT_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(5);
-  private static final long INITIAL_LOG_STATS_UPLOAD_SEC = TimeUnit.MINUTES.toSeconds(1);
 
   private static final String LOG_LEVEL_PREFIX_WITH_DOT =
     AbstractLoggingListener.LOG_LEVEL_PREFIX + ".";
@@ -79,8 +79,6 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final ContextStore contextStore;
   private final TelemetryManager telemetryManager;
-
-  private ContextShapeAggregator contextShapeAggregator = null;
 
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
@@ -120,6 +118,11 @@ public class ConfigClientImpl implements ConfigClient {
     contextStore = options.getContextStore();
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
+      prefabHttpClient = null;
+      telemetryManager = null;
+    } else if (options.isLocalDatafileMode()) {
+      updatingConfigResolver.loadConfigsFromLocalFile();
+      finishInit(Source.LOCAL_FILE);
       prefabHttpClient = null;
       telemetryManager = null;
     } else {

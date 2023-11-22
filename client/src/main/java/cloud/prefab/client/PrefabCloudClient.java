@@ -20,6 +20,8 @@ public class PrefabCloudClient implements AutoCloseable {
 
     if (options.isLocalOnly()) {
       LOG.info("Initializing Prefab LocalOnly");
+    } else if (options.isLocalDatafileMode()) {
+      LOG.info("Initializing Prefab from local file {}", options.getLocalDatafile());
     } else {
       if (options.getApikey() == null || options.getApikey().isEmpty()) {
         throw new RuntimeException("PREFAB_API_KEY not set");

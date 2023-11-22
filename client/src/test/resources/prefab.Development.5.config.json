@@ -1,0 +1,96 @@
+{
+  "configs": [
+    {
+      "id": "16826297893548400",
+      "projectId": "3",
+      "key": "feature-flag.simple",
+      "changedBy": {
+        "userId": "0",
+        "email": "jeffrey@semanticart.com",
+        "apiKeyId": ""
+      },
+      "rows": [
+        {
+          "projectEnvId": "5",
+          "values": [
+            {
+              "value": {
+                "bool": true
+              }
+            }
+          ]
+        }
+      ],
+      "allowableValues": [
+        {
+          "bool": false
+        },
+        {
+          "bool": true
+        }
+      ],
+      "configType": "FEATURE_FLAG",
+      "valueType": "NOT_SET_VALUE_TYPE"
+    },
+    {
+      "id": "16838981262505536",
+      "projectId": "3",
+      "key": "cool.bool.enabled",
+      "changedBy": {
+        "userId": "0",
+        "email": "someone@prefab.cloud",
+        "apiKeyId": ""
+      },
+      "rows": [
+        {
+          "projectEnvId": "5",
+          "values": [
+            {
+              "value": {
+                "bool": false
+              }
+            }
+          ]
+        }
+      ],
+      "allowableValues": [
+        {
+          "bool": false
+        },
+        {
+          "bool": true
+        }
+      ],
+      "configType": "FEATURE_FLAG",
+      "valueType": "NOT_SET_VALUE_TYPE"
+    },
+    {
+      "id": "17002376408706116",
+      "projectId": "3",
+      "key": "pony.hat",
+      "changedBy": {
+        "userId": "0",
+        "email": "someone@prefab.cloud",
+        "apiKeyId": ""
+      },
+      "rows": [
+        {
+          "values": [
+            {
+              "value": {
+                "string": "some thing goes here"
+              }
+            }
+          ]
+        }
+      ],
+      "configType": "CONFIG",
+      "valueType": "STRING"
+    }
+  ],
+  "configServicePointer": {
+    "projectId": "3",
+    "startAtId": "0",
+    "projectEnvId": "5"
+  }
+}

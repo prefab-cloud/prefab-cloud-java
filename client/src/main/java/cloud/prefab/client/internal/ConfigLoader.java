@@ -7,13 +7,24 @@ import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.protobuf.util.JsonFormat;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,15 +66,25 @@ public class ConfigLoader {
    */
   public Map<String, ConfigElement> calcConfig() {
     ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
-
     builder.putAll(classPathConfig);
     builder.putAll(apiConfig);
     builder.putAll(overrideConfig);
-
     return builder.buildKeepingLast();
   }
 
-  public void set(ConfigElement configElement) {
+  public void setConfigs(Prefab.Configs configs, Provenance provenance) {
+    for (Prefab.Config config : configs.getConfigsList()) {
+      set(new ConfigElement(config, provenance), false);
+    }
+    recomputeHighWaterMark();
+  }
+
+  @VisibleForTesting
+  void set(ConfigElement configElement) {
+    set(configElement, true);
+  }
+
+  private void set(ConfigElement configElement, boolean calculateHighWaterMark) {
     final Prefab.Config config = configElement.getConfig();
     final ConfigElement existing = apiConfig.get(config.getKey());
 
@@ -73,7 +94,38 @@ public class ConfigLoader {
       } else {
         apiConfig.put(config.getKey(), configElement);
       }
+    }
+    if (calculateHighWaterMark) {
       recomputeHighWaterMark();
+    }
+  }
+
+  private InputStream loadFileFromDiskOrResources(String filename) throws IOException {
+    Path path = Paths.get(filename);
+    if (Files.exists(path)) {
+      return Files.newInputStream(path);
+    }
+    InputStream streamFromResources = getClass().getResourceAsStream(filename);
+    if (streamFromResources == null) {
+      throw new RuntimeException("File %s not found, cannot proceed");
+    }
+    return streamFromResources;
+  }
+
+  public Prefab.Configs loadFromJsonFile() {
+    if (!options.isLocalDatafileMode()) {
+      throw new IllegalStateException("no local data file specified");
+    }
+    LOG.info("Loading configs from {}", options.getLocalDatafile());
+    try (
+      InputStream inputStream = loadFileFromDiskOrResources(options.getLocalDatafile());
+      Reader reader = new BufferedReader(new InputStreamReader(inputStream))
+    ) {
+      Prefab.Configs.Builder builder = Prefab.Configs.newBuilder();
+      JsonFormat.parser().merge(reader, builder);
+      return builder.build();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -91,25 +143,25 @@ public class ConfigLoader {
 
   private ImmutableMap<String, ConfigElement> loadClasspathConfig() {
     ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
+    if (!options.isLocalDatafileMode()) {
+      for (String env : options.getAllPrefabEnvs()) {
+        final String file = String.format(".prefab.%s.config.yaml", env);
 
-    for (String env : options.getAllPrefabEnvs()) {
-      final String file = String.format(".prefab.%s.config.yaml", env);
-
-      try (
-        InputStream resourceAsStream = this.getClass()
-          .getClassLoader()
-          .getResourceAsStream(file)
-      ) {
-        if (resourceAsStream == null) {
-          LOG.warn("No default config file found {}", file);
-        } else {
-          loadFileTo(resourceAsStream, builder, ConfigClient.Source.CLASSPATH, file);
+        try (
+          InputStream resourceAsStream = this.getClass()
+            .getClassLoader()
+            .getResourceAsStream(file)
+        ) {
+          if (resourceAsStream == null) {
+            LOG.warn("No default config file found {}", file);
+          } else {
+            loadFileTo(resourceAsStream, builder, ConfigClient.Source.CLASSPATH, file);
+          }
+        } catch (IOException e) {
+          throw new RuntimeException("Error loading config from file: " + file, e);
         }
-      } catch (IOException e) {
-        throw new RuntimeException("Error loading config from file: " + file, e);
       }
     }
-
     return builder.buildKeepingLast();
   }
 
@@ -248,22 +300,23 @@ public class ConfigLoader {
 
   private ImmutableMap<String, ConfigElement> loadOverrideConfig() {
     ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
+    if (!options.isLocalDatafileMode()) {
+      File dir = new File(options.getConfigOverrideDir());
+      for (String env : options.getAllPrefabEnvs()) {
+        final String fileName = String.format(".prefab.%s.config.yaml", env);
+        File file = new File(dir, fileName);
 
-    File dir = new File(options.getConfigOverrideDir());
-    for (String env : options.getAllPrefabEnvs()) {
-      final String fileName = String.format(".prefab.%s.config.yaml", env);
-      File file = new File(dir, fileName);
-
-      if (file.exists()) {
-        try (InputStream inputStream = new FileInputStream(file)) {
-          loadFileTo(
-            inputStream,
-            builder,
-            ConfigClient.Source.LOCAL_OVERRIDE,
-            file.getAbsolutePath()
-          );
-        } catch (IOException e) {
-          throw new RuntimeException(e);
+        if (file.exists()) {
+          try (InputStream inputStream = new FileInputStream(file)) {
+            loadFileTo(
+              inputStream,
+              builder,
+              ConfigClient.Source.LOCAL_OVERRIDE,
+              file.getAbsolutePath()
+            );
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
         }
       }
     }
