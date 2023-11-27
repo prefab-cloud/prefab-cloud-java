@@ -13,7 +13,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>log4j-one-listener</artifactId>
-    <version>0.3.16</version>
+    <version>0.3.17</version>
 </dependency>
 ```
 
