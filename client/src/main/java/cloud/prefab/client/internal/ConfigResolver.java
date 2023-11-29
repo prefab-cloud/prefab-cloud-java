@@ -537,31 +537,20 @@ public class ConfigResolver {
       );
       if (match.isPresent()) {
         sb.append(padded(key, 45));
-        sb.append(padded(toS(match.get().getConfigValue()), 40));
+        sb.append(
+          padded(
+            ConfigValueUtils
+              .toDisplayString(match.get().getConfigValue())
+              .orElse("[Unable to display]"),
+            40
+          )
+        );
         sb.append(padded(configElement.getProvenance().toString(), 40));
         sb.append(padded(match.get().getReason(), 40));
         sb.append("\n");
       }
     }
     return sb.toString();
-  }
-
-  private String toS(Prefab.ConfigValue configValue) {
-    if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.STRING) {
-      return configValue.getString();
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.INT) {
-      return Long.toString(configValue.getInt());
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.BOOL) {
-      return Boolean.toString(configValue.getBool());
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.BYTES) {
-      return "Bytes";
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.DOUBLE) {
-      return Double.toString(configValue.getDouble());
-    } else if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.LOG_LEVEL) {
-      return configValue.getLogLevel().toString();
-    } else {
-      return "Unknown";
-    }
   }
 
   private String padded(String s, int size) {
