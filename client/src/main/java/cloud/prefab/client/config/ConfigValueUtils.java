@@ -44,6 +44,10 @@ public class ConfigValueUtils {
     return Prefab.ConfigValue.newBuilder().setDouble(number).build();
   }
 
+  public static Prefab.ConfigValue from(Prefab.LogLevel logLevel) {
+    return Prefab.ConfigValue.newBuilder().setLogLevel(logLevel).build();
+  }
+
   public static Map<String, Prefab.ConfigValue> fromStringMap(
     Map<String, String> stringStringMap
   ) {

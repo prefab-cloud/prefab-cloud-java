@@ -4,17 +4,24 @@ import cloud.prefab.client.ConfigStore;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.Match;
+import cloud.prefab.client.exceptions.EnvironmentVariableTypeConversionException;
 import cloud.prefab.domain.Prefab;
+import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Longs;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
 public class ConfigResolver {
 
@@ -25,6 +32,8 @@ public class ConfigResolver {
   private final ConfigStore configStore;
   private final EnvironmentVariableLookup environmentVariableLookup;
   private final ConfigRuleEvaluator configRuleEvaluator;
+
+  private AtomicReference<Yaml> yamlAtomicReference = new AtomicReference<>();
 
   public ConfigResolver(
     ConfigStore configStoreImpl,
@@ -88,10 +97,10 @@ public class ConfigResolver {
     if (configValue.hasProvided()) {
       switch (configValue.getProvided().getSource()) {
         case ENV_VAR:
-          Optional<String> newValue = environmentVariableLookup.get(
-            configValue.getProvided().getLookup()
+          return handleEnvVarLookup(
+            configValue.getProvided().getLookup(),
+            config.getValueType()
           );
-          return configValue.toBuilder().setString(newValue.orElse("")).build();
         default:
           LOG.error(
             "Config {} has unhandled Provided Source {}",
@@ -102,6 +111,83 @@ public class ConfigResolver {
       }
     }
     return configValue;
+  }
+
+  private Prefab.ConfigValue handleEnvVarLookup(
+    String envVarName,
+    Prefab.Config.ValueType valueType
+  ) {
+    String envValue = environmentVariableLookup.get(envVarName).orElse("").trim();
+    try {
+      switch (valueType) {
+        case STRING:
+          return ConfigValueUtils.from(envValue);
+        case STRING_LIST:
+          return yamlStringList(envVarName, envValue);
+        case BOOL:
+          return yamlBoolean(envVarName, envValue);
+        case INT:
+          return ConfigValueUtils.from(Long.parseLong(envValue));
+        case DOUBLE:
+          return ConfigValueUtils.from(Double.parseDouble(envValue));
+        case LOG_LEVEL:
+          // TODO should this throw instead of falling back to debug?
+          Optional<Prefab.LogLevel> maybeLogLevel = Enums
+            .getIfPresent(Prefab.LogLevel.class, envValue)
+            .toJavaUtil();
+          return ConfigValueUtils.from(maybeLogLevel.orElse(Prefab.LogLevel.DEBUG));
+        default:
+          throw new IllegalStateException(
+            String.format("Unhanded env var coercion case %s", valueType)
+          );
+      }
+    } catch (NumberFormatException | YAMLException exception) {
+      throw new EnvironmentVariableTypeConversionException(
+        envVarName,
+        envValue,
+        valueType,
+        exception
+      );
+    }
+  }
+
+  private Prefab.ConfigValue yamlBoolean(String envVarName, String envValue) {
+    Object potentialBooleanvalue = getYaml().load(envValue);
+    if (potentialBooleanvalue instanceof Boolean) {
+      return ConfigValueUtils.from((Boolean) potentialBooleanvalue);
+    }
+    throw new EnvironmentVariableTypeConversionException(
+      envVarName,
+      envValue,
+      Prefab.Config.ValueType.BOOL,
+      null
+    );
+  }
+
+  private Prefab.ConfigValue yamlStringList(String envVarName, String envValue) {
+    Object potentialListValue = getYaml().load(envValue);
+    if (potentialListValue instanceof List) {
+      return ConfigValueUtils.from(
+        (List<String>) ((List) potentialListValue).stream()
+          .map(String::valueOf)
+          .collect(Collectors.toList())
+      );
+    }
+    throw new EnvironmentVariableTypeConversionException(
+      envVarName,
+      envValue,
+      Prefab.Config.ValueType.STRING_LIST,
+      null
+    );
+  }
+
+  private Yaml getYaml() {
+    return yamlAtomicReference.updateAndGet(existing -> {
+      if (existing == null) {
+        return new Yaml();
+      }
+      return existing;
+    });
   }
 
   public Collection<String> getKeys() {
