@@ -163,7 +163,18 @@ public class ConfigResolver {
     String envVarName,
     Prefab.Config.ValueType valueType
   ) {
-    String envValue = environmentVariableLookup.get(envVarName).orElse("").trim();
+    String envValue = environmentVariableLookup
+      .get(envVarName)
+      .map(String::trim)
+      .orElseThrow(() ->
+        new EnvironmentVariableTypeConversionException(
+          configKey,
+          envVarName,
+          null,
+          valueType,
+          null
+        )
+      );
     try {
       switch (valueType) {
         case STRING:
