@@ -248,28 +248,44 @@ public class ConfigResolver {
     }
   }
 
+  private List<String> keyAndLowerCasedKey(String key) {
+    String lowerCased = key.toLowerCase();
+    if (lowerCased.equals(key)) {
+      return Collections.singletonList(key);
+    }
+    return List.of(key, lowerCased);
+  }
+
   private Optional<Prefab.ConfigValue> prop(
     String key,
     LookupContext lookupContext,
     Deque<Map<String, Prefab.ConfigValue>> rowPropertiesStack
   ) {
+    List<String> keysToLookup = keyAndLowerCasedKey(key);
+
     for (Map<String, Prefab.ConfigValue> rowProperties : rowPropertiesStack) {
-      if (rowProperties.containsKey(key)) {
-        return Optional.of(rowProperties.get(key));
+      for (String keyToLookup : keysToLookup) {
+        Prefab.ConfigValue rowPropValue = rowProperties.get(keyToLookup);
+        if (rowPropValue != null) {
+          return Optional.of(rowPropValue);
+        }
+      }
+    }
+    for (String keyToLookup : keysToLookup) {
+      Prefab.ConfigValue configFromDefaultContext = defaultContext.get().get(keyToLookup);
+      if (configFromDefaultContext != null) {
+        return Optional.of(configFromDefaultContext);
+      }
+    }
+    for (String keyToLookup : keysToLookup) {
+      Prefab.ConfigValue valueFromLookupContext = lookupContext
+        .getExpandedProperties()
+        .get(keyToLookup);
+      if (valueFromLookupContext != null) {
+        return Optional.of(valueFromLookupContext);
       }
     }
 
-    Prefab.ConfigValue configFromDefaultContext = defaultContext.get().get(key);
-    if (configFromDefaultContext != null) {
-      return Optional.of(configFromDefaultContext);
-    }
-
-    Prefab.ConfigValue valueFromLookupContext = lookupContext
-      .getExpandedProperties()
-      .get(key);
-    if (valueFromLookupContext != null) {
-      return Optional.of(valueFromLookupContext);
-    }
     //TODO: move this current time injection into a ContextResolver class
     if (CURRENT_TIME_KEY.equals(key)) {
       return Optional.of(
