@@ -4,12 +4,13 @@ import cloud.prefab.client.ConfigStore;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.Match;
+import cloud.prefab.client.exceptions.ConfigValueDecryptionException;
+import cloud.prefab.client.exceptions.ConfigValueException;
 import cloud.prefab.client.exceptions.EnvironmentVariableTypeConversionException;
+import cloud.prefab.client.util.SecretValueDecryptor;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Longs;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,7 +58,7 @@ public class ConfigResolver {
   }
 
   public Optional<Match> getMatch(String key, LookupContext lookupContext) {
-    return getRawMatch(key, lookupContext).map(this::reify);
+    return getRawMatch(key, lookupContext).map(match -> reify(match, lookupContext));
   }
 
   public Optional<Match> getRawMatch(String key, LookupContext lookupContext) {
@@ -78,10 +79,11 @@ public class ConfigResolver {
     return allValues.buildKeepingLast();
   }
 
-  private Match reify(Match match) {
+  private Match reify(Match match, LookupContext lookupContext) {
     Prefab.ConfigValue updatedConfigValue = reify(
       match.getConfigElement().getConfig(),
-      match.getConfigValue()
+      match.getConfigValue(),
+      lookupContext
     );
     return new Match(
       updatedConfigValue,
@@ -93,11 +95,16 @@ public class ConfigResolver {
     );
   }
 
-  private Prefab.ConfigValue reify(Prefab.Config config, Prefab.ConfigValue configValue) {
+  private Prefab.ConfigValue reify(
+    Prefab.Config config,
+    Prefab.ConfigValue configValue,
+    LookupContext lookupContext
+  ) {
     if (configValue.hasProvided()) {
       switch (configValue.getProvided().getSource()) {
         case ENV_VAR:
           return handleEnvVarLookup(
+            config.getKey(),
             configValue.getProvided().getLookup(),
             config.getValueType()
           );
@@ -110,10 +117,49 @@ public class ConfigResolver {
           return ConfigValueUtils.from("");
       }
     }
+    if (configValue.hasDecryptWith()) {
+      // now we need to fetch a new key
+      Optional<Match> decryptionKeyMatchMaybe = getMatch(
+        configValue.getDecryptWith(),
+        lookupContext
+      );
+
+      return decryptionKeyMatchMaybe
+        .map(decryptionKeyMatch -> {
+          try {
+            String decryptedValue = SecretValueDecryptor.decryptValue(
+              decryptionKeyMatch.getConfigValue().getString(),
+              configValue.getString()
+            );
+            return Prefab.ConfigValue
+              .newBuilder()
+              .setString(decryptedValue)
+              .setConfidential(true)
+              .build();
+          } catch (Throwable t) {
+            throw new ConfigValueDecryptionException(
+              config.getKey(),
+              configValue.getDecryptWith(),
+              t
+            );
+          }
+        })
+        .orElseThrow(() ->
+          new ConfigValueException(
+            String.format(
+              "Unable to decrypt secret in `%s` because config `%s` containing encryption key does not exist",
+              config.getKey(),
+              configValue.getDecryptWith()
+            ),
+            null
+          )
+        );
+    }
     return configValue;
   }
 
   private Prefab.ConfigValue handleEnvVarLookup(
+    String configKey,
     String envVarName,
     Prefab.Config.ValueType valueType
   ) {
@@ -123,9 +169,9 @@ public class ConfigResolver {
         case STRING:
           return ConfigValueUtils.from(envValue);
         case STRING_LIST:
-          return yamlStringList(envVarName, envValue);
+          return yamlStringList(configKey, envVarName, envValue);
         case BOOL:
-          return yamlBoolean(envVarName, envValue);
+          return yamlBoolean(configKey, envVarName, envValue);
         case INT:
           return ConfigValueUtils.from(Long.parseLong(envValue));
         case DOUBLE:
@@ -143,6 +189,7 @@ public class ConfigResolver {
       }
     } catch (NumberFormatException | YAMLException exception) {
       throw new EnvironmentVariableTypeConversionException(
+        configKey,
         envVarName,
         envValue,
         valueType,
@@ -151,12 +198,17 @@ public class ConfigResolver {
     }
   }
 
-  private Prefab.ConfigValue yamlBoolean(String envVarName, String envValue) {
+  private Prefab.ConfigValue yamlBoolean(
+    String configKey,
+    String envVarName,
+    String envValue
+  ) {
     Object potentialBooleanvalue = getYaml().load(envValue);
     if (potentialBooleanvalue instanceof Boolean) {
       return ConfigValueUtils.from((Boolean) potentialBooleanvalue);
     }
     throw new EnvironmentVariableTypeConversionException(
+      configKey,
       envVarName,
       envValue,
       Prefab.Config.ValueType.BOOL,
@@ -164,7 +216,11 @@ public class ConfigResolver {
     );
   }
 
-  private Prefab.ConfigValue yamlStringList(String envVarName, String envValue) {
+  private Prefab.ConfigValue yamlStringList(
+    String configKey,
+    String envVarName,
+    String envValue
+  ) {
     Object potentialListValue = getYaml().load(envValue);
     if (potentialListValue instanceof List) {
       return ConfigValueUtils.from(
@@ -174,6 +230,7 @@ public class ConfigResolver {
       );
     }
     throw new EnvironmentVariableTypeConversionException(
+      configKey,
       envVarName,
       envValue,
       Prefab.Config.ValueType.STRING_LIST,

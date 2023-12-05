@@ -1,7 +1,6 @@
 package cloud.prefab.client.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +12,7 @@ class SecretValueDecryptorTest {
       "e657e0406fc22e17d3145966396b2130d33dcb30ac0edd62a77235cdd01fc49d";
     String encryptedValue =
       "b837acfdedb9f6286947fb95f6fb--13490148d8d3ddf0decc3d14--add9b0ed6de775080bec4c5b6025d67e";
-    assertThat(SecretValueDecryptor.decryptValue(encryptionKey, encryptedValue))
+    assertThat(SecretValueDecryptor.decryptValueQuietly(encryptionKey, encryptedValue))
       .contains("james-was-here");
   }
 
@@ -23,7 +22,7 @@ class SecretValueDecryptorTest {
       "e657e0406fc22e17d3145966396b2130d33dcb30ac0edd62a77235cdd01fc49e";
     String encryptedValue =
       "b837acfdedb9f6286947fb95f6fb--13490148d8d3ddf0decc3d14--add9b0ed6de775080bec4c5b6025d67e";
-    assertThat(SecretValueDecryptor.decryptValue(encryptionKey, encryptedValue))
+    assertThat(SecretValueDecryptor.decryptValueQuietly(encryptionKey, encryptedValue))
       .isEmpty();
   }
 }

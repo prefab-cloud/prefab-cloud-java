@@ -24,7 +24,25 @@ public class SecretValueDecryptor {
 
   private static final String CIPHER_TRANSFORMATION = "AES/GCM/NoPadding";
 
-  public static Optional<String> decryptValue(String secretKeyString, String value) {
+  public static Optional<String> decryptValueQuietly(
+    String secretKeyString,
+    String value
+  ) {
+    try {
+      return Optional.of(decryptValue(secretKeyString, value));
+    } catch (
+      InvalidAlgorithmParameterException
+      | IllegalBlockSizeException
+      | BadPaddingException
+      | InvalidKeyException e
+    ) {
+      LOG.error("unable to decrypt value {} due to exception", value, e);
+      return Optional.empty();
+    }
+  }
+
+  public static String decryptValue(String secretKeyString, String value)
+    throws InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
     SecretKey secretKey = new SecretKeySpec(
       BaseEncoding.base16().decode(secretKeyString.toUpperCase()),
       "AES"
@@ -36,21 +54,12 @@ public class SecretValueDecryptor {
     byte[] iv = BaseEncoding.base16().decode(ivStr);
     byte[] dataToProcess = BaseEncoding.base16().decode(dataStr + authTagStr);
     AlgorithmParameterSpec gcmIv = new GCMParameterSpec(128, iv);
-    try {
-      final Cipher cipher = getCipher();
-      cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmIv);
-      cipher.updateAAD("".getBytes());
-      byte[] decryptedData = cipher.doFinal(dataToProcess);
-      return Optional.of(new String(decryptedData));
-    } catch (
-      InvalidAlgorithmParameterException
-      | IllegalBlockSizeException
-      | BadPaddingException
-      | InvalidKeyException e
-    ) {
-      LOG.error("unable to decrypt value {} due to exception", value, e);
-      return Optional.empty();
-    }
+
+    final Cipher cipher = getCipher();
+    cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmIv);
+    cipher.updateAAD("".getBytes());
+    byte[] decryptedData = cipher.doFinal(dataToProcess);
+    return new String(decryptedData);
   }
 
   private static Cipher getCipher() {

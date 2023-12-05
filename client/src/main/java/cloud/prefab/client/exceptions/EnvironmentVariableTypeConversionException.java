@@ -2,13 +2,15 @@ package cloud.prefab.client.exceptions;
 
 import cloud.prefab.domain.Prefab;
 
-public class EnvironmentVariableTypeConversionException extends RuntimeException {
+public class EnvironmentVariableTypeConversionException extends ConfigValueException {
 
+  private final String configKey;
   private final String environmentVariableName;
   private final String environmentValue;
   private final Prefab.Config.ValueType targetValueType;
 
   public EnvironmentVariableTypeConversionException(
+    String configKey,
     String environmentVariableName,
     String environmentValue,
     Prefab.Config.ValueType targetValueType,
@@ -16,13 +18,15 @@ public class EnvironmentVariableTypeConversionException extends RuntimeException
   ) {
     super(
       String.format(
-        "Unable to %s from environment variable %s to type %s",
-        environmentValue,
+        "Key %s referencing environment variable %s with value %s cannot be coerced to type %s",
+        configKey,
         environmentVariableName,
+        environmentValue,
         targetValueType
       ),
       cause
     );
+    this.configKey = configKey;
     this.environmentVariableName = environmentVariableName;
     this.environmentValue = environmentValue;
     this.targetValueType = targetValueType;
@@ -38,5 +42,9 @@ public class EnvironmentVariableTypeConversionException extends RuntimeException
 
   public Prefab.Config.ValueType getTargetValueType() {
     return targetValueType;
+  }
+
+  public String getConfigKey() {
+    return configKey;
   }
 }
