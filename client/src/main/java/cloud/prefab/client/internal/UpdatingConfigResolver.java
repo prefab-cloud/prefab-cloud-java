@@ -149,6 +149,10 @@ public class UpdatingConfigResolver {
   }
 
   public Optional<Match> getMatch(String key, LookupContext lookupContext) {
+    return configResolver.getMatch(key, lookupContext);
+  }
+
+  public Optional<Match> getRawMatch(String key, LookupContext lookupContext) {
     return configResolver.getRawMatch(key, lookupContext);
   }
 }
