@@ -1,10 +1,15 @@
 package cloud.prefab.client.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.context.PrefabContextHelper;
 import cloud.prefab.context.PrefabContextSetReadable;
+import com.google.common.collect.Lists;
 import com.google.errorprone.annotations.MustBeClosed;
+import java.util.List;
 import org.junit.jupiter.api.function.Executable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +36,17 @@ public abstract class BaseIntegrationTestCaseDescriptor {
 
   protected abstract void performVerification(PrefabCloudClient prefabCloudClient);
 
+  private static final List<String> REQUIRED_ENV_VARS = List.of(
+    "PREFAB_INTEGRATION_TEST_API_KEY"
+  );
+
   public Executable asExecutable(PrefabContextSetReadable prefabContext) {
     return () -> {
+      for (String requiredEnvVar : REQUIRED_ENV_VARS) {
+        if (System.getenv(requiredEnvVar) == null) {
+          fail("Environment variable %s must be set", requiredEnvVar);
+        }
+      }
       try (PrefabCloudClient client = buildClient(clientOverrides)) {
         PrefabContextHelper helper = new PrefabContextHelper(client.configClient());
         try (
