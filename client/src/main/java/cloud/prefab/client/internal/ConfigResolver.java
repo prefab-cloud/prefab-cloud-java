@@ -282,27 +282,27 @@ public class ConfigResolver {
 
   public String contentsString() {
     StringBuilder sb = new StringBuilder();
-    List<String> sortedKeys = new ArrayList<>(getKeys());
-    Collections.sort(sortedKeys);
+    List<String> sortedKeys = getKeys().stream().sorted().collect(Collectors.toList());
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
-      final Optional<Match> match = configRuleEvaluator.getMatch(
-        configElement,
-        LookupContext.EMPTY
-      );
-      if (match.isPresent()) {
-        sb.append(padded(key, 45));
-        sb.append(
-          padded(
-            ConfigValueUtils
-              .toDisplayString(match.get().getConfigValue())
-              .orElse("[Unable to display]"),
-            40
-          )
-        );
-        sb.append(padded(configElement.getProvenance().toString(), 40));
-        sb.append(padded(match.get().getReason(), 40));
-        sb.append("\n");
+      try {
+        final Optional<Match> match = this.getMatch(key, LookupContext.EMPTY);
+        if (match.isPresent()) {
+          sb.append(padded(key, 45));
+          sb.append(
+            padded(
+              ConfigValueUtils
+                .toDisplayString(match.get().getConfigValue())
+                .orElse("[Unable to display]"),
+              40
+            )
+          );
+          sb.append(padded(configElement.getProvenance().toString(), 40));
+          sb.append(padded(match.get().getReason(), 40));
+          sb.append("\n");
+        }
+      } catch (ConfigValueException configValueException) {
+        LOG.debug("Error rendering config with key '{}'", key, configValueException);
       }
     }
     return sb.toString();

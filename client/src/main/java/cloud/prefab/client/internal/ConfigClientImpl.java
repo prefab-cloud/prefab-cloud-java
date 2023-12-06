@@ -497,12 +497,16 @@ public class ConfigClientImpl implements ConfigClient {
     broadcastChanges(changes);
     if (initializedLatch.getCount() > 0) {
       initializedLatch.countDown();
-      LOG.info(
-        "Initialized Prefab from {} at highwater {} with currently known configs\n {}",
-        source,
-        updatingConfigResolver.getHighwaterMark(),
-        updatingConfigResolver.contentsString()
-      );
+      try {
+        LOG.info(
+          "Initialized Prefab from {} at highwater {} with currently known configs\n{}",
+          source,
+          updatingConfigResolver.getHighwaterMark(),
+          updatingConfigResolver.contentsString()
+        );
+      } catch (Exception e) {
+        LOG.info("Error encountered printing known config listing", e);
+      }
     }
   }
 
