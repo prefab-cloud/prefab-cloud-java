@@ -4,7 +4,9 @@ import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
+import cloud.prefab.client.exceptions.ConfigValueException;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -43,32 +45,40 @@ public class UpdatingConfigResolver {
    * Return the changed config values since last update()
    */
   public List<ConfigChangeEvent> update() {
+    // catch exceptions resolving, treat as absent
     // store the old map
-    final Map<String, Optional<Prefab.ConfigValue>> before = configStore
-      .entrySet()
-      .stream()
-      .collect(
-        Collectors.toMap(
-          Map.Entry::getKey,
-          e -> configResolver.getConfigValue(e.getKey())
-        )
-      );
-
+    Map<String, Optional<Prefab.ConfigValue>> before = buildValueMap();
     // load the new map
     makeLocal();
 
     // build the new map
-    final Map<String, Optional<Prefab.ConfigValue>> after = configStore
+    Map<String, Optional<Prefab.ConfigValue>> after = buildValueMap();
+    return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  }
+
+  private Map<String, Optional<Prefab.ConfigValue>> buildValueMap() {
+    return configStore
       .entrySet()
       .stream()
+      .map(entry ->
+        safeResolve(entry.getKey()).map(cv -> Maps.immutableEntry(entry.getKey(), cv))
+      )
+      .flatMap(Optional::stream)
       .collect(
         Collectors.toMap(
           Map.Entry::getKey,
           e -> configResolver.getConfigValue(e.getKey())
         )
       );
+  }
 
-    return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  private Optional<Prefab.ConfigValue> safeResolve(String key) {
+    try {
+      return configResolver.getConfigValue(key);
+    } catch (ConfigValueException configValueException) {
+      LOG.warn("error evaluating config {} ", key, configValueException);
+      return Optional.empty();
+    }
   }
 
   public long getHighwaterMark() {
