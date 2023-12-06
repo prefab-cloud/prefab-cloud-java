@@ -38,14 +38,19 @@ public abstract class BaseIntegrationTestCaseDescriptor {
 
   private static final List<String> REQUIRED_ENV_VARS = List.of(
     "PREFAB_INTEGRATION_TEST_API_KEY",
-    "PREFAB_INTEGRATION_TEST_ENCRYPTION_KEY"
+    "PREFAB_INTEGRATION_TEST_ENCRYPTION_KEY",
+    "NOT_A_NUMBER",
+    "IS_A_NUMBER"
   );
 
   public Executable asExecutable(PrefabContextSetReadable prefabContext) {
     return () -> {
       for (String requiredEnvVar : REQUIRED_ENV_VARS) {
         if (System.getenv(requiredEnvVar) == null) {
-          fail("Environment variable %s must be set", requiredEnvVar);
+          fail(
+            "Environment variable %s must be set. Please see README for required setup",
+            requiredEnvVar
+          );
         }
       }
       try (PrefabCloudClient client = buildClient(clientOverrides)) {
