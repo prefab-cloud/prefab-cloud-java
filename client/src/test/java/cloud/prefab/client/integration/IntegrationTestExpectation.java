@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
+import cloud.prefab.client.exceptions.ConfigValueDecryptionException;
 import cloud.prefab.client.exceptions.EnvironmentVariableMissingException;
 import cloud.prefab.client.exceptions.EnvironmentVariableTypeConversionException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
@@ -78,7 +79,9 @@ public interface IntegrationTestExpectation {
       "missing_env_var",
       EnvironmentVariableMissingException.class,
       "unable_to_coerce_env_var",
-      EnvironmentVariableTypeConversionException.class
+      EnvironmentVariableTypeConversionException.class,
+      "unable_to_decrypt",
+      ConfigValueDecryptionException.class
     );
 
     private final String error;
