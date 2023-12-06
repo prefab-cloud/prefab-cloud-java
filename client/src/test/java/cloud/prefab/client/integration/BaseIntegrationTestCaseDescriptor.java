@@ -37,7 +37,8 @@ public abstract class BaseIntegrationTestCaseDescriptor {
   protected abstract void performVerification(PrefabCloudClient prefabCloudClient);
 
   private static final List<String> REQUIRED_ENV_VARS = List.of(
-    "PREFAB_INTEGRATION_TEST_API_KEY"
+    "PREFAB_INTEGRATION_TEST_API_KEY",
+    "PREFAB_INTEGRATION_TEST_ENCRYPTION_KEY"
   );
 
   public Executable asExecutable(PrefabContextSetReadable prefabContext) {
