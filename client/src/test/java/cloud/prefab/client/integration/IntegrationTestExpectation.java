@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.exceptions.EnvironmentVariableMissingException;
+import cloud.prefab.client.exceptions.EnvironmentVariableTypeConversionException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyException;
 import cloud.prefab.client.integration.IntegrationTestExpectation.VerifyReturnValue;
 import cloud.prefab.client.value.UndefinedKeyException;
@@ -75,7 +76,9 @@ public interface IntegrationTestExpectation {
       "initialization_timeout",
       PrefabInitializationTimeoutException.class,
       "missing_env_var",
-      EnvironmentVariableMissingException.class
+      EnvironmentVariableMissingException.class,
+      "unable_to_coerce_env_var",
+      EnvironmentVariableTypeConversionException.class
     );
 
     private final String error;
