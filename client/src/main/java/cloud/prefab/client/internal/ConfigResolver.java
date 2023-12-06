@@ -6,14 +6,13 @@ import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.exceptions.ConfigValueDecryptionException;
 import cloud.prefab.client.exceptions.ConfigValueException;
+import cloud.prefab.client.exceptions.EnvironmentVariableMissingException;
 import cloud.prefab.client.exceptions.EnvironmentVariableTypeConversionException;
 import cloud.prefab.client.util.SecretValueDecryptor;
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableMap;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -167,13 +166,7 @@ public class ConfigResolver {
       .get(envVarName)
       .map(String::trim)
       .orElseThrow(() ->
-        new EnvironmentVariableTypeConversionException(
-          configKey,
-          envVarName,
-          null,
-          valueType,
-          null
-        )
+        new EnvironmentVariableMissingException(configKey, envVarName, null)
       );
     try {
       switch (valueType) {
