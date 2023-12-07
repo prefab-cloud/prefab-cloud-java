@@ -8,7 +8,7 @@ public class DefaultContextWrapper {
 
   private final Map<String, Prefab.ConfigValue> configValueMap;
 
-  DefaultContextWrapper(Map<String, Prefab.ConfigValue> configValueMap) {
+  public DefaultContextWrapper(Map<String, Prefab.ConfigValue> configValueMap) {
     this.configValueMap = configValueMap;
   }
 
