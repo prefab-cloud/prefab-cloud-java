@@ -2,12 +2,11 @@ package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.config.ConfigChangeEvent;
-import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
-import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.client.exceptions.ConfigValueException;
 import cloud.prefab.domain.Prefab;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +23,7 @@ public class UpdatingConfigResolver {
   private final ConfigStoreDeltaCalculator configStoreDeltaCalculator;
 
   private final ConfigStoreImpl configStore;
-  private ConfigResolver configResolver;
+  private final ConfigResolver configResolver;
 
   public UpdatingConfigResolver(
     ConfigLoader configLoader,
@@ -34,39 +33,52 @@ public class UpdatingConfigResolver {
     this.configLoader = configLoader;
     this.configStoreDeltaCalculator = configStoreDeltaCalculator;
     this.configStore = new ConfigStoreImpl();
-    this.configResolver = new ConfigResolver(configStore, weightedValueEvaluator);
+    ConfigRuleEvaluator configRuleEvaluator = new ConfigRuleEvaluator(
+      configStore,
+      weightedValueEvaluator
+    );
+    this.configResolver =
+      new ConfigResolver(configStore, configRuleEvaluator, new SystemEnvVarLookup());
   }
 
   /**
    * Return the changed config values since last update()
    */
   public List<ConfigChangeEvent> update() {
+    // catch exceptions resolving, treat as absent
     // store the old map
-    final Map<String, Optional<Prefab.ConfigValue>> before = configStore
-      .entrySet()
-      .stream()
-      .collect(
-        Collectors.toMap(
-          Map.Entry::getKey,
-          e -> configResolver.getConfigValue(e.getKey())
-        )
-      );
-
+    Map<String, Optional<Prefab.ConfigValue>> before = buildValueMap();
     // load the new map
     makeLocal();
 
     // build the new map
-    final Map<String, Optional<Prefab.ConfigValue>> after = configStore
+    Map<String, Optional<Prefab.ConfigValue>> after = buildValueMap();
+    return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  }
+
+  private Map<String, Optional<Prefab.ConfigValue>> buildValueMap() {
+    return configStore
       .entrySet()
       .stream()
+      .map(entry ->
+        safeResolve(entry.getKey()).map(cv -> Maps.immutableEntry(entry.getKey(), cv))
+      )
+      .flatMap(Optional::stream)
       .collect(
         Collectors.toMap(
           Map.Entry::getKey,
           e -> configResolver.getConfigValue(e.getKey())
         )
       );
+  }
 
-    return configStoreDeltaCalculator.computeChangeEvents(before, after);
+  private Optional<Prefab.ConfigValue> safeResolve(String key) {
+    try {
+      return configResolver.getConfigValue(key);
+    } catch (ConfigValueException configValueException) {
+      LOG.warn("error evaluating config {} ", key, configValueException);
+      return Optional.empty();
+    }
   }
 
   public long getHighwaterMark() {
@@ -81,9 +93,6 @@ public class UpdatingConfigResolver {
     Prefab.Configs configs,
     ConfigClient.Source source
   ) {
-    setProjectEnvId(configs);
-    configResolver.setDefaultContext(configs);
-
     final long startingHighWaterMark = configLoader.getHighwaterMark();
     Provenance provenance = new Provenance(source);
     configLoader.setConfigs(configs, provenance);
@@ -109,23 +118,11 @@ public class UpdatingConfigResolver {
    * set the localMap
    */
   private void makeLocal() {
-    ImmutableMap.Builder<String, ConfigElement> store = ImmutableMap.builder();
-
-    configLoader
-      .calcConfig()
-      .forEach((key, configElement) -> {
-        store.put(key, configElement);
-      });
-
-    configStore.set(store.buildKeepingLast());
+    configStore.set(configLoader.calcConfig());
   }
 
   public String contentsString() {
     return configResolver.contentsString();
-  }
-
-  public boolean setProjectEnvId(Prefab.Configs configs) {
-    return configResolver.setProjectEnvId(configs);
   }
 
   public Collection<String> getKeys() {
@@ -153,5 +150,9 @@ public class UpdatingConfigResolver {
 
   public Optional<Match> getMatch(String key, LookupContext lookupContext) {
     return configResolver.getMatch(key, lookupContext);
+  }
+
+  public Optional<Match> getRawMatch(String key, LookupContext lookupContext) {
+    return configResolver.getRawMatch(key, lookupContext);
   }
 }

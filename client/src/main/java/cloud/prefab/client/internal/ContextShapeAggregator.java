@@ -1,18 +1,12 @@
 package cloud.prefab.client.internal;
 
-import cloud.prefab.client.Options;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.MoreExecutors;
-import java.time.Clock;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
@@ -25,14 +19,9 @@ public class ContextShapeAggregator {
 
   private static final Logger LOG = LoggerFactory.getLogger(ContextShapeAggregator.class);
 
-  static final long MILLIS_BETWEEN_UPLOADS = TimeUnit.MINUTES.toMillis(20);
-  static final long MILLIS_BETWEEN_UPLOADS_WITH_NEW_DATA = TimeUnit.MINUTES.toMillis(5);
-
   private final ConcurrentHashMap<String, ConcurrentHashMap<String, Integer>> shapes;
 
   private final AtomicBoolean dirtyFlag = new AtomicBoolean(true);
-
-  private long lastUploadTime = 0;
 
   ContextShapeAggregator() {
     this.shapes = new ConcurrentHashMap<>();

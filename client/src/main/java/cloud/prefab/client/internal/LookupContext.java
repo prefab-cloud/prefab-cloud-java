@@ -86,7 +86,7 @@ public class LookupContext {
           .getProperties()
           .entrySet()) {
           expandedProperties.put(
-            prefix + stringConfigValueEntry.getKey(),
+            prefix + stringConfigValueEntry.getKey().toLowerCase(),
             stringConfigValueEntry.getValue()
           );
         }

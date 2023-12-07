@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.BaseEncoding;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +44,10 @@ public class ConfigValueUtils {
     return Prefab.ConfigValue.newBuilder().setDouble(number).build();
   }
 
+  public static Prefab.ConfigValue from(Prefab.LogLevel logLevel) {
+    return Prefab.ConfigValue.newBuilder().setLogLevel(logLevel).build();
+  }
+
   public static Map<String, Prefab.ConfigValue> fromStringMap(
     Map<String, String> stringStringMap
   ) {
@@ -51,6 +56,21 @@ public class ConfigValueUtils {
       builder.put(stringStringEntry.getKey(), fromString(stringStringEntry.getValue()));
     }
     return builder.build();
+  }
+
+  public static Optional<String> toDisplayString(Prefab.ConfigValue configValue) {
+    if (configValue.hasConfidential() && configValue.getConfidential()) {
+      return Optional.of("**** [confidential]");
+    }
+    if (configValue.hasDecryptWith()) {
+      return Optional.of("**** [encrypted]");
+    }
+    if (configValue.hasProvided()) {
+      // TODO
+      // resolve the provided value? indicate where it was provided from?
+    }
+
+    return coerceToString(configValue);
   }
 
   public static Optional<String> coerceToString(Prefab.ConfigValue configValue) {
@@ -72,6 +92,10 @@ public class ConfigValueUtils {
             .getValuesList()
             .stream()
             .collect(Collectors.joining(","))
+        );
+      case BYTES:
+        return Optional.of(
+          BaseEncoding.base16().encode(configValue.getBytes().toByteArray())
         );
       default:
         LOG.debug(

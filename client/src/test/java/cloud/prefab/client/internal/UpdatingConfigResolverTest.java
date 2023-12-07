@@ -10,7 +10,6 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
-import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -46,15 +45,12 @@ public class UpdatingConfigResolverTest {
 
   @Test
   public void testUpdateChangeDetection() {
-    // original testData() has 2 keys
     assertThat(resolver.update())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",
           Optional.empty(),
-          Optional.of(
-            Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
-          )
+          Optional.of(Prefab.ConfigValue.newBuilder().setString("value_none").build())
         ),
         new ConfigChangeEvent(
           "key2",
@@ -68,9 +64,7 @@ public class UpdatingConfigResolverTest {
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",
-          Optional.of(
-            Prefab.ConfigValue.newBuilder().setString("value_no_env_default").build()
-          ),
+          Optional.of(Prefab.ConfigValue.newBuilder().setString("value_none").build()),
           Optional.empty()
         ),
         new ConfigChangeEvent(
@@ -81,11 +75,11 @@ public class UpdatingConfigResolverTest {
       );
   }
 
-  private Map<String, ConfigElement> testDataAddingKey3andTombstoningKey1() {
-    Map<String, ConfigElement> rtn = new HashMap<>();
-    rtn.put("key1", ce(Prefab.Config.newBuilder().setKey("key1").build()));
-    rtn.put("key2", ce(key2()));
-    rtn.put(
+  private MergedConfigData testDataAddingKey3andTombstoningKey1() {
+    Map<String, ConfigElement> config = new HashMap<>();
+    config.put("key1", ce(Prefab.Config.newBuilder().setKey("key1").build()));
+    config.put("key2", ce(key2()));
+    config.put(
       "key3",
       ce(
         Prefab.Config
@@ -95,7 +89,7 @@ public class UpdatingConfigResolverTest {
           .build()
       )
     );
-    return rtn;
+    return new MergedConfigData(config, TEST_PROJ_ENV, DefaultContextWrapper.empty());
   }
 
   private Prefab.ConfigRow rowWithStringValue(String value) {
@@ -108,29 +102,25 @@ public class UpdatingConfigResolverTest {
     Optional<Map<String, String>> namespaceValues
   ) {
     final Prefab.ConfigRow.Builder rowBuilder = Prefab.ConfigRow.newBuilder();
-    if (env.isPresent()) {
-      rowBuilder.setProjectEnvId(env.get());
-    }
-    if (namespaceValues.isPresent()) {
-      namespaceValues
-        .get()
-        .forEach((namespace, stringValue) -> {
-          final Prefab.ConditionalValue.Builder builder = Prefab.ConditionalValue
-            .newBuilder()
-            .setValue(Prefab.ConfigValue.newBuilder().setString(stringValue).build());
+    env.ifPresent(rowBuilder::setProjectEnvId);
+    namespaceValues.ifPresent(stringStringMap ->
+      stringStringMap.forEach((namespace, stringValue) -> {
+        final Prefab.ConditionalValue.Builder builder = Prefab.ConditionalValue
+          .newBuilder()
+          .setValue(Prefab.ConfigValue.newBuilder().setString(stringValue).build());
 
-          if (namespace != null) {
-            builder.addCriteria(
-              Prefab.Criterion
-                .newBuilder()
-                .setPropertyName(ConfigResolver.NAMESPACE_KEY)
-                .setOperator(Prefab.Criterion.CriterionOperator.HIERARCHICAL_MATCH)
-                .setValueToMatch(Prefab.ConfigValue.newBuilder().setString(namespace))
-            );
-          }
-          rowBuilder.addValues(builder.build());
-        });
-    }
+        if (namespace != null) {
+          builder.addCriteria(
+            Prefab.Criterion
+              .newBuilder()
+              .setPropertyName(ConfigResolver.NAMESPACE_KEY)
+              .setOperator(Prefab.Criterion.CriterionOperator.HIERARCHICAL_MATCH)
+              .setValueToMatch(Prefab.ConfigValue.newBuilder().setString(namespace))
+          );
+        }
+        rowBuilder.addValues(builder.build());
+      })
+    );
     rowBuilder
       .addValues(
         Prefab.ConditionalValue
@@ -142,102 +132,20 @@ public class UpdatingConfigResolverTest {
     return rowBuilder.build();
   }
 
-  private Prefab.Configs configsWithEnv(int projectEnvId) {
-    return Prefab.Configs
-      .newBuilder()
-      .setConfigServicePointer(
-        Prefab.ConfigServicePointer.newBuilder().setProjectEnvId(projectEnvId).build()
-      )
-      .build();
-  }
-
-  @Test
-  public void noProjEnvOverwrite() {
-    assertThat(resolver.setProjectEnvId(configsWithEnv(1))).isTrue();
-    assertThat(resolver.setProjectEnvId(Prefab.Configs.getDefaultInstance())).isFalse();
-  }
-
-  @Test
-  public void test() {
-    resolver.update();
-    resolver.contentsString();
-    assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_no_env_default");
-
-    resolver.setProjectEnvId(configsWithEnv(TEST_PROJ_ENV));
-    resolver.contentsString();
-
-    when(mockOptions.getNamespace()).thenReturn(Optional.empty());
-    resolver.update();
-    resolver.contentsString();
-    assertConfigValueStringIs(resolver.getConfigValue("key1"), "value_none");
-
-    assertConfigValueStringIs(
-      resolver.getConfigValue(
-        "key1",
-        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectA"))
-      ),
-      "valueA"
-    );
-    assertConfigValueStringIs(
-      resolver.getConfigValue(
-        "key1",
-        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB"))
-      ),
-      "valueB"
-    );
-    assertConfigValueStringIs(
-      resolver.getConfigValue(
-        "key1",
-        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectB.subprojectX"))
-      ),
-      "projectB.subprojectX"
-    );
-    assertConfigValueStringIs(
-      resolver.getConfigValue(
-        "key1",
-        singleValueLookupContext(
-          ConfigResolver.NAMESPACE_KEY,
-          sv("projectB.subprojectX.subsubQ")
-        )
-      ),
-      "projectB.subprojectX"
-    );
-    assertConfigValueStringIs(
-      resolver.getConfigValue(
-        "key1",
-        singleValueLookupContext(ConfigResolver.NAMESPACE_KEY, sv("projectC"))
-      ),
-      "value_none"
-    );
-
-    assertThat(resolver.getConfigValue("key_that_doesnt_exist").isPresent()).isFalse();
-  }
-
-  private Prefab.ConfigValue sv(String s) {
-    return Prefab.ConfigValue.newBuilder().setString(s).build();
-  }
-
   @Test
   public void testContentsString() {
     resolver.update();
     String expected =
-      "key1                                         value_no_env_default                    LOCAL_ONLY:unit test                                                            \n" +
+      "key1                                         value_none                              LOCAL_ONLY:unit test                                                            \n" +
       "key2                                         valueB2                                 LOCAL_ONLY:unit test                                                            \n";
     assertThat(resolver.contentsString()).isEqualTo(expected);
   }
 
-  private void assertConfigValueStringIs(
-    Optional<Prefab.ConfigValue> key,
-    String expectedValue
-  ) {
-    assertThat(key.get().getString()).isEqualTo(expectedValue);
-  }
-
-  private Map<String, ConfigElement> testData() {
-    Map<String, ConfigElement> rtn = new HashMap<>();
-    rtn.put("key1", ce(key1()));
-    rtn.put("key2", ce(key2()));
-    return rtn;
+  private MergedConfigData testData() {
+    Map<String, ConfigElement> config = new HashMap<>();
+    config.put("key1", ce(key1()));
+    config.put("key2", ce(key2()));
+    return new MergedConfigData(config, TEST_PROJ_ENV, DefaultContextWrapper.empty());
   }
 
   private ConfigElement ce(Prefab.Config config) {
@@ -271,15 +179,5 @@ public class UpdatingConfigResolverTest {
       .setKey("key2")
       .addRows(rowWithStringValue("valueB2"))
       .build();
-  }
-
-  public static LookupContext singleValueLookupContext(
-    String propName,
-    Prefab.ConfigValue configValue
-  ) {
-    return new LookupContext(
-      Optional.empty(),
-      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
-    );
   }
 }

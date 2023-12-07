@@ -1,404 +1,256 @@
 package cloud.prefab.client.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.ConfigStore;
 import cloud.prefab.client.config.ConfigElement;
-import cloud.prefab.client.config.EvaluatedCriterion;
+import cloud.prefab.client.config.ConfigValueUtils;
+import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
-import cloud.prefab.context.PrefabContext;
+import cloud.prefab.client.exceptions.ConfigValueDecryptionException;
+import cloud.prefab.client.exceptions.ConfigValueException;
 import cloud.prefab.domain.Prefab;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import org.checkerframework.checker.units.qual.C;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-public class ConfigResolverTest {
+@ExtendWith(MockitoExtension.class)
+class ConfigResolverTest {
 
-  private ConfigResolver resolver;
+  static final String ENV_VAR_NAME = "COOL_ENV_VAR";
 
-  final ConfigStoreImpl mockConfigStoreImpl = mock(ConfigStoreImpl.class);
-
-  @BeforeEach
-  public void setup() {
-    resolver = new ConfigResolver(mockConfigStoreImpl, new WeightedValueEvaluator());
-  }
-
-  @Test
-  public void testNamespaceMatch() {
-    assertThat(resolver.hierarchicalMatch("a.b.c", "a.b.c")).isEqualTo(true);
-    assertThat(resolver.hierarchicalMatch("a.b.c", "a.b.c.d.e")).isEqualTo(false);
-    assertThat(resolver.hierarchicalMatch("a.b.c.d.e", "a.b.c")).isEqualTo(true);
-    assertThat(resolver.hierarchicalMatch("a.z.c", "a.b.c")).isEqualTo(false);
-    assertThat(resolver.hierarchicalMatch("a.b", "a")).isEqualTo(true);
-  }
-
-  @Test
-  public void testEndsWith() {
-    final Prefab.Criterion socialEmailCritieria = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName("email")
-      .setValueToMatch(
-        Prefab.ConfigValue
-          .newBuilder()
-          .setStringList(
-            Prefab.StringList
-              .newBuilder()
-              .addValues("gmail.com")
-              .addValues("yahoo.com")
-              .build()
-          )
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF)
-      .build();
-
-    final EvaluatedCriterion bobEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("bob@example.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(bobEval.isMatch()).isFalse();
-    assertThat(bobEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("bob@example.com");
-
-    final EvaluatedCriterion yahooEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("alice@yahoo.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(yahooEval.isMatch()).isTrue();
-    assertThat(yahooEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("alice@yahoo.com");
-
-    final EvaluatedCriterion gmailEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("alice@gmail.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(gmailEval.isMatch()).isTrue();
-    assertThat(gmailEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("alice@gmail.com");
-  }
-
-  @Test
-  public void testDoesNotEndWith() {
-    final Prefab.Criterion socialEmailCritieria = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName("email")
-      .setValueToMatch(
-        Prefab.ConfigValue
-          .newBuilder()
-          .setStringList(
-            Prefab.StringList
-              .newBuilder()
-              .addValues("gmail.com")
-              .addValues("yahoo.com")
-              .build()
-          )
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_END_WITH_ONE_OF)
-      .build();
-
-    final EvaluatedCriterion bobEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("bob@example.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(bobEval.isMatch()).isTrue();
-    assertThat(bobEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("bob@example.com");
-
-    final EvaluatedCriterion yahooEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("alice@yahoo.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(yahooEval.isMatch()).isFalse();
-    assertThat(yahooEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("alice@yahoo.com");
-
-    final EvaluatedCriterion gmailEval = resolver
-      .evaluateCriterionMatch(
-        socialEmailCritieria,
-        singleValueLookupContext("email", sv("alice@gmail.com"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(gmailEval.isMatch()).isFalse();
-    assertThat(gmailEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("alice@gmail.com");
-  }
-
-  @Test
-  public void testSegment() {
-    when(mockConfigStoreImpl.containsKey("segment")).thenReturn(true);
-    when(mockConfigStoreImpl.getElement("segment")).thenReturn(segmentTestData());
-
-    final Prefab.Criterion segmentCriteria = Prefab.Criterion
-      .newBuilder()
-      .setValueToMatch(Prefab.ConfigValue.newBuilder().setString("segment").build())
-      .setOperator(Prefab.Criterion.CriterionOperator.IN_SEG)
-      .build();
-
-    final EvaluatedCriterion betaEval = resolver
-      .evaluateCriterionMatch(
-        segmentCriteria,
-        singleValueLookupContext("group", sv("beta"))
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(betaEval.getEvaluatedProperty().get().getString()).isEqualTo("beta");
-    assertThat(betaEval.isMatch()).isTrue();
-    final List<EvaluatedCriterion> alphaEval = resolver.evaluateCriterionMatch(
-      segmentCriteria,
-      singleValueLookupContext("group", sv("alpha"))
-    );
-    System.out.println(alphaEval);
-    assertThat(alphaEval).hasSize(1);
-    assertThat(alphaEval.get(0).isMatch()).isFalse();
-  }
-
-  @Test
-  public void testIntInStringListMatches() {
-    final Prefab.Criterion numberCriterion = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName("number")
-      .setValueToMatch(
-        Prefab.ConfigValue
-          .newBuilder()
-          .setStringList(
-            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
-          )
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
-      .build();
-
-    final EvaluatedCriterion positiveEval = resolver
-      .evaluateCriterionMatch(
-        numberCriterion,
-        singleValueLookupContext(
-          "number",
-          Prefab.ConfigValue.newBuilder().setInt(10).build()
-        )
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(positiveEval.isMatch()).isTrue();
-    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
-
-    final EvaluatedCriterion negativeEval = resolver
-      .evaluateCriterionMatch(
-        numberCriterion,
-        singleValueLookupContext(
-          "number",
-          Prefab.ConfigValue.newBuilder().setInt(13).build()
-        )
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(negativeEval.isMatch()).isFalse();
-    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
-  }
-
-  @Test
-  public void testIntNotInStringListMatches() {
-    final Prefab.Criterion numberCriteria = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName("number")
-      .setValueToMatch(
-        Prefab.ConfigValue
-          .newBuilder()
-          .setStringList(
-            Prefab.StringList.newBuilder().addValues("10").addValues("11").build()
-          )
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_NOT_ONE_OF)
-      .build();
-
-    final EvaluatedCriterion positiveEval = resolver
-      .evaluateCriterionMatch(
-        numberCriteria,
-        singleValueLookupContext(
-          "number",
-          Prefab.ConfigValue.newBuilder().setInt(13).build()
-        )
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(positiveEval.isMatch()).isTrue();
-    assertThat(positiveEval.getEvaluatedProperty().get().getString()).isEqualTo("13");
-
-    final EvaluatedCriterion negativeEval = resolver
-      .evaluateCriterionMatch(
-        numberCriteria,
-        singleValueLookupContext(
-          "number",
-          Prefab.ConfigValue.newBuilder().setInt(10).build()
-        )
-      )
-      .stream()
-      .findFirst()
-      .get();
-    assertThat(negativeEval.isMatch()).isFalse();
-    assertThat(negativeEval.getEvaluatedProperty().get().getString()).isEqualTo("10");
-  }
-
-  @Test
-  void itFiltersKeysByConfigType() {
-    ConfigElement configTypedElement = new ConfigElement(
-      Prefab.Config
+  static final Prefab.ConfigValue PROVIDED_CV = Prefab.ConfigValue
+    .newBuilder()
+    .setProvided(
+      Prefab.Provided
         .newBuilder()
-        .setConfigType(Prefab.ConfigType.CONFIG)
-        .setKey("key1")
-        .buildPartial(),
-      new Provenance(ConfigClient.Source.STREAMING)
-    );
-    ConfigElement featureFlagTypedElement = new ConfigElement(
-      Prefab.Config
-        .newBuilder()
-        .setConfigType(Prefab.ConfigType.FEATURE_FLAG)
-        .setKey("key2")
-        .buildPartial(),
-      new Provenance(ConfigClient.Source.STREAMING)
-    );
+        .setLookup(ENV_VAR_NAME)
+        .setSource(Prefab.ProvidedSource.ENV_VAR)
+    )
+    .build();
 
-    when(mockConfigStoreImpl.getElements())
-      .thenReturn(List.of(configTypedElement, featureFlagTypedElement));
-    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.CONFIG))
-      .containsExactlyInAnyOrder("key1");
-    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.FEATURE_FLAG))
-      .containsExactlyInAnyOrder("key2");
-    assertThat(resolver.getKeysOfConfigType(Prefab.ConfigType.SEGMENT)).isEmpty();
+  @Mock
+  ConfigStore configStore;
+
+  @Mock
+  ConfigRuleEvaluator configRuleEvaluator;
+
+  @Mock
+  EnvironmentVariableLookup environmentVariableLookup;
+
+  @InjectMocks
+  ConfigResolver configResolver;
+
+  @Nested
+  class EnvVarTests {
+
+    @Test
+    void itLooksUpEnvvarsForProvidedWithStringType() {
+      String key = "foo.bar.env";
+      String envVarValue = "hello, world";
+      setup(key, Prefab.Config.ValueType.STRING, envVarValue);
+      assertThat(configResolver.getConfigValue(key))
+        .contains(ConfigValueUtils.from(envVarValue));
+    }
+
+    @Test
+    void itLooksUpEnvvarsForProvidedWithIntegerType() {
+      String key = "foo.bar.env";
+      String envVarValue = "1234";
+      long expectedValue = 1234;
+      setup(key, Prefab.Config.ValueType.INT, envVarValue);
+      assertThat(configResolver.getConfigValue(key))
+        .contains(ConfigValueUtils.from(expectedValue));
+    }
+
+    @Test
+    void itLooksUpEnvvarsForProvidedWithBooleanType() {
+      String key = "foo.bar.env";
+      String envVarValue = "true";
+      boolean expectedValue = true;
+
+      setup(key, Prefab.Config.ValueType.BOOL, envVarValue);
+      assertThat(configResolver.getConfigValue(key))
+        .contains(ConfigValueUtils.from(expectedValue));
+    }
+
+    @Test
+    void itLooksUpEnvvarsForProvidedWithDoubleType() {
+      String key = "foo.bar.env";
+      String envVarValue = "1.101";
+      double expectedValue = 1.101;
+
+      setup(key, Prefab.Config.ValueType.DOUBLE, envVarValue);
+      assertThat(configResolver.getConfigValue(key))
+        .contains(ConfigValueUtils.from(expectedValue));
+    }
+
+    @Test
+    void itLooksUpEnvvarsForProvidedWithStringListType() {
+      String key = "foo.bar.env";
+      String envVarValue = "[a,b,c]";
+      List<String> expectedValue = List.of("a", "b", "c");
+      setup(key, Prefab.Config.ValueType.STRING_LIST, envVarValue);
+      assertThat(configResolver.getConfigValue(key))
+        .contains(ConfigValueUtils.from(expectedValue));
+    }
+
+    private void setup(
+      String key,
+      Prefab.Config.ValueType valueType,
+      String envVarValue
+    ) {
+      when(environmentVariableLookup.get(ENV_VAR_NAME))
+        .thenReturn(Optional.of(envVarValue));
+
+      when(configRuleEvaluator.getMatch(key, LookupContext.EMPTY))
+        .thenReturn(Optional.of(match(PROVIDED_CV, configWithValueType(key, valueType))));
+    }
   }
 
-  @Test
-  public void testTimeInRange() {
-    // note this relies on ConfigResolver on-demand adding the current time
-    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName(ConfigResolver.CURRENT_TIME_KEY)
-      .setValueToMatch(
-        Prefab.ConfigValue.newBuilder().setIntRange(Prefab.IntRange.newBuilder().build())
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
-      .build();
+  @Nested
+  class EncryptedValueTests {
 
-    final EvaluatedCriterion positiveEval = resolver
-      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
-      .stream()
-      .findFirst()
-      .get();
+    @Test
+    void itHandlesSecretValues() {
+      String secretValueConfigKey = "the.secret.value";
+      String encryptionKeyConfigKey = "the.secret.key";
+      String secretValue =
+        "b837acfdedb9f6286947fb95f6fb--13490148d8d3ddf0decc3d14--add9b0ed6de775080bec4c5b6025d67e";
+      String encryptionKey =
+        "e657e0406fc22e17d3145966396b2130d33dcb30ac0edd62a77235cdd01fc49d";
 
-    assertThat(positiveEval.isMatch()).isTrue();
-  }
-
-  @Test
-  public void testTimeAfterRange() {
-    // note this relies on ConfigResolver on-demand adding the current time
-    long currentTime = System.currentTimeMillis();
-
-    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
-      .newBuilder()
-      .setPropertyName(ConfigResolver.CURRENT_TIME_KEY)
-      .setValueToMatch(
-        Prefab.ConfigValue
-          .newBuilder()
-          .setIntRange(
-            Prefab.IntRange
-              .newBuilder()
-              .setEnd(currentTime - TimeUnit.MINUTES.toMillis(2))
-              .build()
+      when(configRuleEvaluator.getMatch(secretValueConfigKey, LookupContext.EMPTY))
+        .thenReturn(
+          Optional.of(
+            match(
+              Prefab.ConfigValue
+                .newBuilder()
+                .setString(secretValue)
+                .setDecryptWith(encryptionKeyConfigKey)
+                .build(),
+              Prefab.Config.newBuilder().setKey(secretValueConfigKey).build()
+            )
           )
-      )
-      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
-      .build();
+        );
 
-    final EvaluatedCriterion eval = resolver
-      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
-      .stream()
-      .findFirst()
-      .get();
+      when(configRuleEvaluator.getMatch(encryptionKeyConfigKey, LookupContext.EMPTY))
+        .thenReturn(
+          Optional.of(
+            match(
+              Prefab.ConfigValue.newBuilder().setString(encryptionKey).build(),
+              Prefab.Config.newBuilder().setKey(encryptionKeyConfigKey).build()
+            )
+          )
+        );
 
-    assertThat(eval.isMatch()).isFalse();
+      Optional<Match> decryptedMatchMaybe = configResolver.getMatch(
+        secretValueConfigKey,
+        LookupContext.EMPTY
+      );
+      assertThat(decryptedMatchMaybe).isPresent();
+      assertThat(decryptedMatchMaybe.get().getConfigValue().getString())
+        .isEqualTo("james-was-here");
+    }
+
+    @Test
+    void itThrowsWrappedExceptionWhenDecryptionFails() {
+      String secretValueConfigKey = "the.secret.value";
+      String encryptionKeyConfigKey = "the.secret.key";
+      String secretValue =
+        "b837acfdedb9f6286947fb95f6fb--13490148d8d3ddf0decc3d14--add9b0ed6de775080bec4c5b6025d67e";
+      String encryptionKey = "not a valid key";
+
+      when(configRuleEvaluator.getMatch(secretValueConfigKey, LookupContext.EMPTY))
+        .thenReturn(
+          Optional.of(
+            match(
+              Prefab.ConfigValue
+                .newBuilder()
+                .setString(secretValue)
+                .setDecryptWith(encryptionKeyConfigKey)
+                .build(),
+              Prefab.Config.newBuilder().setKey(secretValueConfigKey).build()
+            )
+          )
+        );
+
+      when(configRuleEvaluator.getMatch(encryptionKeyConfigKey, LookupContext.EMPTY))
+        .thenReturn(
+          Optional.of(
+            match(
+              Prefab.ConfigValue.newBuilder().setString(encryptionKey).build(),
+              Prefab.Config.newBuilder().setKey(encryptionKeyConfigKey).build()
+            )
+          )
+        );
+
+      assertThatThrownBy(() ->
+          configResolver.getMatch(secretValueConfigKey, LookupContext.EMPTY)
+        )
+        .isInstanceOf(ConfigValueDecryptionException.class)
+        .hasMessageContaining(encryptionKeyConfigKey);
+    }
+
+    @Test
+    void itThrowsWrappedExceptionWhenDecryptWithConfigDoesNotExist() {
+      String secretValueConfigKey = "the.secret.value";
+      String encryptionKeyConfigKey = "the.secret.key";
+      String secretValue =
+        "b837acfdedb9f6286947fb95f6fb--13490148d8d3ddf0decc3d14--add9b0ed6de775080bec4c5b6025d67e";
+      String encryptionKey = "not a valid key";
+
+      when(configRuleEvaluator.getMatch(secretValueConfigKey, LookupContext.EMPTY))
+        .thenReturn(
+          Optional.of(
+            match(
+              Prefab.ConfigValue
+                .newBuilder()
+                .setString(secretValue)
+                .setDecryptWith(encryptionKeyConfigKey)
+                .build(),
+              Prefab.Config.newBuilder().setKey(secretValueConfigKey).build()
+            )
+          )
+        );
+
+      when(configRuleEvaluator.getMatch(encryptionKeyConfigKey, LookupContext.EMPTY))
+        .thenReturn(Optional.empty());
+
+      assertThatThrownBy(() ->
+          configResolver.getMatch(secretValueConfigKey, LookupContext.EMPTY)
+        )
+        .isInstanceOf(ConfigValueException.class)
+        .hasMessageContaining(encryptionKeyConfigKey);
+    }
   }
 
-  private Prefab.ConfigValue sv(String s) {
-    return Prefab.ConfigValue.newBuilder().setString(s).build();
+  Match match(Prefab.ConfigValue configValue, Prefab.Config config) {
+    return new Match(
+      configValue,
+      new ConfigElement(config, new Provenance(ConfigClient.Source.LOCAL_FILE)),
+      Collections.emptyList(),
+      0,
+      0,
+      Optional.empty()
+    );
   }
 
-  private ConfigElement segmentTestData() {
-    Prefab.Config segment = Prefab.Config
+  Prefab.Config configWithValueType(String key, Prefab.Config.ValueType valueType) {
+    return Prefab.Config
       .newBuilder()
-      .setKey("segment")
-      .addRows(
-        Prefab.ConfigRow
-          .newBuilder()
-          .addValues(
-            Prefab.ConditionalValue
-              .newBuilder()
-              .setValue(Prefab.ConfigValue.newBuilder().setBool(true).build())
-              .addCriteria(
-                Prefab.Criterion
-                  .newBuilder()
-                  .setPropertyName("group")
-                  .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
-                  .setValueToMatch(
-                    Prefab.ConfigValue
-                      .newBuilder()
-                      .setStringList(
-                        Prefab.StringList.newBuilder().addValues("beta").build()
-                      )
-                      .build()
-                  )
-              )
-          )
-          .addValues(
-            Prefab.ConditionalValue
-              .newBuilder()
-              .setValue(Prefab.ConfigValue.newBuilder().setBool(false).build())
-          )
-          .build()
-      )
+      .setKey(key)
+      .setConfigType(Prefab.ConfigType.CONFIG)
+      .setValueType(valueType)
       .build();
-
-    return new ConfigElement(
-      segment,
-      new Provenance(ConfigClientImpl.Source.LOCAL_ONLY, "unit test")
-    );
-  }
-
-  public static LookupContext singleValueLookupContext(
-    String propName,
-    Prefab.ConfigValue configValue
-  ) {
-    return new LookupContext(
-      Optional.empty(),
-      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
-    );
   }
 }

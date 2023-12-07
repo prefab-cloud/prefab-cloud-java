@@ -5,6 +5,7 @@ import cloud.prefab.client.Options;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.annotations.VisibleForTesting;
@@ -14,10 +15,7 @@ import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileDescriptor;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,11 +23,14 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -51,6 +52,12 @@ public class ConfigLoader {
   private final ImmutableMap<String, ConfigElement> classPathConfig;
   private final ImmutableMap<String, ConfigElement> overrideConfig;
 
+  private final AtomicLong projectEnvId = new AtomicLong(0);
+
+  private final AtomicReference<DefaultContextWrapper> defaultContext = new AtomicReference<>(
+    DefaultContextWrapper.empty()
+  );
+
   public ConfigLoader(Options options) {
     this.options = options;
     this.apiConfig = new ConcurrentHashMap<>();
@@ -64,19 +71,39 @@ public class ConfigLoader {
    * merge the live API configs on next
    * layer the overrides on last
    */
-  public Map<String, ConfigElement> calcConfig() {
+  public MergedConfigData calcConfig() {
     ImmutableMap.Builder<String, ConfigElement> builder = ImmutableMap.builder();
     builder.putAll(classPathConfig);
     builder.putAll(apiConfig);
     builder.putAll(overrideConfig);
-    return builder.buildKeepingLast();
+    return new MergedConfigData(
+      builder.buildKeepingLast(),
+      projectEnvId.get(),
+      defaultContext.get()
+    );
   }
 
-  public void setConfigs(Prefab.Configs configs, Provenance provenance) {
+  private DefaultContextWrapper getDefaultContext(Prefab.Configs configs) {
+    if (configs.getDefaultContext().getContextsCount() == 0) {
+      return new DefaultContextWrapper(Collections.emptyMap());
+    }
+    Map<String, Prefab.ConfigValue> mergedMap = new HashMap<>();
+    configs
+      .getDefaultContext()
+      .getContextsList()
+      .forEach(c ->
+        mergedMap.putAll(PrefabContext.fromProto(c).getNameQualifiedProperties())
+      );
+    return new DefaultContextWrapper(mergedMap);
+  }
+
+  public synchronized void setConfigs(Prefab.Configs configs, Provenance provenance) {
     for (Prefab.Config config : configs.getConfigsList()) {
       set(new ConfigElement(config, provenance), false);
     }
     recomputeHighWaterMark();
+    projectEnvId.set(configs.getConfigServicePointer().getProjectEnvId());
+    defaultContext.set(getDefaultContext(configs));
   }
 
   @VisibleForTesting
@@ -332,9 +359,7 @@ public class ConfigLoader {
     LOG.info("Load File {}", sourceLocation);
     Yaml yaml = new Yaml();
     Map<String, Object> obj = yaml.load(inputStream);
-    obj.forEach((k, v) -> {
-      loadKeyValue(k, v, builder, source, sourceLocation);
-    });
+    obj.forEach((k, v) -> loadKeyValue(k, v, builder, source, sourceLocation));
   }
 
   private void loadKeyValue(

@@ -16,7 +16,7 @@ public class TelemetryAccumulator implements TelemetryListener {
   @Override
   public void telemetryUpload(Prefab.TelemetryEvents telemetryEvents) {
     telemetryEventsList.add(telemetryEvents);
-    LOG.info("telemetry event stored for verification");
+    LOG.info("telemetry events stored for verification: {}", telemetryEvents);
   }
 
   public List<Prefab.TelemetryEvents> getTelemetryEventsList() {
