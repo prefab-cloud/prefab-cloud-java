@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.3.18-pre1</version>
+    <version>0.3.18-pre3</version>
   </parent>
 
   <artifactId>logback-listener</artifactId>
