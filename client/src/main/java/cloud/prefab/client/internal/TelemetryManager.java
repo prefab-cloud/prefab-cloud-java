@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -181,7 +182,7 @@ public class TelemetryManager implements AutoCloseable {
     MatchStatsAggregator.StatsAggregate matchStats = matchStatsAggregator.getAndResetStatsAggregate();
     Set<Prefab.ExampleContext> exampleContexts = exampleContextBuffer.getAndResetContexts();
     LoggerStatsAggregator.LogCounts loggerCounts = loggerStatsAggregator.getAndResetStats();
-    Prefab.ContextShapes contextShapes = contextShapeAggregator.buildProtoShapesFromShapeState();
+    Optional<Prefab.ContextShapes> contextShapesMaybe = contextShapeAggregator.getShapesIfNewInfo();
     long currentDroppedEventCount = droppedEventCount.getThenReset();
     long previousReportingPeriodStart = recordingPeriodStartTime.get();
     long now = clock.millis();
@@ -195,7 +196,7 @@ public class TelemetryManager implements AutoCloseable {
           exampleContexts,
           matchStats,
           loggerCounts.getLoggerMap().values(),
-          contextShapes,
+          contextShapesMaybe,
           currentDroppedEventCount,
           flushEvent.future
         )
@@ -260,7 +261,7 @@ public class TelemetryManager implements AutoCloseable {
 
     static final Logger LOG = LoggerFactory.getLogger(OutputBuffer.class);
     private final Collection<Prefab.Logger> loggerCollection;
-    private final Prefab.ContextShapes contextShapes;
+    private final Optional<Prefab.ContextShapes> contextShapesMaybe;
     private final long droppedEventCount;
     private final CompletableFuture<Boolean> uploadCompleteFuture;
 
@@ -275,7 +276,7 @@ public class TelemetryManager implements AutoCloseable {
       Set<Prefab.ExampleContext> recentlySeenContexts,
       MatchStatsAggregator.StatsAggregate statsAggregate,
       Collection<Prefab.Logger> loggerCollection,
-      Prefab.ContextShapes contextShapes,
+      Optional<Prefab.ContextShapes> contextShapes,
       long droppedEventCount,
       CompletableFuture<Boolean> uploadCompleteFuture
     ) {
@@ -284,7 +285,7 @@ public class TelemetryManager implements AutoCloseable {
       this.recentlySeenContexts = recentlySeenContexts;
       this.statsAggregate = statsAggregate;
       this.loggerCollection = loggerCollection;
-      this.contextShapes = contextShapes;
+      this.contextShapesMaybe = contextShapes;
       this.droppedEventCount = droppedEventCount;
       this.uploadCompleteFuture = uploadCompleteFuture;
     }
@@ -339,12 +340,13 @@ public class TelemetryManager implements AutoCloseable {
           Prefab.TelemetryEvent.newBuilder().setLoggers(telemetryEvent)
         );
       }
-
-      if (!contextShapes.getShapesList().isEmpty()) {
-        telemetryEventsBuilder.addEvents(
-          Prefab.TelemetryEvent.newBuilder().setContextShapes(contextShapes)
-        );
-      }
+      contextShapesMaybe.ifPresent(contextShapes -> {
+        if (!contextShapes.getShapesList().isEmpty()) {
+          telemetryEventsBuilder.addEvents(
+            Prefab.TelemetryEvent.newBuilder().setContextShapes(contextShapes)
+          );
+        }
+      });
 
       return telemetryEventsBuilder.build();
     }
