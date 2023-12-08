@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -256,11 +257,15 @@ public class ConfigResolver {
   }
 
   public Collection<String> getKeysOfConfigType(Prefab.ConfigType configType) {
+    return getKeys(config -> config.getConfigType() == configType);
+  }
+
+  public Collection<String> getKeys(Predicate<Prefab.Config> configPredicate) {
     return configStore
       .getElements()
       .stream()
       .map(ConfigElement::getConfig)
-      .filter(config -> config.getConfigType() == configType)
+      .filter(configPredicate)
       .map(Prefab.Config::getKey)
       .collect(Collectors.toList());
   }
