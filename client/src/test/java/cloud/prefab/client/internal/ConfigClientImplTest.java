@@ -20,6 +20,7 @@ import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,29 +124,41 @@ class ConfigClientImplTest {
 
   @Test
   void itLooksUpLogLevelsWithProvidedEmptyContext() {
-    ConfigClient configClient = TestData
-      .clientWithEnv("logging_multilevel")
-      .configClient();
+    try (
+      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(
+        TestData.getDefaultOptionsWithEnvName("logging_multilevel")
+      )
+    ) {
+      ConfigClient configClient = prefabCloudClient.configClient();
+      assertThat(
+        configClient.getLogLevel(
+          "com.example.p1.ClassOne",
+          PrefabContextSetReadable.EMPTY
+        )
+      )
+        .contains(Prefab.LogLevel.TRACE);
 
-    assertThat(
-      configClient.getLogLevel("com.example.p1.ClassOne", PrefabContextSetReadable.EMPTY)
-    )
-      .contains(Prefab.LogLevel.TRACE);
+      assertThat(
+        configClient.getLogLevel(
+          "com.example.p1.ClassTwo",
+          PrefabContextSetReadable.EMPTY
+        )
+      )
+        .contains(Prefab.LogLevel.DEBUG);
 
-    assertThat(
-      configClient.getLogLevel("com.example.p1.ClassTwo", PrefabContextSetReadable.EMPTY)
-    )
-      .contains(Prefab.LogLevel.DEBUG);
+      assertThat(
+        configClient.getLogLevel(
+          "com.example.AnotherClass",
+          PrefabContextSetReadable.EMPTY
+        )
+      )
+        .contains(Prefab.LogLevel.ERROR);
 
-    assertThat(
-      configClient.getLogLevel("com.example.AnotherClass", PrefabContextSetReadable.EMPTY)
-    )
-      .contains(Prefab.LogLevel.ERROR);
-
-    assertThat(
-      configClient.getLogLevel("com.foo.ClipBoard", PrefabContextSetReadable.EMPTY)
-    )
-      .contains(Prefab.LogLevel.WARN);
+      assertThat(
+        configClient.getLogLevel("com.foo.ClipBoard", PrefabContextSetReadable.EMPTY)
+      )
+        .contains(Prefab.LogLevel.WARN);
+    }
   }
 
   @Nested
@@ -171,6 +184,13 @@ class ConfigClientImplTest {
         .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
         .setNamespace(NAMESPACE.getString());
       when(prefabCloudClient.getOptions()).thenReturn(options);
+      when(updatingConfigResolver.update())
+        .thenReturn(
+          new UpdatingConfigResolver.ChangeLists(
+            Collections.emptyList(),
+            Collections.emptyList()
+          )
+        );
 
       this.configClient = new ConfigClientImpl(prefabCloudClient, updatingConfigResolver);
       this.contextHelper = new PrefabContextHelper(configClient);

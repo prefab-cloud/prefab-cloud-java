@@ -39,13 +39,14 @@ public class UpdatingConfigResolverTest {
       new UpdatingConfigResolver(
         mockLoader,
         new WeightedValueEvaluator(),
-        new ConfigStoreDeltaCalculator()
+        new ConfigStoreConfigValueDeltaCalculator()
       );
   }
 
   @Test
   public void testUpdateChangeDetection() {
-    assertThat(resolver.update())
+    UpdatingConfigResolver.ChangeLists changeLists = resolver.update();
+    assertThat(changeLists.getConfigChangeEvents())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",
@@ -60,7 +61,7 @@ public class UpdatingConfigResolverTest {
       );
 
     when(mockLoader.calcConfig()).thenReturn(testDataAddingKey3andTombstoningKey1());
-    assertThat(resolver.update())
+    assertThat(resolver.update().getConfigChangeEvents())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",

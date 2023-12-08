@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractLoggingListener<LEVEL_TYPE>
-  implements ConfigChangeListener {
+  implements LogLevelChangeListener {
 
   public static final String LOG_LEVEL_PREFIX = "log-level";
 
@@ -28,47 +28,24 @@ public abstract class AbstractLoggingListener<LEVEL_TYPE>
   }
 
   @Override
-  public final void onChange(ConfigChangeEvent changeEvent) {
-    if (isLogLevelChange(changeEvent)) {
-      Optional<LEVEL_TYPE> level = changeEvent
-        .getNewValue()
-        .filter(this::isLogLevel)
-        .map(newValue -> getValidLevels().get(newValue.getLogLevel()));
-
-      String key = changeEvent.getKey();
-      if (key.equals(LOG_LEVEL_PREFIX)) {
-        setDefaultLevel(level);
-        LOG.info("Set default log level to '{}'", level.orElse(null));
-      } else if (keyIsLogLevel(key)) {
-        String loggerName = key.substring(LOG_LEVEL_PREFIX.length() + 1);
-
-        setLevel(loggerName, level);
-
-        LOG.info("Set log level for '{}' to '{}'", loggerName, level.orElse(null));
-      } else {
-        LOG.warn(
-          "Expected log level override to start with '{}', but was '{}'",
-          LOG_LEVEL_PREFIX,
-          key
-        );
-      }
+  public final void onChange(LogLevelChangeEvent changeEvent) {
+    Optional<LEVEL_TYPE> level = changeEvent
+      .getNewLevel()
+      .map(newValue -> getValidLevels().get(newValue));
+    String key = changeEvent.getLoggerName();
+    if (key.equals(LOG_LEVEL_PREFIX)) {
+      setDefaultLevel(level);
+      LOG.info("Set default log level to '{}'", level.orElse(null));
+    } else if (keyIsLogLevel(key)) {
+      String loggerName = key.substring(LOG_LEVEL_PREFIX.length() + 1);
+      setLevel(loggerName, level);
+      LOG.info("Set log level for '{}' to '{}'", loggerName, level.orElse(null));
+    } else {
+      LOG.warn(
+        "Expected log level override to start with '{}', but was '{}'",
+        LOG_LEVEL_PREFIX,
+        key
+      );
     }
-  }
-
-  private boolean isLogLevelChange(ConfigChangeEvent changeEvent) {
-    boolean newValueIsLogLevel = changeEvent
-      .getNewValue()
-      .map(this::isLogLevel)
-      .orElse(false);
-    boolean oldValueIsLogLevel = changeEvent
-      .getOldValue()
-      .map(this::isLogLevel)
-      .orElse(false);
-
-    return newValueIsLogLevel || oldValueIsLogLevel;
-  }
-
-  private boolean isLogLevel(ConfigValue value) {
-    return TypeCase.LOG_LEVEL.equals(value.getTypeCase());
   }
 }

@@ -1,6 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.logging.LogLevelChangeListener;
 import cloud.prefab.client.internal.PrefabInternal;
 import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
@@ -46,7 +47,9 @@ public class Options {
 
   private ContextStore contextStore = ThreadLocalContextStore.INSTANCE;
 
-  private Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
+  private final Set<ConfigChangeListener> changeListenerSet = new HashSet<>();
+
+  private final Set<LogLevelChangeListener> logLevelChangeListeners = new HashSet<>();
 
   private boolean evaluatedConfigKeyUploadEnabled = true;
 
@@ -289,6 +292,15 @@ public class Options {
 
   public Set<ConfigChangeListener> getChangeListeners() {
     return ImmutableSet.copyOf(changeListenerSet);
+  }
+
+  public Options addLogLevelChangeListener(LogLevelChangeListener configChangeListener) {
+    logLevelChangeListeners.add(configChangeListener);
+    return this;
+  }
+
+  public Set<LogLevelChangeListener> getLogLevelChangeListeners() {
+    return ImmutableSet.copyOf(logLevelChangeListeners);
   }
 
   @PrefabInternal

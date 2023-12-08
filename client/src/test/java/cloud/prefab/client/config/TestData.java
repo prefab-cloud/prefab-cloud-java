@@ -6,20 +6,48 @@ import java.util.List;
 
 public class TestData {
 
+  public enum TestDataConfigSet {
+    SPECIFIC_LOGGING("logging_specific"),
+    DEFAULT_LOGGING("logging_default");
+
+    private final String environmentName;
+
+    TestDataConfigSet(String environmentName) {
+      this.environmentName = environmentName;
+    }
+
+    public String getEnvironmentName() {
+      return environmentName;
+    }
+  }
+
+  public static Options getDefaultOptionsWithEnvName(String envName) {
+    return new Options()
+      .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
+      .setConfigOverrideDir("src/test/resources/override_directory")
+      .setPrefabEnvs(List.of(envName));
+  }
+
+  /*
+  public Options getDefaultOptionsLoggingConfiguration(
+    TestDataConfigSet testDataConfigSet
+  ) {
+    return getDefaultOptionsLoggingConfiguration(testDataConfigSet.getEnvironmentName());
+  }
+
   public static PrefabCloudClient clientWithSpecificLogLevel() {
-    return clientWithEnv("logging_specific");
+    return clientWithOptions()
   }
 
   public static PrefabCloudClient clientWithDefaultLogLevel() {
-    return clientWithEnv("logging_default");
+
+    return ("logging_default");
   }
 
-  public static PrefabCloudClient clientWithEnv(String envName) {
-    return new PrefabCloudClient(
-      new Options()
-        .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
-        .setConfigOverrideDir("src/test/resources/override_directory")
-        .setPrefabEnvs(List.of(envName))
-    );
+
+
+ */
+  public static PrefabCloudClient clientWithOptions(Options options) {
+    return new PrefabCloudClient(options);
   }
 }

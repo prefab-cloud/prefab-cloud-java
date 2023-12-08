@@ -12,18 +12,13 @@ class ConfigValueUtilsTest {
   void itBuildsCorrectMap() {
     assertThat(ConfigValueUtils.fromStringMap(Map.of("hello", "1", "world", "2")))
       .isEqualTo(
-        Map.of(
-          "hello",
-          ConfigValueUtils.fromString("1"),
-          "world",
-          ConfigValueUtils.fromString("2")
-        )
+        Map.of("hello", ConfigValueUtils.from("1"), "world", ConfigValueUtils.from("2"))
       );
   }
 
   @Test
   void itBuildsCorrectConfigFromString() {
-    assertThat(ConfigValueUtils.fromString("hello"))
+    assertThat(ConfigValueUtils.from("hello"))
       .isEqualTo(Prefab.ConfigValue.newBuilder().setString("hello").build());
   }
 }
