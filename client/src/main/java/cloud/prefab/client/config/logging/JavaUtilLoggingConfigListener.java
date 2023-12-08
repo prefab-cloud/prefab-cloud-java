@@ -20,7 +20,7 @@ import java.util.logging.Logger;
  */
 public class JavaUtilLoggingConfigListener extends AbstractLoggingListener<Level> {
 
-  private static final ConfigChangeListener INSTANCE = new JavaUtilLoggingConfigListener();
+  private static final LogLevelChangeListener INSTANCE = new JavaUtilLoggingConfigListener();
 
   private static final String ROOT_LOGGER = "";
 
@@ -34,7 +34,7 @@ public class JavaUtilLoggingConfigListener extends AbstractLoggingListener<Level
     .put(LogLevel.TRACE, Level.FINER)
     .build();
 
-  public static ConfigChangeListener getInstance() {
+  public static LogLevelChangeListener getInstance() {
     return INSTANCE;
   }
 
@@ -53,7 +53,6 @@ public class JavaUtilLoggingConfigListener extends AbstractLoggingListener<Level
   @Override
   protected void setLevel(String loggerName, Optional<Level> level) {
     Logger logger = Logger.getLogger(loggerName);
-
     logger.setLevel(level.orElse(null));
   }
 }

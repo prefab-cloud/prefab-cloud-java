@@ -13,7 +13,7 @@ import org.apache.log4j.LogManager;
  */
 public class Log4j1ConfigListener extends AbstractLoggingListener<Level> {
 
-  private static final ConfigChangeListener INSTANCE = new Log4j1ConfigListener();
+  private static final LogLevelChangeListener INSTANCE = new Log4j1ConfigListener();
 
   private static final Map<LogLevel, Level> LEVEL_MAP = ImmutableMap
     .<LogLevel, Level>builder()
@@ -25,7 +25,7 @@ public class Log4j1ConfigListener extends AbstractLoggingListener<Level> {
     .put(LogLevel.TRACE, Level.TRACE)
     .build();
 
-  public static ConfigChangeListener getInstance() {
+  public static LogLevelChangeListener getInstance() {
     return INSTANCE;
   }
 

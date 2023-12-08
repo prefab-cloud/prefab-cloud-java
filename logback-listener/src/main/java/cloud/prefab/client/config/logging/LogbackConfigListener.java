@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
  */
 public class LogbackConfigListener extends AbstractLoggingListener<Level> {
 
-  private static final ConfigChangeListener INSTANCE = new LogbackConfigListener();
+  private static final LogLevelChangeListener INSTANCE = new LogbackConfigListener();
 
-  public static ConfigChangeListener getInstance() {
+  public static LogLevelChangeListener getInstance() {
     return INSTANCE;
   }
 
