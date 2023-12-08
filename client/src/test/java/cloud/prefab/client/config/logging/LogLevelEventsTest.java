@@ -2,8 +2,8 @@ package cloud.prefab.client.config.logging;
 
 import static org.mockito.Mockito.verify;
 
+import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.config.TestData;
-import cloud.prefab.client.internal.ConfigClientImpl;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
@@ -24,14 +24,34 @@ public class LogLevelEventsTest {
 
   @Test
   void itGetsSpecificLevelMessage() {
-    new ConfigClientImpl(TestData.clientWithSpecificLogLevel(), testListener);
-    verify(testListener).setLevel("test.logger", Optional.of(Level.WARNING));
+    try (
+      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(
+        TestData
+          .getDefaultOptionsWithEnvName(
+            TestData.TestDataConfigSet.SPECIFIC_LOGGING.getEnvironmentName()
+          )
+          .addLogLevelChangeListener(testListener)
+      )
+    ) {
+      prefabCloudClient.configClient();
+      verify(testListener).setLevel("test.logger", Optional.of(Level.WARNING));
+    }
   }
 
   @Test
   void itGetsDefaultLevelMessage() {
-    new ConfigClientImpl(TestData.clientWithDefaultLogLevel(), testListener);
-    verify(testListener).setDefaultLevel(Optional.of(Level.WARNING));
+    try (
+      PrefabCloudClient prefabCloudClient = new PrefabCloudClient(
+        TestData
+          .getDefaultOptionsWithEnvName(
+            TestData.TestDataConfigSet.DEFAULT_LOGGING.getEnvironmentName()
+          )
+          .addLogLevelChangeListener(testListener)
+      )
+    ) {
+      prefabCloudClient.configClient();
+      verify(testListener).setDefaultLevel(Optional.of(Level.WARNING));
+    }
   }
 
   private static class TestListener extends AbstractLoggingListener {

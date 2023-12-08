@@ -8,6 +8,8 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
+import cloud.prefab.client.config.logging.LogLevelChangeEvent;
+import cloud.prefab.client.config.logging.LogLevelChangeListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
 import cloud.prefab.client.value.LiveLong;
@@ -24,10 +26,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.protobuf.util.JsonFormat;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.time.Clock;
@@ -69,6 +67,8 @@ public class ConfigClientImpl implements ConfigClient {
   private final CountDownLatch initializedLatch = new CountDownLatch(1);
   private final Set<ConfigChangeListener> configChangeListeners = Sets.newConcurrentHashSet();
 
+  private final Set<LogLevelChangeListener> logLevelChangeListeners = Sets.newConcurrentHashSet();
+
   private final String uniqueClientId;
 
   private final Optional<Prefab.ConfigValue> namespaceMaybe;
@@ -89,7 +89,7 @@ public class ConfigClientImpl implements ConfigClient {
       new UpdatingConfigResolver(
         new ConfigLoader(baseClient.getOptions()),
         new WeightedValueEvaluator(),
-        new ConfigStoreDeltaCalculator()
+        new ConfigStoreConfigValueDeltaCalculator()
       ),
       listeners
     );
@@ -109,6 +109,7 @@ public class ConfigClientImpl implements ConfigClient {
     );
     configChangeListeners.addAll(baseClient.getOptions().getChangeListeners());
     configChangeListeners.addAll(Arrays.asList(listeners));
+    logLevelChangeListeners.addAll(baseClient.getOptions().getLogLevelChangeListeners());
     namespaceMaybe =
       baseClient
         .getOptions()
@@ -493,8 +494,9 @@ public class ConfigClientImpl implements ConfigClient {
   }
 
   private void finishInit(Source source) {
-    final List<ConfigChangeEvent> changes = updatingConfigResolver.update();
-    broadcastChanges(changes);
+    final UpdatingConfigResolver.ChangeLists changes = updatingConfigResolver.update();
+    broadcastChanges(changes.getConfigChangeEvents());
+    broadcastLogLevelChanges(changes.getLogLevelChangeEvents());
     if (initializedLatch.getCount() > 0) {
       initializedLatch.countDown();
       try {
@@ -528,7 +530,24 @@ public class ConfigClientImpl implements ConfigClient {
     for (ConfigChangeListener listener : listeners) {
       for (ConfigChangeEvent changeEvent : changeEvents) {
         LOG.debug("Broadcasting change {} to {}", changeEvent, listener);
-        listener.onChange(changeEvent);
+        try {
+          listener.onChange(changeEvent);
+        } catch (Exception e) {
+          LOG.debug("Exception in config change listener", e);
+        }
+      }
+    }
+  }
+
+  private void broadcastLogLevelChanges(List<LogLevelChangeEvent> changeEvents) {
+    for (LogLevelChangeListener listener : logLevelChangeListeners) {
+      for (LogLevelChangeEvent changeEvent : changeEvents) {
+        LOG.debug("Broadcasting loglevel change {} to {}", changeEvent, listener);
+        try {
+          listener.onChange(changeEvent);
+        } catch (Exception e) {
+          LOG.debug("Exception in loglevel change listener", e);
+        }
       }
     }
   }
