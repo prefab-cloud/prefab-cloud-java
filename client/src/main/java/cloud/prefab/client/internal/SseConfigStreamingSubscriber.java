@@ -101,11 +101,18 @@ public class SseConfigStreamingSubscriber {
       if (item instanceof DataEvent) {
         DataEvent dataEvent = (DataEvent) item;
         try {
-          Prefab.Configs configs = Prefab.Configs.parseFrom(
-            Base64.getDecoder().decode(dataEvent.getData().trim())
-          );
-          configConsumer.accept(configs);
-          hasReceivedData.setOpaque(true);
+          hasReceivedData.set(true);
+          String dataPayload = dataEvent.getData().trim();
+          if (!dataPayload.isEmpty()) {
+            Prefab.Configs configs = Prefab.Configs.parseFrom(
+              Base64.getDecoder().decode(dataPayload)
+            );
+            if (!configs.hasConfigServicePointer()) {
+              LOG.debug("Ignoring empty config keep-alive");
+            } else {
+              configConsumer.accept(configs);
+            }
+          }
         } catch (InvalidProtocolBufferException e) {
           LOG.warn(
             "Error parsing configs from event name {} - error message {}",
