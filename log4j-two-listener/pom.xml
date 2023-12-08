@@ -19,7 +19,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.3.18-pre1</version>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -46,7 +46,7 @@
     <dependency>
       <groupId>cloud.prefab</groupId>
       <artifactId>client</artifactId>
-      <version>0.3.18-pre1</version>
+      <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
