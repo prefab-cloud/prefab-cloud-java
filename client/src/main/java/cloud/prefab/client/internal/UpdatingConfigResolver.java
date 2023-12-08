@@ -86,14 +86,14 @@ public class UpdatingConfigResolver {
   public ChangeLists update() {
     // catch exceptions resolving, treat as absent
     // store the old map
-    Map<String, Prefab.ConfigValue> before = buildValueMap();
+    Map<String, Prefab.Config> before = buildConfigByNameMap();
     Map<String, Prefab.LogLevel> logLevelsBefore = buildLogLevelValueMap();
 
     // load the new map
     makeLocal();
 
     // build the new map
-    Map<String, Prefab.ConfigValue> after = buildValueMap();
+    Map<String, Prefab.Config> after = buildConfigByNameMap();
     Map<String, Prefab.LogLevel> logLevelsAfter = buildLogLevelValueMap();
 
     return new ChangeLists(
@@ -122,14 +122,12 @@ public class UpdatingConfigResolver {
       );
   }
 
-  private Map<String, Prefab.ConfigValue> buildValueMap() {
+  private Map<String, Prefab.Config> buildConfigByNameMap() {
     return configStore
       .entrySet()
       .stream()
-      .map(entry ->
-        safeResolve(entry.getKey()).map(cv -> Maps.immutableEntry(entry.getKey(), cv))
-      )
-      .flatMap(Optional::stream)
+      .map(entry -> Maps.immutableEntry(entry.getKey(), entry.getValue().getConfig()))
+      .filter(entry -> entry.getValue().getRowsCount() > 0)
       .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 

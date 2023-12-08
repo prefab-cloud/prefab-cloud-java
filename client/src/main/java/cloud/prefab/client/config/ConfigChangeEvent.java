@@ -1,7 +1,6 @@
 package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
-import cloud.prefab.domain.Prefab.ConfigValue;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -9,13 +8,13 @@ import java.util.StringJoiner;
 public class ConfigChangeEvent {
 
   private final String key;
-  private final Optional<Prefab.ConfigValue> oldValue;
-  private final Optional<Prefab.ConfigValue> newValue;
+  private final Optional<Prefab.Config> oldValue;
+  private final Optional<Prefab.Config> newValue;
 
   public ConfigChangeEvent(
     String key,
-    Optional<ConfigValue> oldValue,
-    Optional<ConfigValue> newValue
+    Optional<Prefab.Config> oldValue,
+    Optional<Prefab.Config> newValue
   ) {
     this.key = key;
     this.oldValue = oldValue;
@@ -26,11 +25,11 @@ public class ConfigChangeEvent {
     return key;
   }
 
-  public Optional<ConfigValue> getOldValue() {
+  public Optional<Prefab.Config> getOldValue() {
     return oldValue;
   }
 
-  public Optional<ConfigValue> getNewValue() {
+  public Optional<Prefab.Config> getNewValue() {
     return newValue;
   }
 

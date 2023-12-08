@@ -45,33 +45,36 @@ public class UpdatingConfigResolverTest {
 
   @Test
   public void testUpdateChangeDetection() {
+    MergedConfigData startingTestData = testData();
     UpdatingConfigResolver.ChangeLists changeLists = resolver.update();
     assertThat(changeLists.getConfigChangeEvents())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",
           Optional.empty(),
-          Optional.of(Prefab.ConfigValue.newBuilder().setString("value_none").build())
+          Optional.of(startingTestData.getConfigs().get("key1").getConfig())
         ),
         new ConfigChangeEvent(
           "key2",
           Optional.empty(),
-          Optional.of(Prefab.ConfigValue.newBuilder().setString("valueB2").build())
+          Optional.of(startingTestData.getConfigs().get("key2").getConfig())
         )
       );
+
+    MergedConfigData updatedTestData = testDataAddingKey3andTombstoningKey1();
 
     when(mockLoader.calcConfig()).thenReturn(testDataAddingKey3andTombstoningKey1());
     assertThat(resolver.update().getConfigChangeEvents())
       .containsExactlyInAnyOrder(
         new ConfigChangeEvent(
           "key1",
-          Optional.of(Prefab.ConfigValue.newBuilder().setString("value_none").build()),
+          Optional.of(startingTestData.getConfigs().get("key1").getConfig()),
           Optional.empty()
         ),
         new ConfigChangeEvent(
           "key3",
           Optional.empty(),
-          Optional.of(Prefab.ConfigValue.newBuilder().setString("key3").build())
+          Optional.of(updatedTestData.getConfigs().get("key3").getConfig())
         )
       );
   }
