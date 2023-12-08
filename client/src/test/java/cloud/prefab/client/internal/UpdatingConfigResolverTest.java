@@ -140,8 +140,8 @@ public class UpdatingConfigResolverTest {
   public void testContentsString() {
     resolver.update();
     String expected =
-      "key1                                         value_none                              LOCAL_ONLY:unit test                                                            \n" +
-      "key2                                         valueB2                                 LOCAL_ONLY:unit test                                                            \n";
+      "key1                                         NOT_SET_CONFIG_TYPE                     LOCAL_ONLY:unit test                    \n" +
+      "key2                                         NOT_SET_CONFIG_TYPE                     LOCAL_ONLY:unit test                    \n";
     assertThat(resolver.contentsString()).isEqualTo(expected);
   }
 

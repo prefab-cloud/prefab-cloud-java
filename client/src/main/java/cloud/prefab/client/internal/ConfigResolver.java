@@ -284,21 +284,10 @@ public class ConfigResolver {
     for (String key : sortedKeys) {
       ConfigElement configElement = configStore.getElement(key);
       try {
-        final Optional<Match> match = this.getMatch(key, LookupContext.EMPTY);
-        if (match.isPresent()) {
-          sb.append(padded(key, 45));
-          sb.append(
-            padded(
-              ConfigValueUtils
-                .toDisplayString(match.get().getConfigValue())
-                .orElse("[Unable to display]"),
-              40
-            )
-          );
-          sb.append(padded(configElement.getProvenance().toString(), 40));
-          sb.append(padded(match.get().getReason(), 40));
-          sb.append("\n");
-        }
+        sb.append(padded(key, 45));
+        sb.append(padded(configElement.getConfig().getConfigType().name(), 40));
+        sb.append(padded(configElement.getProvenance().toString(), 40));
+        sb.append("\n");
       } catch (ConfigValueException configValueException) {
         LOG.debug("Error rendering config with key '{}'", key, configValueException);
       }
