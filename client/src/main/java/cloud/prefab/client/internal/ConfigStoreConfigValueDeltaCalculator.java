@@ -5,13 +5,13 @@ import cloud.prefab.domain.Prefab;
 import java.util.Optional;
 
 public class ConfigStoreConfigValueDeltaCalculator
-  extends AbstractConfigStoreDeltaCalculator<Prefab.ConfigValue, ConfigChangeEvent> {
+  extends AbstractConfigStoreDeltaCalculator<Prefab.Config, ConfigChangeEvent> {
 
   @Override
   ConfigChangeEvent createEvent(
     String name,
-    Optional<Prefab.ConfigValue> oldValue,
-    Optional<Prefab.ConfigValue> newValue
+    Optional<Prefab.Config> oldValue,
+    Optional<Prefab.Config> newValue
   ) {
     return new ConfigChangeEvent(name, oldValue, newValue);
   }

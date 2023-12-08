@@ -22,38 +22,17 @@ class LoggingConfigListener implements ConfigChangeListener {
   public void onChange(ConfigChangeEvent changeEvent) {
     if (systemInitializedSupplier.get()) {
       if (changeEvent.getNewValue().isEmpty()) {
-        LOG.info(
-          "Config value '{}' removed. Previous value was '{}'",
-          changeEvent.getKey(),
-          toJson(changeEvent.getOldValue().get())
-        );
+        LOG.info("Config value '{}' removed", changeEvent.getKey());
       } else if (changeEvent.getOldValue().isEmpty()) {
-        LOG.info(
-          "Config value '{}' added. New value is '{}'",
-          changeEvent.getKey(),
-          toJson(changeEvent.getNewValue().get())
-        );
+        LOG.info("Config value '{}' added", changeEvent.getKey());
       } else {
-        LOG.info(
-          "Config value '{}' updated. Previous value was '{}', new value is '{}'",
-          changeEvent.getKey(),
-          toJson(changeEvent.getOldValue().get()),
-          toJson(changeEvent.getNewValue().get())
-        );
+        LOG.info("Config value '{}' updated", changeEvent.getKey());
       }
     } else {
-      LOG.debug(
+      LOG.trace(
         "Not logging config change event {} before system initialization",
         changeEvent
       );
-    }
-  }
-
-  private static String toJson(ConfigValue configValue) {
-    try {
-      return JsonFormat.printer().omittingInsignificantWhitespace().print(configValue);
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException("Error writing config value to json", e);
     }
   }
 }

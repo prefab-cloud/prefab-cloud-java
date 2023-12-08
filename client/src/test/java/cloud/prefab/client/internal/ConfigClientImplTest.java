@@ -12,6 +12,7 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.PrefabInitializationTimeoutException;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.TestData;
 import cloud.prefab.client.config.TestUtils;
 import cloud.prefab.context.PrefabContext;
@@ -99,13 +100,41 @@ class ConfigClientImplTest {
         new ConfigChangeEvent(
           "sample_bool",
           Optional.empty(),
-          Optional.of(Prefab.ConfigValue.newBuilder().setBool(true).build())
+          Optional.of(
+            Prefab.Config
+              .newBuilder()
+              .addRows(
+                Prefab.ConfigRow
+                  .newBuilder()
+                  .addValues(
+                    Prefab.ConditionalValue
+                      .newBuilder()
+                      .setValue(ConfigValueUtils.from(true))
+                      .build()
+                  )
+                  .build()
+              )
+              .build()
+          )
         ),
         new ConfigChangeEvent(
           "sample",
           Optional.empty(),
           Optional.of(
-            Prefab.ConfigValue.newBuilder().setString("default sample value").build()
+            Prefab.Config
+              .newBuilder()
+              .addRows(
+                Prefab.ConfigRow
+                  .newBuilder()
+                  .addValues(
+                    Prefab.ConditionalValue
+                      .newBuilder()
+                      .setValue(ConfigValueUtils.from("default sample value"))
+                      .build()
+                  )
+                  .build()
+              )
+              .build()
           )
         )
       );
