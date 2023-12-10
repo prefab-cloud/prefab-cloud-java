@@ -60,7 +60,7 @@ public class ExampleContextIntegrationTestCaseDescriptor
   @Override
   protected void performVerification(PrefabCloudClient prefabCloudClient) {
     PrefabContextSet contextSetToSend = buildContextFromArrayDataNode(dataNode);
-    PrefabContextSet expectedContextSet = buildExpectedContextSet(expectedDataNode);
+    PrefabContextSet expectedContextSet = buildContextFromArrayDataNode(expectedDataNode);
     LOG.info("context set = {}", contextSetToSend);
     LOG.info("expected context set = {}", expectedContextSet);
 
@@ -88,30 +88,6 @@ public class ExampleContextIntegrationTestCaseDescriptor
 
         LOG.info("Actual contexts were {}", actualContexts);
       });
-  }
-
-  PrefabContextSet buildExpectedContextSet(JsonNode dataNode) {
-    assertThat(dataNode.isArray()).as("expected data node should be an array").isTrue();
-    PrefabContextSet contextSet = new PrefabContextSet();
-    dataNode.forEach(arrayElement -> {
-      arrayElement
-        .fields()
-        .forEachRemaining(keyValuePair -> {
-          // the 0.2.2 version has ambiguous representation so there can be more than one in each array element
-          String contextName = keyValuePair.getKey();
-          PrefabContext.Builder builder = PrefabContext.newBuilder(contextName);
-          JsonNode contextFieldsArray = keyValuePair.getValue();
-          contextFieldsArray.forEach(contextFieldsArrayElement ->
-            builder.put(
-              contextFieldsArrayElement.get("key").asText(),
-              configValueFromJsonNode(contextFieldsArrayElement.get("value"))
-            )
-          );
-          contextSet.addContext(builder.build());
-        });
-    });
-
-    return contextSet;
   }
 
   PrefabContextSet buildContextFromArrayDataNode(JsonNode dataNode) {
