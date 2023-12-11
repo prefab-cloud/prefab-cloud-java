@@ -2,7 +2,6 @@ package cloud.prefab.client.integration.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.Assertions.in;
 import static org.awaitility.Awaitility.await;
 
 import cloud.prefab.client.PrefabCloudClient;
@@ -12,9 +11,8 @@ import cloud.prefab.client.integration.TelemetryAccumulator;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableBiMap;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -29,15 +27,20 @@ public class LogAggregatorIntegrationTestCaseDescriptor
   private static final Logger LOG = LoggerFactory.getLogger(
     LogAggregatorIntegrationTestCaseDescriptor.class
   );
-  private final Map<String, List<Integer>> data;
+  private final List<LoggerNamesAndCounts> inputData;
 
-  private final List<Prefab.LogLevel> logLevelList = List.of(
+  private final List<LoggerNamesAndCounts> expectedData;
+
+  private static final ImmutableBiMap<String, Prefab.LogLevel> LOG_LEVEL_LOOKUP = ImmutableBiMap.of(
+    "debugs",
     Prefab.LogLevel.DEBUG,
+    "infos",
     Prefab.LogLevel.INFO,
+    "warns",
     Prefab.LogLevel.WARN,
+    "errors",
     Prefab.LogLevel.ERROR
   );
-  private final List<ExpectedDatum> expectedData;
 
   @JsonCreator
   public LogAggregatorIntegrationTestCaseDescriptor(
@@ -47,33 +50,61 @@ public class LogAggregatorIntegrationTestCaseDescriptor
     @JsonProperty("endpoint") String endpoint,
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("aggregator") String aggregator,
-    @JsonProperty("data") Map<String, List<Integer>> data,
-    @JsonProperty("expected_data") List<ExpectedDatum> expectedData
+    @JsonProperty("data") List<LoggerNamesAndCounts> inputData,
+    @JsonProperty("expected_data") List<LoggerNamesAndCounts> expectedData
   ) {
     super(
       name,
       MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
     );
-    this.data = data;
+    this.inputData = inputData;
     this.expectedData = expectedData;
   }
 
   @Override
   protected void performVerification(PrefabCloudClient prefabCloudClient) {
-    //TODO update the data format so data and expected data are the same
-    for (Map.Entry<String, List<Integer>> stringListEntry : data.entrySet()) {
-      String loggerName = stringListEntry.getKey();
-      int index = 0;
-      for (Integer logCount : stringListEntry.getValue()) {
-        if (logCount > 0) {
-          Prefab.LogLevel logLevel = logLevelList.get(index);
-          prefabCloudClient
-            .configClient()
-            .reportLoggerUsage(loggerName, logLevel, logCount);
-        }
-        index++;
+    for (LoggerNamesAndCounts inputDatum : inputData) {
+      for (Map.Entry<String, Integer> logLevelCount : inputDatum.levelCounts.entrySet()) {
+        prefabCloudClient
+          .configClient()
+          .reportLoggerUsage(
+            inputDatum.loggerName,
+            LOG_LEVEL_LOOKUP.get(logLevelCount.getKey()),
+            logLevelCount.getValue()
+          );
       }
     }
+
+    List<Prefab.Logger> expectedLoggers = expectedData
+      .stream()
+      .map(loggerNamesAndCounts -> {
+        Prefab.Logger.Builder builder = Prefab.Logger
+          .newBuilder()
+          .setLoggerName(loggerNamesAndCounts.loggerName);
+        for (Map.Entry<String, Integer> levelCountEntry : loggerNamesAndCounts.levelCounts.entrySet()) {
+          long count = levelCountEntry.getValue();
+          switch (levelCountEntry.getKey()) {
+            case "debugs":
+              builder.setDebugs(count);
+              break;
+            case "infos":
+              builder.setInfos(count);
+              break;
+            case "errors":
+              builder.setErrors(count);
+              break;
+            case "warns":
+              builder.setWarns(count);
+              break;
+            default:
+              throw new IllegalArgumentException(
+                String.format("unexpected level %s", levelCountEntry.getKey())
+              );
+          }
+        }
+        return builder.build();
+      })
+      .collect(Collectors.toList());
 
     TelemetryAccumulator telemetryAccumulator = getTelemetryAccumulator(
       prefabCloudClient
@@ -92,17 +123,17 @@ public class LogAggregatorIntegrationTestCaseDescriptor
           .map(Prefab.LoggersTelemetryEvent::getLoggersList)
           .flatMap(List::stream)
           .collect(Collectors.toList());
-        assertThat(loggers).hasSize(2);
+        assertThat(loggers).containsExactlyInAnyOrderElementsOf(expectedLoggers);
       });
   }
 
-  public static class ExpectedDatum {
+  public static class LoggerNamesAndCounts {
 
     private final String loggerName;
     private final Map<String, Integer> levelCounts;
 
     @JsonCreator
-    ExpectedDatum(
+    LoggerNamesAndCounts(
       @JsonProperty("logger_name") String loggerName,
       @JsonProperty("counts") Map<String, Integer> levelCounts
     ) {
