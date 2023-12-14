@@ -14,7 +14,6 @@ import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigChangeListener;
 import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.TestData;
-import cloud.prefab.client.config.TestUtils;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextHelper;
 import cloud.prefab.context.PrefabContextSet;
@@ -196,8 +195,6 @@ class ConfigClientImplTest {
     @Captor
     ArgumentCaptor<LookupContext> lookupContextArgumentCaptor;
 
-    final Prefab.ConfigValue NAMESPACE = TestUtils.getStringConfigValue("coolNamespace");
-
     @Mock
     UpdatingConfigResolver updatingConfigResolver;
 
@@ -209,9 +206,7 @@ class ConfigClientImplTest {
 
     @BeforeEach
     void beforeEach() {
-      Options options = new Options()
-        .setPrefabDatasource(Options.Datasources.LOCAL_ONLY)
-        .setNamespace(NAMESPACE.getString());
+      Options options = new Options().setPrefabDatasource(Options.Datasources.LOCAL_ONLY);
       when(prefabCloudClient.getOptions()).thenReturn(options);
       when(updatingConfigResolver.update())
         .thenReturn(
@@ -229,10 +224,7 @@ class ConfigClientImplTest {
     void requestWithNoPassedContextHasAnEmptyLookupContext() {
       configClient.get("foobar");
       verify(updatingConfigResolver)
-        .getMatch(
-          "foobar",
-          new LookupContext(Optional.of(NAMESPACE), PrefabContextSetReadable.EMPTY)
-        );
+        .getMatch("foobar", new LookupContext(PrefabContextSetReadable.EMPTY));
     }
 
     @Test
@@ -244,8 +236,7 @@ class ConfigClientImplTest {
         .build();
 
       configClient.get("foobar", prefabContext);
-      verify(updatingConfigResolver)
-        .getMatch("foobar", new LookupContext(Optional.of(NAMESPACE), prefabContext));
+      verify(updatingConfigResolver).getMatch("foobar", new LookupContext(prefabContext));
     }
 
     @Test
@@ -267,10 +258,7 @@ class ConfigClientImplTest {
       }
 
       LookupContext lookupContext = lookupContextArgumentCaptor.getValue();
-      LookupContext expected = new LookupContext(
-        Optional.of(NAMESPACE),
-        PrefabContextSet.from(prefabContext)
-      );
+      LookupContext expected = new LookupContext(PrefabContextSet.from(prefabContext));
 
       assertThat(lookupContext).usingRecursiveComparison().isEqualTo(expected);
     }
@@ -308,7 +296,6 @@ class ConfigClientImplTest {
       LookupContext lookupContext = lookupContextArgumentCaptor.getValue();
 
       LookupContext expected = new LookupContext(
-        Optional.of(NAMESPACE),
         PrefabContextSet.from(
           PrefabContext
             .newBuilder("user")

@@ -117,7 +117,6 @@ public class UpdatingConfigResolverTest {
           builder.addCriteria(
             Prefab.Criterion
               .newBuilder()
-              .setPropertyName(ConfigResolver.NAMESPACE_KEY)
               .setOperator(Prefab.Criterion.CriterionOperator.HIERARCHICAL_MATCH)
               .setValueToMatch(Prefab.ConfigValue.newBuilder().setString(namespace))
           );

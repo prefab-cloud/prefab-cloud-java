@@ -38,8 +38,6 @@ public class Options {
   private String apikey;
   private String configOverrideDir;
   private List<String> prefabEnvs = new ArrayList<>();
-
-  private String namespace = "";
   private Datasources prefabDatasources = Datasources.ALL;
   private int initializationTimeoutSec = 10;
   private OnInitializationFailure onInitializationFailure = OnInitializationFailure.RAISE;
@@ -110,24 +108,6 @@ public class Options {
    */
   public Options setConfigOverrideDir(String configOverrideDir) {
     this.configOverrideDir = configOverrideDir;
-    return this;
-  }
-
-  public Optional<String> getNamespace() {
-    if (namespace.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(namespace);
-  }
-
-  /**
-   * Set's a namespace in which to evaluate configuration values.
-   * The value set for a key in a matching namespace has priority over the value set in a key without any namespace configured
-   * @param namespace to use when evaluating configuration values
-   * @return
-   */
-  public Options setNamespace(String namespace) {
-    this.namespace = namespace;
     return this;
   }
 

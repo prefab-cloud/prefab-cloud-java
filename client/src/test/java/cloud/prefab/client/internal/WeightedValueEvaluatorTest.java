@@ -8,8 +8,6 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -44,7 +42,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue foo = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(Optional.empty(), PrefabContextSetReadable.EMPTY)
+      new LookupContext(PrefabContextSetReadable.EMPTY)
     );
     assertThat(foo).isEqualTo(Prefab.ConfigValue.newBuilder().setBool(false).build());
   }
@@ -65,7 +63,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue foo = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(Optional.empty(), PrefabContextSetReadable.EMPTY)
+      new LookupContext(PrefabContextSetReadable.EMPTY)
     );
     assertThat(foo)
       .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(expectedValue).build());
@@ -84,10 +82,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue value = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(
-        Optional.empty(),
-        PrefabContext.newBuilder("User").put("name", "james").build()
-      )
+      new LookupContext(PrefabContext.newBuilder("User").put("name", "james").build())
     );
     assertThat(value)
       .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(expectedValue).build());
@@ -108,10 +103,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue value = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(
-        Optional.empty(),
-        PrefabContext.newBuilder("User").put("name", "james").build()
-      )
+      new LookupContext(PrefabContext.newBuilder("User").put("name", "james").build())
     );
     assertThat(value)
       .isEqualTo(Prefab.ConfigValue.newBuilder().setInt(expectedValue).build());
