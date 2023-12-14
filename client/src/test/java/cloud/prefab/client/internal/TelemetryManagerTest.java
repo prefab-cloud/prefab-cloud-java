@@ -409,7 +409,6 @@ class TelemetryManagerTest {
         Optional.empty()
       ),
       new LookupContext(
-        Optional.empty(),
         PrefabContextSet.from(
           PrefabContext.newBuilder("user").put("key", "u123").build(),
           teamContext
@@ -431,7 +430,6 @@ class TelemetryManagerTest {
         Optional.empty()
       ),
       new LookupContext(
-        Optional.empty(),
         PrefabContextSet.from(
           PrefabContext.newBuilder("user").put("key", "u123").build(),
           teamContext
@@ -453,7 +451,6 @@ class TelemetryManagerTest {
         Optional.empty()
       ),
       new LookupContext(
-        Optional.empty(),
         PrefabContextSet.from(
           PrefabContext.newBuilder("user").put("key", "u124").build(),
           teamContext
@@ -472,7 +469,6 @@ class TelemetryManagerTest {
         Optional.empty()
       ),
       new LookupContext(
-        Optional.empty(),
         PrefabContextSet.from(
           PrefabContext.newBuilder("user").put("key", "u123").build(),
           teamContext
@@ -491,7 +487,6 @@ class TelemetryManagerTest {
         Optional.empty()
       ),
       new LookupContext(
-        Optional.empty(),
         PrefabContextSet.from(
           PrefabContext.newBuilder("user").put("key", "u123").build(),
           teamContext

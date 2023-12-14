@@ -12,7 +12,6 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -431,9 +430,6 @@ public class ConfigRuleEvaluatorTest {
     String propName,
     Prefab.ConfigValue configValue
   ) {
-    return new LookupContext(
-      Optional.empty(),
-      PrefabContext.unnamedFromMap(Map.of(propName, configValue))
-    );
+    return new LookupContext(PrefabContext.unnamedFromMap(Map.of(propName, configValue)));
   }
 }

@@ -9,7 +9,6 @@ import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class LookupContextTest {
@@ -17,7 +16,6 @@ class LookupContextTest {
   @Test
   void itPrefixesKeysWithContextType() {
     LookupContext lookupContext = new LookupContext(
-      Optional.of(getStringConfigValue("coolnamespace")),
       PrefabContext.fromMap(
         "User",
         Map.of(
@@ -35,8 +33,6 @@ class LookupContextTest {
       .isEqualTo(
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
-          .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
-          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("user.firstname", getStringConfigValue("John"))
           .put("user.lastname", getStringConfigValue("Doe"))
           .put("user.age", getIntConfigValue(44))
@@ -47,7 +43,6 @@ class LookupContextTest {
   @Test
   void itPrefixesKeysWithContextTypeForMultipleContexts() {
     LookupContext lookupContext = new LookupContext(
-      Optional.of(getStringConfigValue("coolnamespace")),
       PrefabContextSet.from(
         PrefabContext.fromMap(
           "User",
@@ -68,8 +63,6 @@ class LookupContextTest {
       .isEqualTo(
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
-          .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
-          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("user.firstname", getStringConfigValue("John"))
           .put("user.lastname", getStringConfigValue("Doe"))
           .put("user.age", getIntConfigValue(44))
@@ -81,7 +74,6 @@ class LookupContextTest {
   @Test
   void itRemovesBlankType() {
     LookupContext lookupContext = new LookupContext(
-      Optional.of(getStringConfigValue("coolnamespace")),
       PrefabContext.unnamedFromMap(
         Map.of(
           "firstname",
@@ -98,8 +90,6 @@ class LookupContextTest {
       .isEqualTo(
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
-          .put(ConfigResolver.NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
-          .put(ConfigResolver.NEW_NAMESPACE_KEY, getStringConfigValue("coolnamespace"))
           .put("firstname", getStringConfigValue("John"))
           .put("lastname", getStringConfigValue("Doe"))
           .put("age", getIntConfigValue(44))
@@ -114,14 +104,8 @@ class LookupContextTest {
       .put("firstName", "james")
       .build();
 
-    LookupContext lookupContext1 = new LookupContext(
-      Optional.of(getStringConfigValue("coolnamespace")),
-      context
-    );
-    LookupContext lookupContext2 = new LookupContext(
-      Optional.of(getStringConfigValue("coolnamespace")),
-      PrefabContextSet.from(context)
-    );
+    LookupContext lookupContext1 = new LookupContext(context);
+    LookupContext lookupContext2 = new LookupContext(PrefabContextSet.from(context));
 
     assertThat(lookupContext1).isEqualTo(lookupContext2);
     assertThat(lookupContext1.hashCode()).isEqualTo(lookupContext2.hashCode());

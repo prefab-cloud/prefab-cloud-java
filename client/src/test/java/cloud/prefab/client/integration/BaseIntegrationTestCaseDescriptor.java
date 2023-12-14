@@ -1,13 +1,11 @@
 package cloud.prefab.client.integration;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.context.PrefabContextHelper;
 import cloud.prefab.context.PrefabContextSetReadable;
-import com.google.common.collect.Lists;
 import com.google.errorprone.annotations.MustBeClosed;
 import java.util.List;
 import org.junit.jupiter.api.function.Executable;
@@ -79,8 +77,6 @@ public abstract class BaseIntegrationTestCaseDescriptor {
       .setApikey(apiKey)
       .setPrefabApiUrl("https://api.staging-prefab.cloud")
       .setInitializationTimeoutSec(1000);
-
-    clientOverrides.getNamespace().ifPresent(options::setNamespace);
     clientOverrides
       .getInitTimeoutSeconds()
       .ifPresent(options::setInitializationTimeoutSec);

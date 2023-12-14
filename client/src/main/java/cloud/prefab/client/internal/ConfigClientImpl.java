@@ -71,8 +71,6 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final String uniqueClientId;
 
-  private final Optional<Prefab.ConfigValue> namespaceMaybe;
-
   private final ConcurrentHashMap<String, String> loggerNameLookup = new ConcurrentHashMap<>();
 
   private final PrefabHttpClient prefabHttpClient;
@@ -110,12 +108,6 @@ public class ConfigClientImpl implements ConfigClient {
     configChangeListeners.addAll(baseClient.getOptions().getChangeListeners());
     configChangeListeners.addAll(Arrays.asList(listeners));
     logLevelChangeListeners.addAll(baseClient.getOptions().getLogLevelChangeListeners());
-    namespaceMaybe =
-      baseClient
-        .getOptions()
-        .getNamespace()
-        .map(ns -> Prefab.ConfigValue.newBuilder().setString(ns).build());
-
     contextStore = options.getContextStore();
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
@@ -203,7 +195,7 @@ public class ConfigClientImpl implements ConfigClient {
     @Nullable PrefabContextSetReadable prefabContext
   ) {
     PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
-    LookupContext lookupContext = new LookupContext(namespaceMaybe, resolvedContext);
+    LookupContext lookupContext = new LookupContext(resolvedContext);
     return getInternal(configKey, lookupContext);
   }
 
@@ -211,10 +203,7 @@ public class ConfigClientImpl implements ConfigClient {
   public Map<String, Prefab.ConfigValue> getAll(
     @Nullable PrefabContextSetReadable prefabContext
   ) {
-    LookupContext lookupContext = new LookupContext(
-      namespaceMaybe,
-      resolveContext(prefabContext)
-    );
+    LookupContext lookupContext = new LookupContext(resolveContext(prefabContext));
     ImmutableMap.Builder<String, Prefab.ConfigValue> bldr = ImmutableMap.builder();
     for (String key : getAllKeys()) {
       updatingConfigResolver
@@ -284,10 +273,7 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     @Nullable PrefabContextSetReadable prefabContext
   ) {
-    LookupContext lookupContext = new LookupContext(
-      namespaceMaybe,
-      resolveContext(prefabContext)
-    );
+    LookupContext lookupContext = new LookupContext(resolveContext(prefabContext));
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
       Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)

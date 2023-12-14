@@ -1,7 +1,5 @@
 package cloud.prefab.client.internal;
 
-import static cloud.prefab.client.internal.ConfigResolver.NEW_NAMESPACE_KEY;
-
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
@@ -16,21 +14,14 @@ import java.util.stream.StreamSupport;
 public class LookupContext {
 
   public static final LookupContext EMPTY = new LookupContext(
-    Optional.empty(),
     PrefabContextSetReadable.EMPTY
   );
-
-  private final Optional<Prefab.ConfigValue> namespaceMaybe;
 
   private final PrefabContextSet prefabContextSet;
 
   private Map<String, Prefab.ConfigValue> expandedProperties = null;
 
-  public LookupContext(
-    Optional<Prefab.ConfigValue> namespace,
-    PrefabContextSetReadable prefabContextSetReadable
-  ) {
-    this.namespaceMaybe = namespace;
+  public LookupContext(PrefabContextSetReadable prefabContextSetReadable) {
     this.prefabContextSet = PrefabContextSet.convert(prefabContextSetReadable);
   }
 
@@ -43,19 +34,12 @@ public class LookupContext {
       return false;
     }
     LookupContext that = (LookupContext) o;
-    return (
-      Objects.equals(namespaceMaybe, that.namespaceMaybe) &&
-      Objects.equals(prefabContextSet, that.prefabContextSet)
-    );
+    return (Objects.equals(prefabContextSet, that.prefabContextSet));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(namespaceMaybe, prefabContextSet);
-  }
-
-  public Optional<Prefab.ConfigValue> getNamespace() {
-    return namespaceMaybe;
+    return Objects.hash(prefabContextSet);
   }
 
   public Optional<Prefab.ConfigValue> getValue(String name) {
@@ -91,11 +75,6 @@ public class LookupContext {
           );
         }
       }
-      namespaceMaybe.ifPresent(namespace -> {
-        expandedProperties.put(ConfigResolver.NAMESPACE_KEY, namespace);
-        // we'll eventually inject a "prefab" typed context to handle this
-        expandedProperties.put(NEW_NAMESPACE_KEY, namespace);
-      });
       this.expandedProperties = ImmutableMap.copyOf(expandedProperties);
     }
     return this.expandedProperties;
