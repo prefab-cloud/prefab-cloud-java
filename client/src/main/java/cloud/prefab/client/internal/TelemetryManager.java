@@ -171,7 +171,11 @@ public class TelemetryManager implements AutoCloseable {
       }
     }
 
-    if (matchEvent.match != null && options.isCollectEvaluationSummaries()) {
+    if (
+      matchEvent.match != null &&
+      options.isCollectEvaluationSummaries() &&
+      !matchEvent.match.getConfigValue().getConfidential()
+    ) {
       matchStatsAggregator.recordMatch(matchEvent.match, matchEvent.timestamp);
     }
   }
