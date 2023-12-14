@@ -3,9 +3,7 @@ package cloud.prefab.client.internal;
 import static java.util.stream.Collectors.groupingBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
@@ -20,7 +18,6 @@ import cloud.prefab.domain.Prefab;
 import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -162,7 +159,7 @@ class TelemetryManagerTest {
   class MatchTests {
 
     @Test
-    void itRecordsAllMatchRelatedData() throws InterruptedException {
+    void itRecordsAllMatchRelatedData() {
       buildTelemetryManager(
         new Options()
           .setContextUploadMode(Options.CollectContextMode.PERIODIC_EXAMPLE)
@@ -188,7 +185,7 @@ class TelemetryManagerTest {
     }
 
     @Test
-    void itExcludesExampleContexts() throws InterruptedException {
+    void itExcludesExampleContexts() {
       buildTelemetryManager(
         new Options()
           .setContextUploadMode(Options.CollectContextMode.SHAPE_ONLY)
@@ -211,7 +208,7 @@ class TelemetryManagerTest {
     }
 
     @Test
-    void itExcludesExampleContextsAndShapes() throws InterruptedException {
+    void itExcludesExampleContextsAndShapes() {
       buildTelemetryManager(
         new Options()
           .setContextUploadMode(Options.CollectContextMode.NONE)
@@ -232,7 +229,7 @@ class TelemetryManagerTest {
     }
 
     @Test
-    void itExcludesAllTelemetry() throws InterruptedException {
+    void itExcludesAllTelemetry() {
       buildTelemetryManager(
         new Options()
           .setContextUploadMode(Options.CollectContextMode.NONE)
@@ -323,6 +320,9 @@ class TelemetryManagerTest {
               .build()
           )
         );
+
+      assertThat(summaries.stream().map(Prefab.ConfigEvaluationSummary::getKey))
+        .doesNotContain("a.secret.key");
     }
 
     private void assertExampleContexts(Prefab.TelemetryEvents telemetryEvents) {
@@ -385,25 +385,6 @@ class TelemetryManagerTest {
         );
     }
   }
-
-  Comparator<Prefab.IntRange> intRangeComparator = (o1, o2) ->
-    Comparator
-      .comparing(Prefab.IntRange::getStart)
-      .thenComparing(Prefab.IntRange::getEnd)
-      .compare(o1, o2);
-
-  Comparator<Prefab.ConfigValue> configValueComparator = (o1, o2) ->
-    Comparator
-      .comparing(Prefab.ConfigValue::getTypeCase)
-      .thenComparing(Prefab.ConfigValue::getString)
-      .thenComparing(Prefab.ConfigValue::getInt)
-      .thenComparing(Prefab.ConfigValue::getBool)
-      .thenComparing(Prefab.ConfigValue::getDouble)
-      .thenComparing(Prefab.ConfigValue::getLogLevel)
-      .thenComparing(Prefab.ConfigValue::getIntRange, intRangeComparator)
-      // weighted value
-      // string list
-      .compare(o1, o2);
 
   private static void reportSomeMatches(TelemetryManager telemetryManager) {
     PrefabContext teamContext = PrefabContext
@@ -484,6 +465,25 @@ class TelemetryManagerTest {
       "a.key",
       new Match(
         ConfigValueUtils.from(1),
+        new ConfigElement(TEST_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
+        Collections.emptyList(),
+        0,
+        0,
+        Optional.empty()
+      ),
+      new LookupContext(
+        Optional.empty(),
+        PrefabContextSet.from(
+          PrefabContext.newBuilder("user").put("key", "u123").build(),
+          teamContext
+        )
+      )
+    );
+
+    telemetryManager.reportMatch(
+      "a.secret.key",
+      new Match(
+        ConfigValueUtils.from(1).toBuilder().setConfidential(true).build(),
         new ConfigElement(TEST_CONFIG, new Provenance(ConfigClient.Source.STREAMING)),
         Collections.emptyList(),
         0,
