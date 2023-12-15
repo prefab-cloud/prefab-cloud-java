@@ -3,7 +3,6 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
-import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -13,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
@@ -46,43 +46,6 @@ public class PrefabHttpClient {
     this.options = options;
   }
 
-  public static class BadStatusCodeException extends Exception {
-
-    int statusCode;
-
-    BadStatusCodeException(int statusCode) {
-      this.statusCode = statusCode;
-    }
-  }
-
-  void reportLoggers(Prefab.Loggers loggers) {
-    HttpRequest request = getClientBuilderWithStandardHeaders()
-      .header("Content-Type", PROTO_MEDIA_TYPE)
-      .header("Accept", PROTO_MEDIA_TYPE)
-      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/known-loggers"))
-      .POST(HttpRequest.BodyPublishers.ofByteArray(loggers.toByteArray()))
-      .build();
-    try {
-      HttpResponse<String> response = httpClient.send(
-        request,
-        HttpResponse.BodyHandlers.ofString()
-      );
-
-      if (!isSuccess(response.statusCode())) {
-        LOG.info(
-          "Uploading logger stats returned unsuccessful code {} with body {}",
-          response.statusCode(),
-          response.body()
-        );
-      }
-    } catch (IOException e) {
-      LOG.warn("Error uploading logger stats via http {}", e.getMessage());
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted while uploading logger stats via http");
-      Thread.currentThread().interrupt();
-    }
-  }
-
   private static HttpResponse.BodySubscriber<Supplier<Prefab.TelemetryEventsResponse>> asProto() {
     HttpResponse.BodySubscriber<InputStream> upstream = HttpResponse.BodySubscribers.ofInputStream();
 
@@ -111,74 +74,6 @@ public class PrefabHttpClient {
     return httpClient.sendAsync(request, responseInfo -> asProto());
   }
 
-  boolean reportContextShape(Prefab.ContextShapes contextShapes) {
-    if (contextShapes.getShapesList().isEmpty()) {
-      return true;
-    }
-    HttpRequest request = getClientBuilderWithStandardHeaders()
-      .header("Content-Type", PROTO_MEDIA_TYPE)
-      .header("Accept", PROTO_MEDIA_TYPE)
-      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/context-shapes"))
-      .POST(HttpRequest.BodyPublishers.ofByteArray(contextShapes.toByteArray()))
-      .build();
-    LOG.debug("posting context shape to {}", request.uri());
-    try {
-      HttpResponse<String> response = httpClient.send(
-        request,
-        HttpResponse.BodyHandlers.ofString()
-      );
-      if (isSuccess(response.statusCode())) {
-        return true;
-      }
-
-      LOG.info(
-        "Uploading context shapes returned unsuccessful code {} with body {}",
-        response.statusCode(),
-        response.body()
-      );
-    } catch (IOException e) {
-      LOG.warn("Error uploading context shapes via http {}", e.getMessage());
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted while uploading context shapes");
-      Thread.currentThread().interrupt();
-    }
-    return false;
-  }
-
-  boolean reportEvaluatedKeys(Prefab.EvaluatedKeys evaluatedKeys) {
-    if (evaluatedKeys.getKeysList().isEmpty()) {
-      return true;
-    }
-    HttpRequest request = getClientBuilderWithStandardHeaders()
-      .header("Content-Type", PROTO_MEDIA_TYPE)
-      .header("Accept", PROTO_MEDIA_TYPE)
-      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/evaluated-keys"))
-      .POST(HttpRequest.BodyPublishers.ofByteArray(evaluatedKeys.toByteArray()))
-      .build();
-    LOG.debug("posting evaluated keys to {}", request.uri());
-    try {
-      HttpResponse<String> response = httpClient.send(
-        request,
-        HttpResponse.BodyHandlers.ofString()
-      );
-
-      if (isSuccess(response.statusCode())) {
-        return true;
-      }
-      LOG.info(
-        "Uploading evaluated keys returned unsuccessful code {} with body {}",
-        response.statusCode(),
-        response.body()
-      );
-    } catch (IOException e) {
-      LOG.warn("Error uploading evaluated keys via http {}", e.getMessage());
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted while uploading evaluated keys");
-      Thread.currentThread().interrupt();
-    }
-    return false;
-  }
-
   CompletableFuture<HttpResponse<Void>> requestConfigSSE(
     long offset,
     Flow.Subscriber<String> lineSubscriber
@@ -190,10 +85,9 @@ public class PrefabHttpClient {
       .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/sse/config"))
       .build();
 
-    return httpClient.sendAsync(
-      request,
-      HttpResponse.BodyHandlers.fromLineSubscriber(lineSubscriber)
-    );
+    return httpClient
+      .sendAsync(request, HttpResponse.BodyHandlers.fromLineSubscriber(lineSubscriber))
+      .whenCompleteAsync(this::checkForAuthFailure);
   }
 
   CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromApi(
@@ -226,8 +120,9 @@ public class PrefabHttpClient {
       upstream,
       this::configsSupplier
     );
-
-    return httpClient.sendAsync(request, resp -> mapper);
+    return httpClient
+      .sendAsync(request, resp -> mapper)
+      .whenCompleteAsync(this::checkForAuthFailure);
   }
 
   private Supplier<Prefab.Configs> configsSupplier(InputStream inputStream) {
@@ -258,5 +153,19 @@ public class PrefabHttpClient {
   private String getBasicAuthenticationHeader(String username, String password) {
     String valueToEncode = username + ":" + password;
     return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+  }
+
+  private static final Set<Integer> AUTH_PROBLEM_STATUS_CODES = Set.of(401, 403);
+
+  private void checkForAuthFailure(HttpResponse<?> httpResponse, Throwable throwable) {
+    if (throwable == null) {
+      if (AUTH_PROBLEM_STATUS_CODES.contains(httpResponse.statusCode())) {
+        LOG.error(
+          "*** Prefab Auth failure, please check your credentials. Fetching configuration returned HTTP Status code {} (from {}) ",
+          httpResponse.statusCode(),
+          httpResponse.uri()
+        );
+      }
+    }
   }
 }
