@@ -1,7 +1,11 @@
 package cloud.prefab.context;
 
+import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -11,6 +15,26 @@ public interface PrefabContextSetReadable {
   Iterable<PrefabContext> getContexts();
 
   boolean isEmpty();
+
+  default Map<String, Prefab.ConfigValue> flattenToImmutableMap() {
+    return Streams
+      .stream(getContexts())
+      .sorted(Comparator.comparing(PrefabContext::getName))
+      .flatMap(context ->
+        context
+          .getNameQualifiedProperties()
+          .entrySet()
+          .stream()
+          .sorted(Map.Entry.comparingByKey())
+      )
+      .collect(
+        ImmutableMap.toImmutableMap(
+          Map.Entry::getKey, // Key mapper
+          Map.Entry::getValue, // Value mapper
+          (existingValue, newValue) -> newValue
+        )
+      );
+  }
 
   PrefabContextSetReadable EMPTY = new PrefabContextSetReadable() {
     @Override

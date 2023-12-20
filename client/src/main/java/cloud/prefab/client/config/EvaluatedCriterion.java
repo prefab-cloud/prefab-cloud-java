@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.domain.Prefab;
 import com.google.common.base.MoreObjects;
+import java.util.Objects;
 import java.util.Optional;
 
 public class EvaluatedCriterion {
@@ -73,5 +74,26 @@ public class EvaluatedCriterion {
       .add("evaluatedProperty", evaluatedProperty)
       .add("match", match)
       .toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    EvaluatedCriterion that = (EvaluatedCriterion) o;
+    return (
+      match == that.match &&
+      Objects.equals(criterion, that.criterion) &&
+      Objects.equals(evaluatedProperty, that.evaluatedProperty)
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(criterion, evaluatedProperty, match);
   }
 }

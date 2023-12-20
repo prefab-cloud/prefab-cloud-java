@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ConfigStoreImpl implements ConfigStore {
 
   private final AtomicReference<MergedConfigData> data = new AtomicReference<>(
-    new MergedConfigData(Map.of(), 0, DefaultContextWrapper.empty())
+    new MergedConfigData(Map.of(), 0, ContextWrapper.empty(), ContextWrapper.empty())
   );
 
   @Override
@@ -47,7 +47,12 @@ public class ConfigStoreImpl implements ConfigStore {
   }
 
   @Override
-  public DefaultContextWrapper getDefaultContext() {
-    return data.get().getDefaultContextWrapper();
+  public ContextWrapper getConfigIncludedContext() {
+    return data.get().getConfigIncludedContext();
+  }
+
+  @Override
+  public ContextWrapper getBaseContext() {
+    return data.get().getBaseContextWrapper();
   }
 }

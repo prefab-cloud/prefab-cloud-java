@@ -6,14 +6,17 @@ import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 public class ConfigRuleEvaluatorTest {
@@ -27,8 +30,10 @@ public class ConfigRuleEvaluatorTest {
     evaluator =
       new ConfigRuleEvaluator(mockConfigStoreImpl, new WeightedValueEvaluator());
 
-    when(mockConfigStoreImpl.getDefaultContext())
-      .thenReturn(DefaultContextWrapper.empty());
+    when(mockConfigStoreImpl.getConfigIncludedContext())
+      .thenReturn(ContextWrapper.empty());
+
+    when(mockConfigStoreImpl.getBaseContext()).thenReturn(ContextWrapper.empty());
   }
 
   @Test
@@ -70,6 +75,127 @@ public class ConfigRuleEvaluatorTest {
     assertThat(bobExampleEval.isMatch()).isTrue();
     assertThat(bobExampleEval.getEvaluatedProperty().get().getString())
       .isEqualTo("bob@gmail.com");
+  }
+
+  @Nested
+  class PropertyContextLoading {
+
+    final String baseContext = "baseContext";
+    final String configIncludedContext = "configIncludedContext";
+    final String lookupContextString = "lookupContext";
+
+    final LookupContext lookupContext = new LookupContext(
+      PrefabContextSet.from(
+        PrefabContext
+          .newBuilder("a")
+          .put("a", lookupContextString)
+          .put("b", lookupContextString)
+          .put("c", lookupContextString)
+          .build()
+      )
+    );
+
+    Prefab.Criterion baseContextCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("a.a")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(Prefab.StringList.newBuilder().addValues(baseContext).build())
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+      .build();
+
+    Prefab.Criterion configIncludedContextCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("a.b")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues(configIncludedContext).build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+      .build();
+
+    Prefab.Criterion lookupContextCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName("a.c")
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setStringList(
+            Prefab.StringList.newBuilder().addValues(lookupContextString).build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
+      .build();
+
+    @BeforeEach
+    void beforeEach() {
+      when(mockConfigStoreImpl.getBaseContext())
+        .thenReturn(
+          new ContextWrapper(
+            PrefabContextSet
+              .from(PrefabContext.newBuilder("a").put("a", baseContext).build())
+              .flattenToImmutableMap()
+          )
+        );
+
+      when(mockConfigStoreImpl.getConfigIncludedContext())
+        .thenReturn(
+          new ContextWrapper(
+            PrefabContextSet
+              .from(
+                PrefabContext
+                  .newBuilder("a")
+                  .put("a", configIncludedContext)
+                  .put("b", configIncludedContext)
+                  .build()
+              )
+              .flattenToImmutableMap()
+          )
+        );
+    }
+
+    @Test
+    void baseContextReadBeforeConfigIncludedContext() {
+      assertThat(evaluator.evaluateCriterionMatch(baseContextCriterion, lookupContext))
+        .containsExactly(
+          new EvaluatedCriterion(
+            baseContextCriterion,
+            ConfigValueUtils.from(baseContext),
+            true
+          )
+        );
+    }
+
+    @Test
+    void setConfigIncludedContextReadNext() {
+      assertThat(
+        evaluator.evaluateCriterionMatch(configIncludedContextCriterion, lookupContext)
+      )
+        .containsExactly(
+          new EvaluatedCriterion(
+            configIncludedContextCriterion,
+            ConfigValueUtils.from(configIncludedContext),
+            true
+          )
+        );
+    }
+
+    @Test
+    void andThenLookupContext() {
+      assertThat(evaluator.evaluateCriterionMatch(lookupContextCriterion, lookupContext))
+        .containsExactly(
+          new EvaluatedCriterion(
+            lookupContextCriterion,
+            ConfigValueUtils.from(lookupContextString),
+            true
+          )
+        );
+    }
   }
 
   @Test
