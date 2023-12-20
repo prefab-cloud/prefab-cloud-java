@@ -5,7 +5,7 @@ import cloud.prefab.client.Options;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
-import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.annotations.VisibleForTesting;
@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,9 +53,10 @@ public class ConfigLoader {
 
   private final AtomicLong projectEnvId = new AtomicLong(0);
 
-  private final AtomicReference<DefaultContextWrapper> defaultContext = new AtomicReference<>(
-    DefaultContextWrapper.empty()
+  private final AtomicReference<ContextWrapper> configIncludedContext = new AtomicReference<>(
+    ContextWrapper.empty()
   );
+  private final ContextWrapper baseContext;
 
   public ConfigLoader(Options options) {
     this.options = options;
@@ -64,6 +64,13 @@ public class ConfigLoader {
     this.highwaterMark = new AtomicLong(0);
     this.classPathConfig = loadClasspathConfig();
     this.overrideConfig = loadOverrideConfig();
+    this.baseContext =
+      new ContextWrapper(
+        options
+          .getBaseContext()
+          .map(PrefabContextSet::flattenToImmutableMap)
+          .orElse(Collections.emptyMap())
+      );
   }
 
   /**
@@ -79,22 +86,15 @@ public class ConfigLoader {
     return new MergedConfigData(
       builder.buildKeepingLast(),
       projectEnvId.get(),
-      defaultContext.get()
+      baseContext,
+      configIncludedContext.get()
     );
   }
 
-  private DefaultContextWrapper getDefaultContext(Prefab.Configs configs) {
-    if (configs.getDefaultContext().getContextsCount() == 0) {
-      return new DefaultContextWrapper(Collections.emptyMap());
-    }
-    Map<String, Prefab.ConfigValue> mergedMap = new HashMap<>();
-    configs
-      .getDefaultContext()
-      .getContextsList()
-      .forEach(c ->
-        mergedMap.putAll(PrefabContext.fromProto(c).getNameQualifiedProperties())
-      );
-    return new DefaultContextWrapper(mergedMap);
+  private ContextWrapper getConfigIncludedContext(Prefab.Configs configs) {
+    return new ContextWrapper(
+      PrefabContextSet.from(configs.getDefaultContext()).flattenToImmutableMap()
+    );
   }
 
   public synchronized void setConfigs(Prefab.Configs configs, Provenance provenance) {
@@ -103,7 +103,7 @@ public class ConfigLoader {
     }
     recomputeHighWaterMark();
     projectEnvId.set(configs.getConfigServicePointer().getProjectEnvId());
-    defaultContext.set(getDefaultContext(configs));
+    configIncludedContext.set(getConfigIncludedContext(configs));
   }
 
   @VisibleForTesting

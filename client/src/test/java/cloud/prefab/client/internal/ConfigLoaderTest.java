@@ -6,6 +6,8 @@ import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
+import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import java.util.List;
 import java.util.Optional;
@@ -264,6 +266,58 @@ public class ConfigLoaderTest {
         )
       );
       assertThat(configLoader.calcConfig().getConfigs().get("val_from_api")).isNull();
+    }
+  }
+
+  @Nested
+  class ContextLoadingTests {
+
+    final PrefabContextSet baseContext = PrefabContextSet.from(
+      PrefabContext.newBuilder("deploy").put("name", "prefab-api").build()
+    );
+
+    @BeforeEach
+    void beforeEach() {
+      buildLoaderWithOptions(
+        new Options().setBaseContext(baseContext).setPrefabEnvs(List.of("default"))
+      );
+    }
+
+    @Test
+    void itReturnsBaseContextFromCalcConfigAndEmptyApiDefaultContext() {
+      MergedConfigData mergedConfigData = configLoader.calcConfig();
+      assertThat(mergedConfigData.getBaseContextWrapper().getConfigValueMap())
+        .isEqualTo(baseContext.flattenToImmutableMap());
+
+      assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
+        .isEmpty();
+    }
+
+    @Test
+    void itReturnsBaseContextAndApiDefaultContextFromCalcConfig() {
+      PrefabContextSet apiDefaultContext = PrefabContextSet.from(
+        PrefabContext
+          .newBuilder("fruitStand")
+          .put("applePrice", 1)
+          .put("peachPrice", 2)
+          .build(),
+        PrefabContext.newBuilder("weather").put("highTemp", 82).build()
+      );
+
+      configLoader.setConfigs(
+        Prefab.Configs
+          .newBuilder()
+          .setDefaultContext(apiDefaultContext.toProto())
+          .build(),
+        new Provenance(ConfigClient.Source.STREAMING)
+      );
+
+      MergedConfigData mergedConfigData = configLoader.calcConfig();
+      assertThat(mergedConfigData.getBaseContextWrapper().getConfigValueMap())
+        .isEqualTo(baseContext.flattenToImmutableMap());
+
+      assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
+        .isEqualTo(apiDefaultContext.flattenToImmutableMap());
     }
   }
 

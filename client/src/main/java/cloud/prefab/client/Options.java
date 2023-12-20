@@ -6,6 +6,7 @@ import cloud.prefab.client.internal.PrefabInternal;
 import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.context.ContextStore;
+import cloud.prefab.context.PrefabContextSet;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -62,6 +63,9 @@ public class Options {
 
   @Nullable
   private TelemetryListener telemetryListener;
+
+  @Nullable
+  private PrefabContextSet baseContext;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -315,5 +319,14 @@ public class Options {
 
   public boolean isLocalDatafileMode() {
     return localDatafile != null;
+  }
+
+  public Optional<PrefabContextSet> getBaseContext() {
+    return Optional.ofNullable(baseContext);
+  }
+
+  public Options setBaseContext(@Nullable PrefabContextSet baseContext) {
+    this.baseContext = baseContext;
+    return this;
   }
 }

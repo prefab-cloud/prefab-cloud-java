@@ -1,7 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigElement;
-import cloud.prefab.client.internal.DefaultContextWrapper;
+import cloud.prefab.client.internal.ContextWrapper;
 import java.util.Collection;
 
 public interface ConfigStore {
@@ -19,5 +19,15 @@ public interface ConfigStore {
 
   long getProjectEnvironmentId();
 
-  DefaultContextWrapper getDefaultContext();
+  /**
+   *
+   * @return the context sent from prefab - included with the config payload
+   */
+  ContextWrapper getConfigIncludedContext();
+
+  /**
+   *
+   * @return the context set in options before starting the prefab client
+   */
+  ContextWrapper getBaseContext();
 }

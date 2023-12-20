@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 public class PrefabContextSet implements PrefabContextSetReadable {
 
-  private ConcurrentSkipListMap<String, PrefabContext> contextByNameMap = new ConcurrentSkipListMap();
+  private final ConcurrentSkipListMap<String, PrefabContext> contextByNameMap = new ConcurrentSkipListMap<>();
 
   public void addContext(PrefabContext prefabContext) {
     if (prefabContext != null) {
@@ -38,15 +38,6 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     return set;
   }
 
-  public static PrefabContextSet from(Prefab.ContextSet contextSet) {
-    PrefabContextSet set = new PrefabContextSet();
-    contextSet
-      .getContextsList()
-      .stream()
-      .forEach(p -> set.addContext(PrefabContext.fromProto(p)));
-    return set;
-  }
-
   /**
    * Converts the given `PrefabContextSetReadable` instance into a PrefabContextSet
    * If the argument is already a PrefabContextSet return it, othewise create a new PrefabContextSet and add the contents
@@ -72,6 +63,17 @@ public class PrefabContextSet implements PrefabContextSetReadable {
     getContexts()
       .forEach(prefabContext -> bldr.addContexts(prefabContext.toProtoContext()));
     return bldr.build();
+  }
+
+  public static PrefabContextSetReadable from(Prefab.ContextSet protoContextSet) {
+    if (protoContextSet.getContextsList().isEmpty()) {
+      return PrefabContextSet.EMPTY;
+    }
+    PrefabContextSet prefabContextSet = new PrefabContextSet();
+    for (Prefab.Context contextProto : protoContextSet.getContextsList()) {
+      prefabContextSet.addContext(PrefabContext.fromProto(contextProto));
+    }
+    return prefabContextSet;
   }
 
   @Override

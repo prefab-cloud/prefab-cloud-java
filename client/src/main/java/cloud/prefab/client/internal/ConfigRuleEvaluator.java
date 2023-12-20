@@ -224,15 +224,23 @@ public class ConfigRuleEvaluator {
         }
       }
     }
-    for (String keyToLookup : keysToLookup) {
-      Prefab.ConfigValue configFromDefaultContext = configStore
-        .getDefaultContext()
-        .getConfigValueMap()
-        .get(keyToLookup);
-      if (configFromDefaultContext != null) {
-        return Optional.of(configFromDefaultContext);
-      }
+
+    Optional<Prefab.ConfigValue> configValueFromBaseContextMaybe = getPropFromContextWrapper(
+      keysToLookup,
+      configStore.getBaseContext()
+    );
+    if (configValueFromBaseContextMaybe.isPresent()) {
+      return configValueFromBaseContextMaybe;
     }
+
+    Optional<Prefab.ConfigValue> configValueFromApiDefaultContext = getPropFromContextWrapper(
+      keysToLookup,
+      configStore.getConfigIncludedContext()
+    );
+    if (configValueFromApiDefaultContext.isPresent()) {
+      return configValueFromApiDefaultContext;
+    }
+
     for (String keyToLookup : keysToLookup) {
       Prefab.ConfigValue valueFromLookupContext = lookupContext
         .getExpandedProperties()
@@ -241,11 +249,26 @@ public class ConfigRuleEvaluator {
         return Optional.of(valueFromLookupContext);
       }
     }
-    //TODO: move this current time injection into a ContextResolver class
+    //TODO: move this current time injection into a ContextResolver class?
     if (CURRENT_TIME_KEY.equals(key)) {
       return Optional.of(
         Prefab.ConfigValue.newBuilder().setInt(System.currentTimeMillis()).build()
       );
+    }
+    return Optional.empty();
+  }
+
+  private Optional<Prefab.ConfigValue> getPropFromContextWrapper(
+    List<String> keysToLookup,
+    ContextWrapper contextWrapper
+  ) {
+    for (String keyToLookup : keysToLookup) {
+      Prefab.ConfigValue configValue = contextWrapper
+        .getConfigValueMap()
+        .get(keyToLookup);
+      if (configValue != null) {
+        return Optional.of(configValue);
+      }
     }
     return Optional.empty();
   }

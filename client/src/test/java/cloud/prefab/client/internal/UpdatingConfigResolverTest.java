@@ -93,7 +93,12 @@ public class UpdatingConfigResolverTest {
           .build()
       )
     );
-    return new MergedConfigData(config, TEST_PROJ_ENV, DefaultContextWrapper.empty());
+    return new MergedConfigData(
+      config,
+      TEST_PROJ_ENV,
+      ContextWrapper.empty(),
+      ContextWrapper.empty()
+    );
   }
 
   private Prefab.ConfigRow rowWithStringValue(String value) {
@@ -148,7 +153,12 @@ public class UpdatingConfigResolverTest {
     Map<String, ConfigElement> config = new HashMap<>();
     config.put("key1", ce(key1()));
     config.put("key2", ce(key2()));
-    return new MergedConfigData(config, TEST_PROJ_ENV, DefaultContextWrapper.empty());
+    return new MergedConfigData(
+      config,
+      TEST_PROJ_ENV,
+      ContextWrapper.empty(),
+      ContextWrapper.empty()
+    );
   }
 
   private ConfigElement ce(Prefab.Config config) {
