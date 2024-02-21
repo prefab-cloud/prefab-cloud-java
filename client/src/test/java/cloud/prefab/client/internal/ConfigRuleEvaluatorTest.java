@@ -46,7 +46,7 @@ public class ConfigRuleEvaluatorTest {
   }
 
   @Test
-  void itIgnoresCaseForContextPropertyLookups() {
+  void itRespectsCaseForContextPropertyLookups() {
     final Prefab.Criterion socialEmailCriteria = Prefab.Criterion
       .newBuilder()
       .setPropertyName("eMail")
@@ -64,7 +64,7 @@ public class ConfigRuleEvaluatorTest {
       .setOperator(Prefab.Criterion.CriterionOperator.PROP_ENDS_WITH_ONE_OF)
       .build();
 
-    final EvaluatedCriterion bobExampleEval = evaluator
+    final EvaluatedCriterion bobExampleEvalCaseMismatch = evaluator
       .evaluateCriterionMatch(
         socialEmailCriteria,
         singleValueLookupContext("eMaiL", sv("bob@gmail.com"))
@@ -72,9 +72,17 @@ public class ConfigRuleEvaluatorTest {
       .stream()
       .findFirst()
       .get();
-    assertThat(bobExampleEval.isMatch()).isTrue();
-    assertThat(bobExampleEval.getEvaluatedProperty().get().getString())
-      .isEqualTo("bob@gmail.com");
+    assertThat(bobExampleEvalCaseMismatch.isMatch()).isFalse();
+
+    final EvaluatedCriterion bobExampleEvalCaseMatch = evaluator
+      .evaluateCriterionMatch(
+        socialEmailCriteria,
+        singleValueLookupContext("eMail", sv("bob@gmail.com"))
+      )
+      .stream()
+      .findFirst()
+      .get();
+    assertThat(bobExampleEvalCaseMatch.isMatch()).isTrue();
   }
 
   @Nested

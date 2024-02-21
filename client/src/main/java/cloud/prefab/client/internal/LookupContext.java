@@ -63,14 +63,12 @@ public class LookupContext {
         propertyCount
       );
       for (PrefabContext context : prefabContextSet.getContexts()) {
-        String prefix = context.getName().isBlank()
-          ? ""
-          : context.getName().toLowerCase() + ".";
+        String prefix = context.getName().isBlank() ? "" : context.getName() + ".";
         for (Map.Entry<String, Prefab.ConfigValue> stringConfigValueEntry : context
           .getProperties()
           .entrySet()) {
           expandedProperties.put(
-            prefix + stringConfigValueEntry.getKey().toLowerCase(),
+            prefix + stringConfigValueEntry.getKey(),
             stringConfigValueEntry.getValue()
           );
         }
