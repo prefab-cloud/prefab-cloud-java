@@ -9,12 +9,12 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.integration.IntegrationTestClientOverrides;
 import cloud.prefab.client.integration.IntegrationTestFunction;
 import cloud.prefab.client.integration.TelemetryAccumulator;
-import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.MoreObjects;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -59,8 +59,8 @@ public class ExampleContextIntegrationTestCaseDescriptor
 
   @Override
   protected void performVerification(PrefabCloudClient prefabCloudClient) {
-    PrefabContextSet contextSetToSend = buildContextFromArrayDataNode(dataNode);
-    PrefabContextSet expectedContextSet = buildContextFromArrayDataNode(expectedDataNode);
+    PrefabContextSet contextSetToSend = buildContextFromJsonNode(dataNode);
+    PrefabContextSet expectedContextSet = buildContextFromJsonNode(expectedDataNode);
     LOG.info("context set = {}", contextSetToSend);
     LOG.info("expected context set = {}", expectedContextSet);
 
@@ -90,20 +90,45 @@ public class ExampleContextIntegrationTestCaseDescriptor
       });
   }
 
-  PrefabContextSet buildContextFromArrayDataNode(JsonNode dataNode) {
-    assertThat(dataNode.isArray()).as("datanode should be an array").isTrue();
+  PrefabContextSet buildContextFromJsonNode(JsonNode dataNode) {
     PrefabContextSet contextSet = new PrefabContextSet();
-    dataNode.forEach(arrayMemberNode -> {
-      assertThat(arrayMemberNode.isObject()).as("Array members should be an object");
-      // this is a single key object node
-      arrayMemberNode
-        .fields()
-        .forEachRemaining(keyValuePair ->
-          contextSet.addContext(
-            buildContextFromObjectDataNode(keyValuePair.getKey(), keyValuePair.getValue())
-          )
-        );
-    });
+
+    switch (dataNode.getNodeType()) {
+      case NULL:
+        // nothing to do, context is empty
+        break;
+      case OBJECT:
+        ObjectNode objectNode = (ObjectNode) dataNode;
+        objectNode
+          .fields()
+          .forEachRemaining(keyValuePair ->
+            contextSet.addContext(
+              buildContextFromObjectDataNode(
+                keyValuePair.getKey(),
+                keyValuePair.getValue()
+              )
+            )
+          );
+        break;
+      case ARRAY:
+        dataNode.forEach(arrayMemberNode -> {
+          assertThat(arrayMemberNode.isObject()).as("Array members should be an object");
+          // this is a single key object node
+          arrayMemberNode
+            .fields()
+            .forEachRemaining(keyValuePair ->
+              contextSet.addContext(
+                buildContextFromObjectDataNode(
+                  keyValuePair.getKey(),
+                  keyValuePair.getValue()
+                )
+              )
+            );
+        });
+        break;
+      default:
+        fail("Unexpected node type %s", dataNode.getNodeType());
+    }
     return contextSet;
   }
 }
