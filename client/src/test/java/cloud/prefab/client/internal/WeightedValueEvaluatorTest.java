@@ -82,7 +82,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue value = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(PrefabContext.newBuilder("User").put("name", "james").build())
+      new LookupContext(PrefabContext.newBuilder("user").put("name", "james").build())
     );
     assertThat(value)
       .isEqualTo(Prefab.ConfigValue.newBuilder().setBool(expectedValue).build());
@@ -103,7 +103,7 @@ class WeightedValueEvaluatorTest {
     Prefab.ConfigValue value = weightedValueEvaluator.toValue(
       weightedValues,
       "featureName",
-      new LookupContext(PrefabContext.newBuilder("User").put("name", "james").build())
+      new LookupContext(PrefabContext.newBuilder("user").put("name", "james").build())
     );
     assertThat(value)
       .isEqualTo(Prefab.ConfigValue.newBuilder().setInt(expectedValue).build());

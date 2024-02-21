@@ -33,9 +33,9 @@ class LookupContextTest {
       .isEqualTo(
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
-          .put("user.firstname", getStringConfigValue("John"))
-          .put("user.lastname", getStringConfigValue("Doe"))
-          .put("user.age", getIntConfigValue(44))
+          .put("User.firstname", getStringConfigValue("John"))
+          .put("User.lastname", getStringConfigValue("Doe"))
+          .put("User.age", getIntConfigValue(44))
           .build()
       );
   }
@@ -63,9 +63,9 @@ class LookupContextTest {
       .isEqualTo(
         ImmutableMap
           .<String, Prefab.ConfigValue>builder()
-          .put("user.firstname", getStringConfigValue("John"))
-          .put("user.lastname", getStringConfigValue("Doe"))
-          .put("user.age", getIntConfigValue(44))
+          .put("User.firstname", getStringConfigValue("John"))
+          .put("User.lastname", getStringConfigValue("Doe"))
+          .put("User.age", getIntConfigValue(44))
           .put("team.name", getStringConfigValue("cool team"))
           .build()
       );
