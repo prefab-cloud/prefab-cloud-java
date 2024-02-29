@@ -225,12 +225,12 @@ public class ConfigRuleEvaluator {
       }
     }
 
-    Optional<Prefab.ConfigValue> configValueFromBaseContextMaybe = getPropFromContextWrapper(
+    Optional<Prefab.ConfigValue> configValueFromGlobalContext = getPropFromContextWrapper(
       keysToLookup,
-      configStore.getBaseContext()
+      configStore.getGlobalContext()
     );
-    if (configValueFromBaseContextMaybe.isPresent()) {
-      return configValueFromBaseContextMaybe;
+    if (configValueFromGlobalContext.isPresent()) {
+      return configValueFromGlobalContext;
     }
 
     Optional<Prefab.ConfigValue> configValueFromApiDefaultContext = getPropFromContextWrapper(

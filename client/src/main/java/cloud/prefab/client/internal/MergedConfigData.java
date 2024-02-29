@@ -7,18 +7,18 @@ public class MergedConfigData {
 
   private final Map<String, ConfigElement> configs;
   private final long envId;
-  private final ContextWrapper baseContextWrapper;
+  private final ContextWrapper globalContextWrapper;
   private final ContextWrapper configIncludedContext;
 
   MergedConfigData(
     Map<String, ConfigElement> configs,
     long envId,
-    ContextWrapper baseContextWrapper,
+    ContextWrapper globalContextWrapper,
     ContextWrapper configIncludedContext
   ) {
     this.configs = configs;
     this.envId = envId;
-    this.baseContextWrapper = baseContextWrapper;
+    this.globalContextWrapper = globalContextWrapper;
     this.configIncludedContext = configIncludedContext;
   }
 
@@ -34,7 +34,7 @@ public class MergedConfigData {
     return envId;
   }
 
-  public ContextWrapper getBaseContextWrapper() {
-    return baseContextWrapper;
+  public ContextWrapper getGlobalContextWrapper() {
+    return globalContextWrapper;
   }
 }

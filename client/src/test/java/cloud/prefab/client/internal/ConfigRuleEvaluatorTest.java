@@ -33,7 +33,7 @@ public class ConfigRuleEvaluatorTest {
     when(mockConfigStoreImpl.getConfigIncludedContext())
       .thenReturn(ContextWrapper.empty());
 
-    when(mockConfigStoreImpl.getBaseContext()).thenReturn(ContextWrapper.empty());
+    when(mockConfigStoreImpl.getGlobalContext()).thenReturn(ContextWrapper.empty());
   }
 
   @Test
@@ -88,7 +88,7 @@ public class ConfigRuleEvaluatorTest {
   @Nested
   class PropertyContextLoading {
 
-    final String baseContext = "baseContext";
+    final String globalContext = "globalContext";
     final String configIncludedContext = "configIncludedContext";
     final String lookupContextString = "lookupContext";
 
@@ -103,13 +103,13 @@ public class ConfigRuleEvaluatorTest {
       )
     );
 
-    Prefab.Criterion baseContextCriterion = Prefab.Criterion
+    Prefab.Criterion globalContextCriterion = Prefab.Criterion
       .newBuilder()
       .setPropertyName("a.a")
       .setValueToMatch(
         Prefab.ConfigValue
           .newBuilder()
-          .setStringList(Prefab.StringList.newBuilder().addValues(baseContext).build())
+          .setStringList(Prefab.StringList.newBuilder().addValues(globalContext).build())
       )
       .setOperator(Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
       .build();
@@ -142,11 +142,11 @@ public class ConfigRuleEvaluatorTest {
 
     @BeforeEach
     void beforeEach() {
-      when(mockConfigStoreImpl.getBaseContext())
+      when(mockConfigStoreImpl.getGlobalContext())
         .thenReturn(
           new ContextWrapper(
             PrefabContextSet
-              .from(PrefabContext.newBuilder("a").put("a", baseContext).build())
+              .from(PrefabContext.newBuilder("a").put("a", globalContext).build())
               .flattenToImmutableMap()
           )
         );
@@ -168,12 +168,12 @@ public class ConfigRuleEvaluatorTest {
     }
 
     @Test
-    void baseContextReadBeforeConfigIncludedContext() {
-      assertThat(evaluator.evaluateCriterionMatch(baseContextCriterion, lookupContext))
+    void globalContextReadBeforeConfigIncludedContext() {
+      assertThat(evaluator.evaluateCriterionMatch(globalContextCriterion, lookupContext))
         .containsExactly(
           new EvaluatedCriterion(
-            baseContextCriterion,
-            ConfigValueUtils.from(baseContext),
+            globalContextCriterion,
+            ConfigValueUtils.from(globalContext),
             true
           )
         );

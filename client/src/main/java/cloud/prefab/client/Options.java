@@ -65,7 +65,7 @@ public class Options {
   private TelemetryListener telemetryListener;
 
   @Nullable
-  private PrefabContextSet baseContext;
+  private PrefabContextSet globalContext;
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
@@ -321,12 +321,12 @@ public class Options {
     return localDatafile != null;
   }
 
-  public Optional<PrefabContextSet> getBaseContext() {
-    return Optional.ofNullable(baseContext);
+  public Optional<PrefabContextSet> getGlobalContext() {
+    return Optional.ofNullable(globalContext);
   }
 
-  public Options setBaseContext(@Nullable PrefabContextSet baseContext) {
-    this.baseContext = baseContext;
+  public Options setGlobalContext(@Nullable PrefabContextSet globalContext) {
+    this.globalContext = globalContext;
     return this;
   }
 }

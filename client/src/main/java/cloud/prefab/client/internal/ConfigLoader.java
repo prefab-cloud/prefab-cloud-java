@@ -56,7 +56,7 @@ public class ConfigLoader {
   private final AtomicReference<ContextWrapper> configIncludedContext = new AtomicReference<>(
     ContextWrapper.empty()
   );
-  private final ContextWrapper baseContext;
+  private final ContextWrapper globalContext;
 
   public ConfigLoader(Options options) {
     this.options = options;
@@ -64,10 +64,10 @@ public class ConfigLoader {
     this.highwaterMark = new AtomicLong(0);
     this.classPathConfig = loadClasspathConfig();
     this.overrideConfig = loadOverrideConfig();
-    this.baseContext =
+    this.globalContext =
       new ContextWrapper(
         options
-          .getBaseContext()
+          .getGlobalContext()
           .map(PrefabContextSet::flattenToImmutableMap)
           .orElse(Collections.emptyMap())
       );
@@ -86,7 +86,7 @@ public class ConfigLoader {
     return new MergedConfigData(
       builder.buildKeepingLast(),
       projectEnvId.get(),
-      baseContext,
+      globalContext,
       configIncludedContext.get()
     );
   }
