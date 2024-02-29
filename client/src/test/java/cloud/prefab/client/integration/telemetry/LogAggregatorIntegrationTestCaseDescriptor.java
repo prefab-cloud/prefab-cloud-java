@@ -1,7 +1,6 @@
 package cloud.prefab.client.integration.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
 import cloud.prefab.client.PrefabCloudClient;
@@ -14,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableBiMap;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -113,16 +113,31 @@ public class LogAggregatorIntegrationTestCaseDescriptor
     await()
       .atMost(Duration.of(30, ChronoUnit.SECONDS))
       .untilAsserted(() -> {
-        List<Prefab.Logger> loggers = telemetryAccumulator
+        List<Prefab.LoggersTelemetryEvent> loggerEvents = telemetryAccumulator
           .getTelemetryEventsList()
           .stream()
           .map(Prefab.TelemetryEvents::getEventsList)
           .flatMap(List::stream)
           .filter(Prefab.TelemetryEvent::hasLoggers)
           .map(Prefab.TelemetryEvent::getLoggers)
+          .collect(Collectors.toList());
+        List<Prefab.Logger> loggers = loggerEvents
+          .stream()
           .map(Prefab.LoggersTelemetryEvent::getLoggersList)
           .flatMap(List::stream)
           .collect(Collectors.toList());
+        for (Prefab.LoggersTelemetryEvent loggerEvent : loggerEvents) {
+          long thirtySecondsAgo = Instant
+            .now()
+            .minus(30, ChronoUnit.SECONDS)
+            .toEpochMilli();
+          assertThat(loggerEvent.getStartAt())
+            .as("start time should be recent")
+            .isGreaterThan(thirtySecondsAgo);
+          assertThat(loggerEvent.getEndAt())
+            .as("end time should be greater than start time")
+            .isGreaterThan(loggerEvent.getStartAt());
+        }
         assertThat(loggers).containsExactlyInAnyOrderElementsOf(expectedLoggers);
       });
   }
