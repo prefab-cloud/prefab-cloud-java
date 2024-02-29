@@ -272,29 +272,29 @@ public class ConfigLoaderTest {
   @Nested
   class ContextLoadingTests {
 
-    final PrefabContextSet baseContext = PrefabContextSet.from(
+    final PrefabContextSet globalContext = PrefabContextSet.from(
       PrefabContext.newBuilder("deploy").put("name", "prefab-api").build()
     );
 
     @BeforeEach
     void beforeEach() {
       buildLoaderWithOptions(
-        new Options().setBaseContext(baseContext).setPrefabEnvs(List.of("default"))
+        new Options().setGlobalContext(globalContext).setPrefabEnvs(List.of("default"))
       );
     }
 
     @Test
-    void itReturnsBaseContextFromCalcConfigAndEmptyApiDefaultContext() {
+    void itReturnsGlobalContextFromCalcConfigAndEmptyApiDefaultContext() {
       MergedConfigData mergedConfigData = configLoader.calcConfig();
-      assertThat(mergedConfigData.getBaseContextWrapper().getConfigValueMap())
-        .isEqualTo(baseContext.flattenToImmutableMap());
+      assertThat(mergedConfigData.getGlobalContextWrapper().getConfigValueMap())
+        .isEqualTo(globalContext.flattenToImmutableMap());
 
       assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
         .isEmpty();
     }
 
     @Test
-    void itReturnsBaseContextAndApiDefaultContextFromCalcConfig() {
+    void itReturnsGlobalContextAndApiDefaultContextFromCalcConfig() {
       PrefabContextSet apiDefaultContext = PrefabContextSet.from(
         PrefabContext
           .newBuilder("fruitStand")
@@ -313,8 +313,8 @@ public class ConfigLoaderTest {
       );
 
       MergedConfigData mergedConfigData = configLoader.calcConfig();
-      assertThat(mergedConfigData.getBaseContextWrapper().getConfigValueMap())
-        .isEqualTo(baseContext.flattenToImmutableMap());
+      assertThat(mergedConfigData.getGlobalContextWrapper().getConfigValueMap())
+        .isEqualTo(globalContext.flattenToImmutableMap());
 
       assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
         .isEqualTo(apiDefaultContext.flattenToImmutableMap());

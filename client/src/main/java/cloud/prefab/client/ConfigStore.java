@@ -29,5 +29,5 @@ public interface ConfigStore {
    *
    * @return the context set in options before starting the prefab client
    */
-  ContextWrapper getBaseContext();
+  ContextWrapper getGlobalContext();
 }

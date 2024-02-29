@@ -52,7 +52,7 @@ public class ConfigStoreImpl implements ConfigStore {
   }
 
   @Override
-  public ContextWrapper getBaseContext() {
-    return data.get().getBaseContextWrapper();
+  public ContextWrapper getGlobalContext() {
+    return data.get().getGlobalContextWrapper();
   }
 }
