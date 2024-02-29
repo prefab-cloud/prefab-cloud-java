@@ -339,6 +339,8 @@ public class TelemetryManager implements AutoCloseable {
         Prefab.LoggersTelemetryEvent telemetryEvent = Prefab.LoggersTelemetryEvent
           .newBuilder()
           .addAllLoggers(loggerCollection)
+          .setStartAt(startTime)
+          .setEndAt(endTime)
           .build();
         telemetryEventsBuilder.addEvents(
           Prefab.TelemetryEvent.newBuilder().setLoggers(telemetryEvent)

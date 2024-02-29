@@ -132,14 +132,23 @@ class TelemetryManagerTest {
       assertThat(telemetryManager.requestFlush().join()).isTrue();
       Prefab.TelemetryEvents telemetryEvents = telemetryEventsArgumentCaptor.getValue();
 
-      List<Prefab.Logger> loggers = telemetryEvents
+      List<Prefab.LoggersTelemetryEvent> loggerEvents = telemetryEvents
         .getEventsList()
         .stream()
         .filter(Prefab.TelemetryEvent::hasLoggers)
         .map(Prefab.TelemetryEvent::getLoggers)
+        .collect(Collectors.toList());
+
+      List<Prefab.Logger> loggers = loggerEvents
+        .stream()
         .map(Prefab.LoggersTelemetryEvent::getLoggersList)
         .flatMap(List::stream)
         .collect(Collectors.toList());
+
+      for (Prefab.LoggersTelemetryEvent loggerEvent : loggerEvents) {
+        assertThat(loggerEvent.getStartAt()).isNotEqualTo(0);
+        assertThat(loggerEvent.getEndAt()).isNotEqualTo(0);
+      }
 
       assertThat(loggers)
         .containsExactlyInAnyOrder(
