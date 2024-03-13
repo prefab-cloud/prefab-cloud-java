@@ -1,40 +1,41 @@
 package cloud.prefab.client.internal;
 
 import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.context.PrefabContextSetReadable;
 import java.util.Map;
 
 public class MergedConfigData {
 
   private final Map<String, ConfigElement> configs;
   private final long envId;
-  private final ContextWrapper globalContextWrapper;
-  private final ContextWrapper configIncludedContext;
+  private final PrefabContextSetReadable globalContextSet;
+  private final PrefabContextSetReadable configIncludedContextSet;
 
   MergedConfigData(
     Map<String, ConfigElement> configs,
     long envId,
-    ContextWrapper globalContextWrapper,
-    ContextWrapper configIncludedContext
+    PrefabContextSetReadable globalContextSet,
+    PrefabContextSetReadable configIncludedContextSet
   ) {
     this.configs = configs;
     this.envId = envId;
-    this.globalContextWrapper = globalContextWrapper;
-    this.configIncludedContext = configIncludedContext;
+    this.globalContextSet = globalContextSet;
+    this.configIncludedContextSet = configIncludedContextSet;
   }
 
   public Map<String, ConfigElement> getConfigs() {
     return configs;
   }
 
-  public ContextWrapper getConfigIncludedContext() {
-    return configIncludedContext;
+  public PrefabContextSetReadable getConfigIncludedContext() {
+    return configIncludedContextSet;
   }
 
   public long getEnvId() {
     return envId;
   }
 
-  public ContextWrapper getGlobalContextWrapper() {
-    return globalContextWrapper;
+  public PrefabContextSetReadable getGlobalContextSet() {
+    return globalContextSet;
   }
 }

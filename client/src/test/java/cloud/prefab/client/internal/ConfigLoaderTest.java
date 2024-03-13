@@ -286,11 +286,9 @@ public class ConfigLoaderTest {
     @Test
     void itReturnsGlobalContextFromCalcConfigAndEmptyApiDefaultContext() {
       MergedConfigData mergedConfigData = configLoader.calcConfig();
-      assertThat(mergedConfigData.getGlobalContextWrapper().getConfigValueMap())
-        .isEqualTo(globalContext.flattenToImmutableMap());
+      assertThat(mergedConfigData.getGlobalContextSet()).isEqualTo(globalContext);
 
-      assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
-        .isEmpty();
+      assertThat(mergedConfigData.getConfigIncludedContext().isEmpty()).isTrue();
     }
 
     @Test
@@ -313,11 +311,10 @@ public class ConfigLoaderTest {
       );
 
       MergedConfigData mergedConfigData = configLoader.calcConfig();
-      assertThat(mergedConfigData.getGlobalContextWrapper().getConfigValueMap())
-        .isEqualTo(globalContext.flattenToImmutableMap());
+      assertThat(mergedConfigData.getGlobalContextSet()).isEqualTo(globalContext);
 
-      assertThat(mergedConfigData.getConfigIncludedContext().getConfigValueMap())
-        .isEqualTo(apiDefaultContext.flattenToImmutableMap());
+      assertThat(mergedConfigData.getConfigIncludedContext())
+        .isEqualTo(apiDefaultContext);
     }
   }
 

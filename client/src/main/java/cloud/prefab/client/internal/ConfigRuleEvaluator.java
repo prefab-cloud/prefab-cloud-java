@@ -225,22 +225,6 @@ public class ConfigRuleEvaluator {
       }
     }
 
-    Optional<Prefab.ConfigValue> configValueFromGlobalContext = getPropFromContextWrapper(
-      keysToLookup,
-      configStore.getGlobalContext()
-    );
-    if (configValueFromGlobalContext.isPresent()) {
-      return configValueFromGlobalContext;
-    }
-
-    Optional<Prefab.ConfigValue> configValueFromApiDefaultContext = getPropFromContextWrapper(
-      keysToLookup,
-      configStore.getConfigIncludedContext()
-    );
-    if (configValueFromApiDefaultContext.isPresent()) {
-      return configValueFromApiDefaultContext;
-    }
-
     for (String keyToLookup : keysToLookup) {
       Prefab.ConfigValue valueFromLookupContext = lookupContext
         .getExpandedProperties()
