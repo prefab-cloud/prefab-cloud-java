@@ -227,6 +227,16 @@ public class ConfigClientImpl implements ConfigClient {
     return matchMaybe.map(Match::getConfigValue);
   }
 
+  private Optional<Prefab.ConfigValue> getInternal(
+    String configKey,
+    LookupContext lookupContext
+  ) {
+    waitForInitialization();
+    Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
+    reportMatchResult(configKey, matchMaybe.orElse(null), lookupContext);
+    return matchMaybe.map(Match::getConfigValue);
+  }
+
   private void reportMatchResult(
     String configKey,
     @Nullable Match match,
@@ -272,9 +282,14 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     @Nullable PrefabContextSetReadable prefabContext
   ) {
+    waitForInitialization();
+    // special case getLogLevel - want to reuse the same lookup context for all key name variants
+    // wait for initialization must happen before resolving the context so that any api-sent context
+    // will be included
+    LookupContext lookupContext = new LookupContext(resolveContext(prefabContext));
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
-      Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, prefabContext)
+      Optional<Prefab.LogLevel> logLevelMaybe = getInternal(configKey, lookupContext)
         .filter(Prefab.ConfigValue::hasLogLevel)
         .map(Prefab.ConfigValue::getLogLevel);
       if (logLevelMaybe.isPresent()) {
