@@ -1,7 +1,6 @@
 package cloud.prefab.client.integration.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
 import cloud.prefab.client.PrefabCloudClient;
@@ -50,6 +49,23 @@ public class ContextShapeIntegrationTestCaseDescriptor
     this.expectedDataNode = expectedDataNode;
   }
 
+  private static Prefab.ContextShape apply(JsonNode shapeNode) {
+    String contextName = shapeNode.get("name").asText();
+    JsonNode fieldTypesArrayNode = shapeNode.get("field_types");
+    Prefab.ContextShape.Builder shapeBuilder = Prefab.ContextShape
+      .newBuilder()
+      .setName(contextName);
+    fieldTypesArrayNode
+      .fields()
+      .forEachRemaining(keyValueEntry -> {
+        shapeBuilder.putFieldTypes(
+          keyValueEntry.getKey(),
+          keyValueEntry.getValue().asInt()
+        );
+      });
+    return shapeBuilder.build();
+  }
+
   @Override
   protected void performVerification(PrefabCloudClient prefabCloudClient) {
     // build context from data
@@ -73,6 +89,7 @@ public class ContextShapeIntegrationTestCaseDescriptor
           .filter(Prefab.TelemetryEvent::hasContextShapes)
           .map(Prefab.TelemetryEvent::getContextShapes)
           .flatMap(c -> c.getShapesList().stream())
+          .filter(contextShape -> !contextShape.getName().equals("prefab-api-key"))
           .collect(Collectors.toList());
         assertThat(actualShapes).containsExactlyInAnyOrderElementsOf(expectedShapes);
       });
@@ -81,22 +98,7 @@ public class ContextShapeIntegrationTestCaseDescriptor
   private List<Prefab.ContextShape> buildExpectedShapesFromExpectedDataNode() {
     return StreamSupport
       .stream(expectedDataNode.spliterator(), false)
-      .map(shapeNode -> {
-        String contextName = shapeNode.get("name").asText();
-        JsonNode fieldTypesArrayNode = shapeNode.get("field_types");
-        Prefab.ContextShape.Builder shapeBuilder = Prefab.ContextShape
-          .newBuilder()
-          .setName(contextName);
-        fieldTypesArrayNode
-          .fields()
-          .forEachRemaining(keyValueEntry -> {
-            shapeBuilder.putFieldTypes(
-              keyValueEntry.getKey(),
-              keyValueEntry.getValue().asInt()
-            );
-          });
-        return shapeBuilder.build();
-      })
+      .map(ContextShapeIntegrationTestCaseDescriptor::apply)
       .collect(Collectors.toList());
   }
 }
