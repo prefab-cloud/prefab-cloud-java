@@ -21,7 +21,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>micronaut</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
 </dependency>
 ```
 

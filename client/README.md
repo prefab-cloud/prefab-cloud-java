@@ -13,7 +13,7 @@ See full documentation https://docs.prefab.cloud/docs/java-sdk/java
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
 </dependency>
 ```
 
@@ -25,7 +25,7 @@ For an uber-jar including relocated guava and failsafe dependencies add the "ube
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>client</artifactId>
-    <version>0.3.19</version>
+    <version>0.3.20</version>
     <classifier>uberjar</classifier>
 </dependency>
 ```
