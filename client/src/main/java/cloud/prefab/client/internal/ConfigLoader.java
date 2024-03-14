@@ -6,6 +6,7 @@ import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.context.PrefabContextSet;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.domain.Prefab.LogLevel;
 import com.google.common.annotations.VisibleForTesting;
@@ -23,13 +24,13 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -53,10 +54,10 @@ public class ConfigLoader {
 
   private final AtomicLong projectEnvId = new AtomicLong(0);
 
-  private final AtomicReference<ContextWrapper> configIncludedContext = new AtomicReference<>(
-    ContextWrapper.empty()
+  private final AtomicReference<PrefabContextSetReadable> configIncludedContext = new AtomicReference<>(
+    PrefabContextSetReadable.EMPTY
   );
-  private final ContextWrapper globalContext;
+  private final PrefabContextSetReadable globalContext;
 
   public ConfigLoader(Options options) {
     this.options = options;
@@ -65,12 +66,10 @@ public class ConfigLoader {
     this.classPathConfig = loadClasspathConfig();
     this.overrideConfig = loadOverrideConfig();
     this.globalContext =
-      new ContextWrapper(
-        options
-          .getGlobalContext()
-          .map(PrefabContextSet::flattenToImmutableMap)
-          .orElse(Collections.emptyMap())
-      );
+      options
+        .getGlobalContext()
+        .filter(Predicate.not(PrefabContextSetReadable::isEmpty))
+        .orElse(PrefabContextSetReadable.EMPTY);
   }
 
   /**
@@ -91,10 +90,8 @@ public class ConfigLoader {
     );
   }
 
-  private ContextWrapper getConfigIncludedContext(Prefab.Configs configs) {
-    return new ContextWrapper(
-      PrefabContextSet.from(configs.getDefaultContext()).flattenToImmutableMap()
-    );
+  private PrefabContextSetReadable getConfigIncludedContext(Prefab.Configs configs) {
+    return PrefabContextSet.from(configs.getDefaultContext());
   }
 
   public synchronized void setConfigs(Prefab.Configs configs, Provenance provenance) {

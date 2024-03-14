@@ -10,10 +10,11 @@ public class PrefabContextSet implements PrefabContextSetReadable {
 
   private final ConcurrentSkipListMap<String, PrefabContext> contextByNameMap = new ConcurrentSkipListMap<>();
 
-  public void addContext(PrefabContext prefabContext) {
+  public PrefabContextSet addContext(PrefabContext prefabContext) {
     if (prefabContext != null) {
       contextByNameMap.put(prefabContext.getName().toLowerCase(), prefabContext);
     }
+    return this;
   }
 
   public boolean isEmpty() {

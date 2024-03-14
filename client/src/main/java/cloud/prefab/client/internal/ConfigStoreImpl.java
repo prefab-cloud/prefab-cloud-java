@@ -2,6 +2,7 @@ package cloud.prefab.client.internal;
 
 import cloud.prefab.client.ConfigStore;
 import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.context.PrefabContextSetReadable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -10,7 +11,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ConfigStoreImpl implements ConfigStore {
 
   private final AtomicReference<MergedConfigData> data = new AtomicReference<>(
-    new MergedConfigData(Map.of(), 0, ContextWrapper.empty(), ContextWrapper.empty())
+    new MergedConfigData(
+      Map.of(),
+      0,
+      PrefabContextSetReadable.EMPTY,
+      PrefabContextSetReadable.EMPTY
+    )
   );
 
   @Override
@@ -47,12 +53,12 @@ public class ConfigStoreImpl implements ConfigStore {
   }
 
   @Override
-  public ContextWrapper getConfigIncludedContext() {
+  public PrefabContextSetReadable getConfigIncludedContext() {
     return data.get().getConfigIncludedContext();
   }
 
   @Override
-  public ContextWrapper getGlobalContext() {
-    return data.get().getGlobalContextWrapper();
+  public PrefabContextSetReadable getGlobalContext() {
+    return data.get().getGlobalContextSet();
   }
 }

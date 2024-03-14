@@ -10,6 +10,7 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.config.ConfigChangeEvent;
 import cloud.prefab.client.config.ConfigElement;
 import cloud.prefab.client.config.Provenance;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -96,8 +97,8 @@ public class UpdatingConfigResolverTest {
     return new MergedConfigData(
       config,
       TEST_PROJ_ENV,
-      ContextWrapper.empty(),
-      ContextWrapper.empty()
+      PrefabContextSetReadable.EMPTY,
+      PrefabContextSetReadable.EMPTY
     );
   }
 
@@ -156,8 +157,8 @@ public class UpdatingConfigResolverTest {
     return new MergedConfigData(
       config,
       TEST_PROJ_ENV,
-      ContextWrapper.empty(),
-      ContextWrapper.empty()
+      PrefabContextSetReadable.EMPTY,
+      PrefabContextSetReadable.EMPTY
     );
   }
 

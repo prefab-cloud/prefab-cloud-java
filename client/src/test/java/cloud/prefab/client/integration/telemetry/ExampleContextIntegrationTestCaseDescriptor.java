@@ -61,8 +61,6 @@ public class ExampleContextIntegrationTestCaseDescriptor
   protected void performVerification(PrefabCloudClient prefabCloudClient) {
     PrefabContextSet contextSetToSend = buildContextFromJsonNode(dataNode);
     PrefabContextSet expectedContextSet = buildContextFromJsonNode(expectedDataNode);
-    LOG.info("context set = {}", contextSetToSend);
-    LOG.info("expected context set = {}", expectedContextSet);
 
     prefabCloudClient.configClient().get("my-test-key", contextSetToSend);
     TelemetryAccumulator telemetryAccumulator = getTelemetryAccumulator(
@@ -79,6 +77,7 @@ public class ExampleContextIntegrationTestCaseDescriptor
           .map(Prefab.TelemetryEvent::getExampleContexts)
           .flatMap(c -> c.getExamplesList().stream())
           .flatMap(e -> e.getContextSet().getContextsList().stream())
+          .filter(c -> !c.getType().equals("prefab-api-key")) // ignore the context sent by api
           .collect(Collectors.toList());
 
         assertThat(actualContexts)

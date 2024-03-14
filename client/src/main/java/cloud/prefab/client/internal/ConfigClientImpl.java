@@ -18,7 +18,6 @@ import cloud.prefab.client.value.LiveStringList;
 import cloud.prefab.client.value.Value;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
-import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.annotations.VisibleForTesting;
@@ -194,9 +193,7 @@ public class ConfigClientImpl implements ConfigClient {
     String configKey,
     @Nullable PrefabContextSetReadable prefabContext
   ) {
-    PrefabContextSetReadable resolvedContext = resolveContext(prefabContext);
-    LookupContext lookupContext = new LookupContext(resolvedContext);
-    return getInternal(configKey, lookupContext);
+    return getInternal(configKey, prefabContext);
   }
 
   @Override
@@ -216,6 +213,18 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Collection<String> getAllKeys() {
     return updatingConfigResolver.getResolver().getKeys();
+  }
+
+  private Optional<Prefab.ConfigValue> getInternal(
+    String configKey,
+    PrefabContextSetReadable passedContext
+  ) {
+    waitForInitialization();
+    PrefabContextSetReadable resolvedContext = resolveContext(passedContext);
+    LookupContext lookupContext = new LookupContext(resolvedContext);
+    Optional<Match> matchMaybe = getMatchInternal(configKey, lookupContext);
+    reportMatchResult(configKey, matchMaybe.orElse(null), lookupContext);
+    return matchMaybe.map(Match::getConfigValue);
   }
 
   private Optional<Prefab.ConfigValue> getInternal(
@@ -273,6 +282,10 @@ public class ConfigClientImpl implements ConfigClient {
     String loggerName,
     @Nullable PrefabContextSetReadable prefabContext
   ) {
+    waitForInitialization();
+    // special case getLogLevel - want to reuse the same lookup context for all key name variants
+    // wait for initialization must happen before resolving the context so that any api-sent context
+    // will be included
     LookupContext lookupContext = new LookupContext(resolveContext(prefabContext));
     for (Iterator<String> it = loggerNameLookupIterator(loggerName); it.hasNext();) {
       String configKey = it.next();
@@ -289,45 +302,18 @@ public class ConfigClientImpl implements ConfigClient {
   private PrefabContextSetReadable resolveContext(
     @Nullable PrefabContextSetReadable prefabContextSetReadable
   ) {
-    Optional<PrefabContextSetReadable> newContext = Optional
-      .ofNullable(prefabContextSetReadable)
-      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
-
-    Optional<PrefabContextSetReadable> existingContext = getContextStore()
-      .getContext()
-      .filter(Predicate.not(PrefabContextSetReadable::isEmpty));
-
-    if (LOG.isTraceEnabled()) {
-      LOG.trace(
-        "context store contains {}, after filtering {}",
-        getContextStore().getContext().map(Object::toString).orElse("n/a"),
-        existingContext.map(Object::toString).orElse("n/a")
-      );
-
-      LOG.trace(
-        "Merging passed context {} with context store {}",
-        prefabContextSetReadable,
-        getContextStore().getContext().map(Object::toString).orElse("n/a")
-      );
-    }
-
-    if (newContext.isEmpty()) {
-      return existingContext.orElse(PrefabContextSetReadable.EMPTY);
-    } else {
-      if (existingContext.isEmpty()) {
-        return newContext.get();
-      } else {
-        // do the merge
-        PrefabContextSet prefabContextSet = new PrefabContextSet();
-        for (PrefabContext context : existingContext.get().getContexts()) {
-          prefabContextSet.addContext(context);
-        }
-        for (PrefabContext context : newContext.get().getContexts()) {
-          prefabContextSet.addContext(context);
-        }
-        return prefabContextSet;
-      }
-    }
+    return ContextMerger.merge(
+      updatingConfigResolver.getGlobalContext(),
+      updatingConfigResolver.getApiDefaultContext(),
+      getContextStore()
+        .getContext()
+        .filter(Predicate.not(PrefabContextSetReadable::isEmpty))
+        .orElse(PrefabContextSetReadable.EMPTY),
+      Optional
+        .ofNullable(prefabContextSetReadable)
+        .filter(Predicate.not(PrefabContextSetReadable::isEmpty))
+        .orElse(PrefabContextSetReadable.EMPTY)
+    );
   }
 
   @Override

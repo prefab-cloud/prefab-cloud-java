@@ -8,6 +8,7 @@ import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.client.config.logging.LogLevelChangeEvent;
 import cloud.prefab.client.exceptions.ConfigValueException;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.Maps;
 import java.util.Collection;
@@ -213,5 +214,13 @@ public class UpdatingConfigResolver {
 
   public Optional<Match> getRawMatch(String key, LookupContext lookupContext) {
     return configResolver.getRawMatch(key, lookupContext);
+  }
+
+  public PrefabContextSetReadable getApiDefaultContext() {
+    return configStore.getConfigIncludedContext();
+  }
+
+  public PrefabContextSetReadable getGlobalContext() {
+    return configStore.getGlobalContext();
   }
 }

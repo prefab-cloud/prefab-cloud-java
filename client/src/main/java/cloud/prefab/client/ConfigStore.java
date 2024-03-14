@@ -1,7 +1,7 @@
 package cloud.prefab.client;
 
 import cloud.prefab.client.config.ConfigElement;
-import cloud.prefab.client.internal.ContextWrapper;
+import cloud.prefab.context.PrefabContextSetReadable;
 import java.util.Collection;
 
 public interface ConfigStore {
@@ -23,11 +23,11 @@ public interface ConfigStore {
    *
    * @return the context sent from prefab - included with the config payload
    */
-  ContextWrapper getConfigIncludedContext();
+  PrefabContextSetReadable getConfigIncludedContext();
 
   /**
    *
    * @return the context set in options before starting the prefab client
    */
-  ContextWrapper getGlobalContext();
+  PrefabContextSetReadable getGlobalContext();
 }
