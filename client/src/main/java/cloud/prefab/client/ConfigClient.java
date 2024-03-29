@@ -6,6 +6,7 @@ import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,14 @@ public interface ConfigClient {
    * @return a value that will be evaluated at runtime based on the context from the current scope
    */
   Value<Double> liveDouble(String key);
+
+  /**
+   * Evaluates a configuration based on context from the ContextStore
+   * ie set via {@link ContextStore#addContext(PrefabContext) addContext}
+   * @param key name of the config to evaluate
+   * @return a Duration value that will be evaluated at runtime based on the context from the current scope
+   */
+  Value<Duration> liveDuration(String key);
 
   /**
    * Evaluates a configuration based on context set in the environment

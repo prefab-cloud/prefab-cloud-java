@@ -3,6 +3,7 @@ package cloud.prefab.client.config;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +47,15 @@ public class ConfigValueUtils {
 
   public static Prefab.ConfigValue from(Prefab.LogLevel logLevel) {
     return Prefab.ConfigValue.newBuilder().setLogLevel(logLevel).build();
+  }
+
+  public static Prefab.ConfigValue from(Duration duration) {
+    return Prefab.ConfigValue
+      .newBuilder()
+      .setDuration(
+        Prefab.IsoDuration.newBuilder().setDefinition(duration.toString()).build()
+      )
+      .build();
   }
 
   public static Map<String, Prefab.ConfigValue> fromStringMap(
@@ -97,6 +107,8 @@ public class ConfigValueUtils {
         return Optional.of(
           BaseEncoding.base16().encode(configValue.getBytes().toByteArray())
         );
+      case DURATION:
+        return Optional.of(configValue.getDuration().getDefinition());
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",
@@ -120,6 +132,8 @@ public class ConfigValueUtils {
         return Optional.of(configValue.getLogLevel());
       case STRING_LIST:
         return Optional.of(configValue.getStringList().getValuesList());
+      case DURATION:
+        return Optional.of(Duration.parse(configValue.getDuration().getDefinition()));
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",

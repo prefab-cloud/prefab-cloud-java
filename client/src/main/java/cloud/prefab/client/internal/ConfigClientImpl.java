@@ -12,6 +12,7 @@ import cloud.prefab.client.config.logging.LogLevelChangeEvent;
 import cloud.prefab.client.config.logging.LogLevelChangeListener;
 import cloud.prefab.client.value.LiveBoolean;
 import cloud.prefab.client.value.LiveDouble;
+import cloud.prefab.client.value.LiveDuration;
 import cloud.prefab.client.value.LiveLong;
 import cloud.prefab.client.value.LiveString;
 import cloud.prefab.client.value.LiveStringList;
@@ -28,6 +29,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -168,6 +170,11 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Value<Double> liveDouble(String key) {
     return new LiveDouble(this, key);
+  }
+
+  @Override
+  public Value<Duration> liveDuration(String key) {
+    return new LiveDuration(this, key);
   }
 
   @Override
