@@ -51,9 +51,7 @@ public class IntegrationTest {
   private static List<Path> findIntegrationTestFiles() throws IOException {
     try (
       Stream<Path> stream = Files.list(
-        INTEGRATION_TEST_DATA_DIRECTORY
-          .resolve("tests")
-          .resolve(getIntegrationTestsVersion())
+        INTEGRATION_TEST_DATA_DIRECTORY.resolve("tests/current")
       )
     ) {
       return stream.collect(Collectors.toList());
