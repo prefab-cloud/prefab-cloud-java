@@ -1,5 +1,6 @@
 package cloud.prefab.client.config;
 
+import cloud.prefab.client.util.BetterDurationParser;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
@@ -133,7 +134,9 @@ public class ConfigValueUtils {
       case STRING_LIST:
         return Optional.of(configValue.getStringList().getValuesList());
       case DURATION:
-        return Optional.of(Duration.parse(configValue.getDuration().getDefinition()));
+        return Optional.of(
+          BetterDurationParser.parse(configValue.getDuration().getDefinition())
+        );
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",
