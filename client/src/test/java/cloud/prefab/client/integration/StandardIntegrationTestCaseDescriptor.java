@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.errorprone.annotations.MustBeClosed;
+import java.util.Optional;
 import org.junit.jupiter.api.function.Executable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,8 @@ public class StandardIntegrationTestCaseDescriptor
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("client_overrides") IntegrationTestClientOverrides clientOverrides,
     @JsonProperty("input") IntegrationTestInput input,
-    @JsonProperty("expected") IntegrationTestExpectation expected
+    @JsonProperty("expected") IntegrationTestExpectation expected,
+    @JsonProperty("type") Optional<String> type
   ) {
     super(
       name,

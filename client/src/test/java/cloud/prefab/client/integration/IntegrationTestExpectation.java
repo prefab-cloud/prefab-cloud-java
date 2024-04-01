@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.google.common.collect.ImmutableMap;
+import java.time.Duration;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -45,9 +46,16 @@ public interface IntegrationTestExpectation {
     @Nullable
     private final Object expectedValue;
 
+    @Nullable
+    private final Long millisecondsDuration;
+
     @JsonCreator
-    private VerifyReturnValue(@JsonProperty("value") @Nullable Object expectedValue) {
+    private VerifyReturnValue(
+      @JsonProperty("value") @Nullable Object expectedValue,
+      @JsonProperty("millis") @Nullable Long millisecondsDuration
+    ) {
       this.expectedValue = expectedValue;
+      this.millisecondsDuration = millisecondsDuration;
     }
 
     @Override
@@ -57,7 +65,10 @@ public interface IntegrationTestExpectation {
       IntegrationTestInput input
     ) {
       Object actualValue = function.apply(client, input);
-      if (expectedValue == null) {
+      if (actualValue instanceof Duration && millisecondsDuration != null) {
+        Duration duration = (Duration) actualValue;
+        assertThat(duration.toMillis()).isEqualTo(millisecondsDuration);
+      } else if (expectedValue == null) {
         assertThat(actualValue).isNull();
       } else if (expectedValue instanceof Number && actualValue instanceof Number) {
         assertThat(String.valueOf(actualValue)).isEqualTo(String.valueOf(expectedValue));
