@@ -1,6 +1,6 @@
 package cloud.prefab.client.config;
 
-import cloud.prefab.client.util.BetterDurationParser;
+import cloud.prefab.client.util.FlexibleDurationParser;
 import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
@@ -135,7 +135,7 @@ public class ConfigValueUtils {
         return Optional.of(configValue.getStringList().getValuesList());
       case DURATION:
         return Optional.of(
-          BetterDurationParser.parse(configValue.getDuration().getDefinition())
+          FlexibleDurationParser.parse(configValue.getDuration().getDefinition())
         );
       default:
         LOG.debug(
