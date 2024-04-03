@@ -105,28 +105,28 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
             Prefab.ConfigEvaluationCounter onlyCount = actualSummary
               .getCountersList()
               .get(0);
-            assertThat(expectedDatum.configType)
+            assertThat(actualSummary.getType())
               .as("[%s] expected config type should match", key)
-              .isEqualTo(actualSummary.getType());
-            assertThat(expectedDatum.count)
+              .isEqualTo(expectedDatum.configType);
+            assertThat(onlyCount.getCount())
               .as("[%s] count should match", key)
-              .isEqualTo(onlyCount.getCount());
-            assertThat(expectedDatum.configValue)
+              .isEqualTo(expectedDatum.getCount());
+            assertThat(onlyCount.getSelectedValue())
               .as("[%s] config value should match", key)
-              .isEqualTo(onlyCount.getSelectedValue());
-            assertThat(expectedDatum.summaryNode.conditionalValueIndex)
+              .isEqualTo(expectedDatum.configValue);
+            assertThat(onlyCount.getConditionalValueIndex())
               .as("[%s] conditional value index should match", key)
-              .isEqualTo(onlyCount.getConditionalValueIndex());
-            assertThat(expectedDatum.summaryNode.configRowIndex)
+              .isEqualTo(expectedDatum.summaryNode.conditionalValueIndex);
+            assertThat(onlyCount.getConfigRowIndex())
               .as("[%s] config row index should match", key)
-              .isEqualTo(onlyCount.getConfigRowIndex());
-            assertThat(expectedDatum.summaryNode.weightedValueIndex)
+              .isEqualTo(expectedDatum.summaryNode.configRowIndex);
+            assertThat(
+              onlyCount.hasWeightedValueIndex()
+                ? Optional.of(onlyCount.getWeightedValueIndex())
+                : Optional.empty()
+            )
               .as("[%s] weighted value index should match", key)
-              .isEqualTo(
-                onlyCount.hasWeightedValueIndex()
-                  ? Optional.of(onlyCount.getWeightedValueIndex())
-                  : Optional.empty()
-              );
+              .isEqualTo(expectedDatum.summaryNode.weightedValueIndex);
           });
         });
       });
