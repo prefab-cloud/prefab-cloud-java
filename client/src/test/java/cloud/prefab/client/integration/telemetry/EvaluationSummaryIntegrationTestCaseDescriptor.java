@@ -3,7 +3,6 @@ package cloud.prefab.client.integration.telemetry;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 import static org.awaitility.Awaitility.await;
 
 import cloud.prefab.client.ConfigClient;
@@ -15,11 +14,8 @@ import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Maps;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -29,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.assertj.core.api.SoftAssertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,41 +94,41 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
         assertThat(mergedActualSummariesByKey.keySet())
           .containsAll(Set.copyOf(keysToEvaluate));
 
-        expectedDataByKey
-          .entrySet()
-          .forEach(entry -> {
-            String key = entry.getKey();
-            ExpectedDatum expectedDatum = entry.getValue();
-            Prefab.ConfigEvaluationSummary actualSummary = mergedActualSummariesByKey.get(
-              key
-            );
-            assertThat(actualSummary.getCountersCount()).isEqualTo(1);
+        expectedDataByKey.forEach((key, expectedDatum) -> {
+          Prefab.ConfigEvaluationSummary actualSummary = mergedActualSummariesByKey.get(
+            key
+          );
+          SoftAssertions.assertSoftly(softly -> {
+            assertThat(actualSummary.getCountersCount())
+              .as("[%s] should be only one actual counter")
+              .isEqualTo(1);
             Prefab.ConfigEvaluationCounter onlyCount = actualSummary
               .getCountersList()
               .get(0);
             assertThat(expectedDatum.configType)
-              .as("expected config type should match")
+              .as("[%s] expected config type should match", key)
               .isEqualTo(actualSummary.getType());
             assertThat(expectedDatum.count)
-              .as("count should match")
+              .as("[%s] count should match", key)
               .isEqualTo(onlyCount.getCount());
             assertThat(expectedDatum.configValue)
-              .as("config value should match")
+              .as("[%s] config value should match", key)
               .isEqualTo(onlyCount.getSelectedValue());
             assertThat(expectedDatum.summaryNode.conditionalValueIndex)
-              .as("conditional value index should match")
+              .as("[%s] conditional value index should match", key)
               .isEqualTo(onlyCount.getConditionalValueIndex());
             assertThat(expectedDatum.summaryNode.configRowIndex)
-              .as("config row index should match")
+              .as("[%s] config row index should match", key)
               .isEqualTo(onlyCount.getConfigRowIndex());
             assertThat(expectedDatum.summaryNode.weightedValueIndex)
-              .as("weighted value index should match")
+              .as("[%s] weighted value index should match", key)
               .isEqualTo(
                 onlyCount.hasWeightedValueIndex()
                   ? Optional.of(onlyCount.getWeightedValueIndex())
                   : Optional.empty()
               );
           });
+        });
       });
   }
 
