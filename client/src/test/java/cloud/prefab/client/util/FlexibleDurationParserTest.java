@@ -26,7 +26,7 @@ class FlexibleDurationParserTest {
       Arguments.of("P0.75D", (long) (TimeUnit.DAYS.toMillis(1) * 0.75)),
       Arguments.of("PT0.5S", (long) (TimeUnit.SECONDS.toMillis(1) * 0.5)),
       Arguments.of(
-        "P2DT1H3M.5S",
+        "P2DT1H3M0.5S",
         (long) (
           TimeUnit.DAYS.toMillis(2) +
           TimeUnit.HOURS.toMillis(1) +
