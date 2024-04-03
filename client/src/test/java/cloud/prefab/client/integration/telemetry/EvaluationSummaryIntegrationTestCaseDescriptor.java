@@ -10,6 +10,8 @@ import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.integration.IntegrationTestClientOverrides;
 import cloud.prefab.client.integration.IntegrationTestFunction;
+import cloud.prefab.client.integration.PrefabContextFactory;
+import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -35,8 +37,25 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
   private static final Logger LOG = LoggerFactory.getLogger(
     EvaluationSummaryIntegrationTestCaseDescriptor.class
   );
+
+  static class KeysAndContext {
+
+    private final List<String> keys;
+    private final Map<String, Map<String, Object>> context;
+
+    KeysAndContext(
+      @JsonProperty("keys") List<String> keys,
+      @JsonProperty("context") Map<String, Map<String, Object>> context
+    ) {
+      this.keys = keys;
+      this.context = context;
+    }
+  }
+
   private final List<String> keysToEvaluate;
   private final List<ExpectedDatum> expectedData;
+
+  private final Map<String, Map<String, Object>> contextMap;
 
   @JsonCreator
   public EvaluationSummaryIntegrationTestCaseDescriptor(
@@ -46,14 +65,15 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
     @JsonProperty("endpoint") String endpoint,
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("aggregator") String aggregator,
-    @JsonProperty("data") List<String> keysToEvaluate,
+    @JsonProperty("data") KeysAndContext keysAndContext,
     @JsonProperty("expected_data") List<ExpectedDatum> expectedData
   ) {
     super(
       name,
       MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
     );
-    this.keysToEvaluate = keysToEvaluate;
+    this.keysToEvaluate = keysAndContext.keys;
+    this.contextMap = keysAndContext.context;
     this.expectedData = expectedData;
     LOG.info("expected data is {}", expectedData);
   }
@@ -63,8 +83,10 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
     LOG.info("performVerification");
     ConfigClient configClient = prefabCloudClient.configClient();
 
+    PrefabContextSetReadable context = PrefabContextFactory.from(contextMap);
+
     for (String key : keysToEvaluate) {
-      configClient.get(key);
+      configClient.get(key, context);
     }
 
     Map<String, ExpectedDatum> expectedDataByKey = expectedData
