@@ -1,6 +1,7 @@
 package cloud.prefab.client.value;
 
 import cloud.prefab.client.ConfigClient;
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.domain.Prefab;
 import java.time.Duration;
 import java.util.Optional;
@@ -18,7 +19,7 @@ public class LiveDuration extends AbstractLiveValue<Duration> {
   @Override
   public Optional<Duration> resolve(Prefab.ConfigValue value) {
     if (value.hasDuration()) {
-      return Optional.of(Duration.parse(value.getDuration().getDefinition()));
+      return Optional.of(ConfigValueUtils.asDuration(value));
     } else {
       LOG.warn(
         String.format(

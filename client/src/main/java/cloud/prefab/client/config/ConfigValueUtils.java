@@ -2,6 +2,7 @@ package cloud.prefab.client.config;
 
 import cloud.prefab.client.util.FlexibleDurationParser;
 import cloud.prefab.domain.Prefab;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import java.time.Duration;
@@ -134,9 +135,7 @@ public class ConfigValueUtils {
       case STRING_LIST:
         return Optional.of(configValue.getStringList().getValuesList());
       case DURATION:
-        return Optional.of(
-          FlexibleDurationParser.parse(configValue.getDuration().getDefinition())
-        );
+        return Optional.of(asDuration(configValue));
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",
@@ -144,6 +143,14 @@ public class ConfigValueUtils {
         );
         return Optional.empty();
     }
+  }
+
+  public static Duration asDuration(Prefab.ConfigValue configValue) {
+    Preconditions.checkArgument(
+      configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.DURATION,
+      "Config value is not of type DURATION"
+    );
+    return FlexibleDurationParser.parse(configValue.getDuration().getDefinition());
   }
 
   @Deprecated
