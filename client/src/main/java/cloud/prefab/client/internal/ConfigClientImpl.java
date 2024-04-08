@@ -78,6 +78,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   private final ContextStore contextStore;
   private final TelemetryManager telemetryManager;
+  private final TypedConfigClientImpl typedConfigImpl;
 
   public ConfigClientImpl(
     PrefabCloudClient baseClient,
@@ -110,6 +111,7 @@ public class ConfigClientImpl implements ConfigClient {
     configChangeListeners.addAll(Arrays.asList(listeners));
     logLevelChangeListeners.addAll(baseClient.getOptions().getLogLevelChangeListeners());
     contextStore = options.getContextStore();
+    typedConfigImpl = new TypedConfigClientImpl(this);
     if (options.isLocalOnly()) {
       finishInit(Source.LOCAL_ONLY);
       prefabHttpClient = null;
@@ -180,6 +182,60 @@ public class ConfigClientImpl implements ConfigClient {
   @Override
   public Value<Boolean> liveBoolean(String key) {
     return new LiveBoolean(this, key);
+  }
+
+  @Override
+  public boolean getBoolean(
+    String key,
+    boolean defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getBoolean(key, defaultValue, context);
+  }
+
+  @Override
+  public long getLong(
+    String key,
+    long defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getLong(key, defaultValue, context);
+  }
+
+  @Override
+  public double getDouble(
+    String key,
+    double defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getDouble(key, defaultValue, context);
+  }
+
+  @Override
+  public String getString(
+    String key,
+    String defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getString(key, defaultValue, context);
+  }
+
+  @Override
+  public List<String> getStringList(
+    String key,
+    List<String> defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getStringList(key, defaultValue, context);
+  }
+
+  @Override
+  public Duration getDuration(
+    String key,
+    Duration defaultValue,
+    @Nullable PrefabContextSetReadable context
+  ) {
+    return typedConfigImpl.getDuration(key, defaultValue, context);
   }
 
   @Override
