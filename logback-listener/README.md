@@ -15,7 +15,7 @@ Maven
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>logback-listener</artifactId>
-    <version>0.3.20</version>
+    <version>0.3.21</version>
 </dependency>
 ```
 
