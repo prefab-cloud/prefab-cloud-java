@@ -20,7 +20,7 @@ _This logger is for the `org.apache.logging.log4j:log4j-core` version of Log4j_
 ### Install
 
 ```java
-PrefabContextTurboFilter.install(configClient);
+PrefabContextFilter.install(configClient);
 ```
 
 Please contact us for assistance if this installation approach won't work with your system.
