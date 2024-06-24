@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.integration.IntegrationTestClientOverrides;
 import cloud.prefab.client.integration.IntegrationTestFunction;
+import cloud.prefab.client.integration.PrefabContextFactory;
 import cloud.prefab.client.integration.TelemetryAccumulator;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
@@ -16,6 +17,8 @@ import com.google.common.base.MoreObjects;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
@@ -39,11 +42,18 @@ public class ContextShapeIntegrationTestCaseDescriptor
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("aggregator") String aggregator,
     @JsonProperty("data") JsonNode dataNode,
-    @JsonProperty("expected_data") JsonNode expectedDataNode
+    @JsonProperty("expected_data") JsonNode expectedDataNode,
+    @JsonProperty(
+      "contexts"
+    ) Optional<Map<String, Map<String, Map<String, Object>>>> contextMapMaybe
   ) {
     super(
       name,
-      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
+      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty()),
+      contextMapMaybe
+        .map(contextMap -> contextMap.get("global"))
+        .map(PrefabContextFactory::from)
+        .map(PrefabContextSet::convert)
     );
     this.dataNode = dataNode;
     this.expectedDataNode = expectedDataNode;

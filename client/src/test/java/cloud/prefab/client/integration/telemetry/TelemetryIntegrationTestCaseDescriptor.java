@@ -14,6 +14,7 @@ import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.MoreObjects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
@@ -29,11 +30,13 @@ public abstract class TelemetryIntegrationTestCaseDescriptor
 
   public TelemetryIntegrationTestCaseDescriptor(
     String name,
-    IntegrationTestClientOverrides clientOverrides
+    IntegrationTestClientOverrides clientOverrides,
+    Optional<PrefabContextSet> globalContext
   ) {
     super(
       name,
-      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
+      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty()),
+      globalContext
     );
   }
 
@@ -97,7 +100,7 @@ public abstract class TelemetryIntegrationTestCaseDescriptor
           default:
             throw new RuntimeException(
               String.format(
-                "unexpected number type {} in node {}",
+                "unexpected number type %s in node %s",
                 valueNode.numberType(),
                 valueNode
               )
@@ -116,7 +119,7 @@ public abstract class TelemetryIntegrationTestCaseDescriptor
       default:
         throw new RuntimeException(
           String.format(
-            "unexpected node type {} for node",
+            "unexpected node type %s for node %s",
             valueNode.getNodeType(),
             valueNode
           )

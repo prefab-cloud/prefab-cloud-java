@@ -11,6 +11,7 @@ import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.integration.IntegrationTestClientOverrides;
 import cloud.prefab.client.integration.IntegrationTestFunction;
 import cloud.prefab.client.integration.PrefabContextFactory;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -21,6 +22,7 @@ import com.google.common.base.MoreObjects;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,7 +57,7 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
   private final List<String> keysToEvaluate;
   private final List<ExpectedDatum> expectedData;
 
-  private final Map<String, Map<String, Object>> contextMap;
+  private final Map<String, Map<String, Map<String, Object>>> contextMap;
 
   @JsonCreator
   public EvaluationSummaryIntegrationTestCaseDescriptor(
@@ -66,15 +68,22 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("aggregator") String aggregator,
     @JsonProperty("data") KeysAndContext keysAndContext,
-    @JsonProperty("expected_data") List<ExpectedDatum> expectedData
+    @JsonProperty("expected_data") List<ExpectedDatum> expectedData,
+    @JsonProperty(
+      "contexts"
+    ) Optional<Map<String, Map<String, Map<String, Object>>>> contextMapMaybe
   ) {
     super(
       name,
-      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
+      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty()),
+      contextMapMaybe
+        .map(contextMap -> contextMap.get("global"))
+        .map(PrefabContextFactory::from)
+        .map(PrefabContextSet::convert)
     );
     this.keysToEvaluate = keysAndContext.keys;
-    this.contextMap = keysAndContext.context;
     this.expectedData = expectedData;
+    this.contextMap = contextMapMaybe.orElse(Collections.emptyMap());
     LOG.info("expected data is {}", expectedData);
   }
 
@@ -83,7 +92,7 @@ public class EvaluationSummaryIntegrationTestCaseDescriptor
     LOG.info("performVerification");
     ConfigClient configClient = prefabCloudClient.configClient();
 
-    PrefabContextSetReadable context = PrefabContextFactory.from(contextMap);
+    PrefabContextSetReadable context = PrefabContextFactory.from(contextMap.get("local"));
 
     for (String key : keysToEvaluate) {
       configClient.get(key, context);

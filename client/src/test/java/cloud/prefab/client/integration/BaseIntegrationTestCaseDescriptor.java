@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.fail;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.context.PrefabContextHelper;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import com.google.errorprone.annotations.MustBeClosed;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.function.Executable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,13 +21,17 @@ public abstract class BaseIntegrationTestCaseDescriptor {
   );
   private final String name;
   private final IntegrationTestClientOverrides clientOverrides;
+  private final Optional<PrefabContextSet> globalContextMaybe;
+  protected Optional<String> dataType;
 
   public BaseIntegrationTestCaseDescriptor(
     String name,
-    IntegrationTestClientOverrides clientOverrides
+    IntegrationTestClientOverrides clientOverrides,
+    Optional<PrefabContextSet> globalContextMaybe
   ) {
     this.name = name;
     this.clientOverrides = clientOverrides;
+    this.globalContextMaybe = globalContextMaybe;
   }
 
   public String getName() {
@@ -41,7 +47,11 @@ public abstract class BaseIntegrationTestCaseDescriptor {
     "IS_A_NUMBER"
   );
 
-  public Executable asExecutable(PrefabContextSetReadable prefabContext) {
+  protected PrefabContextSetReadable getBlockContext() {
+    return PrefabContextSet.EMPTY;
+  }
+
+  public Executable asExecutable() {
     return () -> {
       for (String requiredEnvVar : REQUIRED_ENV_VARS) {
         if (System.getenv(requiredEnvVar) == null) {
@@ -55,7 +65,7 @@ public abstract class BaseIntegrationTestCaseDescriptor {
         PrefabContextHelper helper = new PrefabContextHelper(client.configClient());
         try (
           PrefabContextHelper.PrefabContextScope ignored = helper.performWorkWithAutoClosingContext(
-            prefabContext
+            getBlockContext()
           )
         ) {
           performVerification(client);
@@ -83,6 +93,7 @@ public abstract class BaseIntegrationTestCaseDescriptor {
     clientOverrides.getPrefabApiUrl().ifPresent(options::setPrefabApiUrl);
     clientOverrides.getOnInitFailure().ifPresent(options::setOnInitializationFailure);
     clientOverrides.getContextUploadMode().ifPresent(options::setContextUploadMode);
+    globalContextMaybe.ifPresent(options::setGlobalContext);
 
     if (clientOverrides.getAggregator().isPresent()) {
       LOG.error("clientOverrides-aggregator is not yet supported");
