@@ -18,7 +18,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -38,7 +42,8 @@ public interface IntegrationTestExpectation {
   void verifyScenario(
     PrefabCloudClient client,
     IntegrationTestFunction function,
-    IntegrationTestInput input
+    IntegrationTestInput input,
+    String dataType
   );
 
   class VerifyReturnValue implements IntegrationTestExpectation {
@@ -62,9 +67,27 @@ public interface IntegrationTestExpectation {
     public void verifyScenario(
       PrefabCloudClient client,
       IntegrationTestFunction function,
-      IntegrationTestInput input
+      IntegrationTestInput input,
+      String dataType
     ) {
       Object actualValue = function.apply(client, input);
+
+      if ("JSON".equals(dataType)) {
+        Preconditions.checkArgument(
+          actualValue instanceof String,
+          "json return value should be a string"
+        );
+        try {
+          ObjectMapper objectMapper = new ObjectMapper();
+          JsonNode actualValueAsJson = objectMapper.readTree((String) actualValue);
+          JsonNode expectedValueAsJson = objectMapper.valueToTree(expectedValue);
+          assertThat(actualValueAsJson).isEqualTo(expectedValueAsJson);
+          return;
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
       if (actualValue instanceof Duration && millisecondsDuration != null) {
         Duration duration = (Duration) actualValue;
         assertThat(duration.toMillis()).isEqualTo(millisecondsDuration);
@@ -111,7 +134,8 @@ public interface IntegrationTestExpectation {
     public void verifyScenario(
       PrefabCloudClient client,
       IntegrationTestFunction function,
-      IntegrationTestInput input
+      IntegrationTestInput input,
+      String dataType
     ) {
       Class<?> errorClass = ERROR_TYPES.get(error);
       assertThat(errorClass).describedAs("Unknown error type: %s", error).isNotNull();

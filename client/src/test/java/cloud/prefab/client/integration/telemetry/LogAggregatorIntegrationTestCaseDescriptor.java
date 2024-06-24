@@ -6,7 +6,9 @@ import static org.awaitility.Awaitility.await;
 import cloud.prefab.client.PrefabCloudClient;
 import cloud.prefab.client.integration.IntegrationTestClientOverrides;
 import cloud.prefab.client.integration.IntegrationTestFunction;
+import cloud.prefab.client.integration.PrefabContextFactory;
 import cloud.prefab.client.integration.TelemetryAccumulator;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.domain.Prefab;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,11 +54,18 @@ public class LogAggregatorIntegrationTestCaseDescriptor
     @JsonProperty("function") IntegrationTestFunction function,
     @JsonProperty("aggregator") String aggregator,
     @JsonProperty("data") List<LoggerNamesAndCounts> inputData,
-    @JsonProperty("expected_data") List<LoggerNamesAndCounts> expectedData
+    @JsonProperty("expected_data") List<LoggerNamesAndCounts> expectedData,
+    @JsonProperty(
+      "contexts"
+    ) Optional<Map<String, Map<String, Map<String, Object>>>> contextMapMaybe
   ) {
     super(
       name,
-      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty())
+      MoreObjects.firstNonNull(clientOverrides, IntegrationTestClientOverrides.empty()),
+      contextMapMaybe
+        .map(contextMap -> contextMap.get("global"))
+        .map(PrefabContextFactory::from)
+        .map(PrefabContextSet::convert)
     );
     this.inputData = inputData;
     this.expectedData = expectedData;

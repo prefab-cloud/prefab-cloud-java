@@ -1,8 +1,6 @@
 package cloud.prefab.client.integration;
 
-import cloud.prefab.context.PrefabContextSetReadable;
 import com.google.common.base.Joiner;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
@@ -33,9 +31,8 @@ public class IntegrationTestFile {
   public Stream<DynamicTest> buildDynamicTests() {
     return getTests()
       .stream()
-      .flatMap(testDescriptor -> {
-        PrefabContextSetReadable contextSetReadable = testDescriptor.getPrefabContext();
-        return testDescriptor
+      .flatMap(testDescriptor ->
+        testDescriptor
           .getTestCaseDescriptors()
           .stream()
           .map(testCaseDescriptor -> {
@@ -51,9 +48,9 @@ public class IntegrationTestFile {
               );
             return DynamicTest.dynamicTest(
               displayName,
-              testCaseDescriptor.asExecutable(contextSetReadable)
+              testCaseDescriptor.asExecutable()
             );
-          });
-      });
+          })
+      );
   }
 }
