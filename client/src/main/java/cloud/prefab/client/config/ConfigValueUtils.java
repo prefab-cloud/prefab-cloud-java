@@ -136,6 +136,8 @@ public class ConfigValueUtils {
         return Optional.of(configValue.getStringList().getValuesList());
       case DURATION:
         return Optional.of(asDuration(configValue));
+      case JSON:
+        return Optional.of(configValue.getJson().getJson());
       default:
         LOG.debug(
           "Encountered unexpected type {} of configValue to coerce to string",
