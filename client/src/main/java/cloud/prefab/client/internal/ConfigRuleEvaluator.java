@@ -7,6 +7,7 @@ import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -349,35 +351,35 @@ public class ConfigRuleEvaluator {
           );
         }
       case PROP_IS_ONE_OF:
-        if (propStringValue.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
+      // fall through
+      case PROP_IS_NOT_ONE_OF:
+        // this is actually going to function as intersection -- true if there is non-empty overlap between the collection value on the left or on the right
+        Set<String> contextValueSet = prop
+          .map(ConfigRuleEvaluator::coerceToStringList)
+          .orElseGet(Collections::emptySet);
+        if (contextValueSet.isEmpty()) {
+          return List.of(
+            new EvaluatedCriterion(
+              criterion,
+              criterion.getOperator() ==
+              Prefab.Criterion.CriterionOperator.PROP_IS_NOT_ONE_OF
+            )
+          );
         }
+        boolean nonEmptyIntersection = !Sets
+          .intersection(
+            contextValueSet,
+            Set.copyOf(criterion.getValueToMatch().getStringList().getValuesList())
+          )
+          .isEmpty();
+
         // assumption that property is a String
         return List.of(
           new EvaluatedCriterion(
             criterion,
             propStringValue.get(),
-            criterion
-              .getValueToMatch()
-              .getStringList()
-              .getValuesList()
-              .contains(propStringValue.get())
-          )
-        );
-      case PROP_IS_NOT_ONE_OF:
-        if (propStringValue.isEmpty()) {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
-
-        return List.of(
-          new EvaluatedCriterion(
-            criterion,
-            propStringValue.get(),
-            !criterion
-              .getValueToMatch()
-              .getStringList()
-              .getValuesList()
-              .contains(propStringValue.get())
+            nonEmptyIntersection ==
+            (criterion.getOperator() == Prefab.Criterion.CriterionOperator.PROP_IS_ONE_OF)
           )
         );
       case PROP_ENDS_WITH_ONE_OF:
@@ -464,5 +466,15 @@ public class ConfigRuleEvaluator {
 
   public boolean containsKey(String key) {
     return configStore.containsKey(key);
+  }
+
+  private static Set<String> coerceToStringList(Prefab.ConfigValue configValue) {
+    if (configValue.getTypeCase() == Prefab.ConfigValue.TypeCase.STRING_LIST) {
+      return Set.copyOf(configValue.getStringList().getValuesList());
+    }
+    return ConfigValueUtils
+      .coerceToString(configValue)
+      .map(Collections::singleton)
+      .orElseGet(Collections::emptySet);
   }
 }
