@@ -47,6 +47,8 @@ public class PrefabHttpClient {
     this.options = options;
     this.telemetryUrl =
       URI.create("https://" + options.getPrefabTelemetryDomain() + "/api/v1/telemetry");
+
+    LOG.info("Will send telemetry to {}", telemetryUrl);
   }
 
   private static HttpResponse.BodySubscriber<Supplier<Prefab.TelemetryEventsResponse>> asProto() {
@@ -81,11 +83,15 @@ public class PrefabHttpClient {
     long offset,
     Flow.Subscriber<String> lineSubscriber
   ) {
+    URI uri = URI.create(options.getPrefabApiUrl() + "/api/v1/sse/config");
+
+    LOG.info("Requesting SSE from {}", uri);
+
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Accept", EVENT_STREAM_MEDIA_TYPE)
       .header(START_AT_HEADER, String.valueOf(offset))
       .timeout(Duration.ofSeconds(5))
-      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/sse/config"))
+      .uri(uri)
       .build();
 
     return httpClient
