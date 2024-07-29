@@ -4,7 +4,7 @@
   <parent>
     <groupId>cloud.prefab</groupId>
     <artifactId>prefab-cloud-parent</artifactId>
-    <version>0.3.22-pre2</version>
+    <version>0.3.22-pre4</version>
   </parent>
 
   <artifactId>micronaut</artifactId>
