@@ -6,6 +6,7 @@ import cloud.prefab.sse.events.DataEvent;
 import cloud.prefab.sse.events.Event;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +55,7 @@ public class SseConfigStreamingSubscriber {
         prefabHttpClient.requestConfigSSE(highwaterMarkSupplier.get(), sseHandler);
       } catch (Exception e) {
         if (e.getMessage().contains("GOAWAY")) {
-          LOG.info("Got GOAWAY on SSE config stream, will restart connection.");
+          LOG.debug("Got GOAWAY on SSE config stream, will restart connection.");
         } else {
           LOG.warn("Unexpected exception starting SSE config stream, will retry", e);
         }
@@ -127,6 +128,11 @@ public class SseConfigStreamingSubscriber {
     @Override
     public void onError(Throwable throwable) {
       LOG.info("Unexpected error encountered", throwable);
+      if (Optional.ofNullable(throwable.getMessage()).orElse("").contains("GOAWAY")) {
+        LOG.debug("Got GOAWAY on SSE config stream, will restart connection.");
+      } else {
+        LOG.warn("Unexpected exception from SSE config stream, will retry", throwable);
+      }
       restartHandler.accept(getHasReceivedData());
     }
 
