@@ -35,6 +35,7 @@ public class Options {
 
   private static final String DEFAULT_ENV = "default";
 
+  private String prefabDomain;
   private String prefabApiUrl;
   private String apikey;
   private String configOverrideDir;
@@ -69,10 +70,8 @@ public class Options {
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
-    this.prefabApiUrl =
-      Optional
-        .ofNullable(System.getenv("PREFAB_API_URL"))
-        .orElse("https://api.prefab.cloud");
+    this.prefabDomain =
+      Optional.ofNullable(System.getenv("PREFAB_API_DOMAIN")).orElse("prefab.cloud");
     configOverrideDir = System.getProperty("user.home");
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
@@ -115,13 +114,28 @@ public class Options {
     return this;
   }
 
+  public String getPrefabDomain() {
+    return prefabDomain;
+  }
+
+  public Options setPrefabDomain(String prefabDomain) {
+    this.prefabDomain = prefabDomain;
+    return this;
+  }
+
   public String getPrefabApiUrl() {
-    return prefabApiUrl;
+    return Optional
+      .ofNullable(System.getenv("PREFAB_API_URL"))
+      .orElseGet(() -> "https://cdn." + prefabDomain);
   }
 
   public Options setPrefabApiUrl(String prefabApiUrl) {
     this.prefabApiUrl = prefabApiUrl;
     return this;
+  }
+
+  public String getPrefabTelemetryDomain() {
+    return "telemetry." + prefabDomain;
   }
 
   public List<String> getPrefabEnvs() {
@@ -235,18 +249,6 @@ public class Options {
   public Options setCollectEvaluationSummaries(boolean collectEvaluationSummaries) {
     this.collectEvaluationSummaries = collectEvaluationSummaries;
     return this;
-  }
-
-  public String getCDNUrl() {
-    String envVar = System.getenv("PREFAB_CDN_URL");
-    if (envVar != null) {
-      return envVar;
-    } else {
-      return String.format(
-        "%s.global.ssl.fastly.net",
-        prefabApiUrl.replaceAll("/$", "").replaceAll("\\.", "-")
-      );
-    }
   }
 
   public List<String> getAllPrefabEnvs() {

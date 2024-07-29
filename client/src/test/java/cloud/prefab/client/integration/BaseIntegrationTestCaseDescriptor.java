@@ -85,7 +85,7 @@ public abstract class BaseIntegrationTestCaseDescriptor {
 
     Options options = new Options()
       .setApikey(apiKey)
-      .setPrefabApiUrl("https://api.staging-prefab.cloud")
+      .setPrefabDomain("staging-prefab.cloud")
       .setInitializationTimeoutSec(1000);
     clientOverrides
       .getInitTimeoutSeconds()

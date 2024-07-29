@@ -40,10 +40,13 @@ public class PrefabHttpClient {
   private static final String START_AT_HEADER = "x-prefab-start-at-id";
   private final Options options;
   private final HttpClient httpClient;
+  private final URI telemetryUrl;
 
   PrefabHttpClient(HttpClient httpClient, Options options) {
     this.httpClient = httpClient;
     this.options = options;
+    this.telemetryUrl =
+      URI.create("https://" + options.getPrefabTelemetryDomain() + "/api/v1/telemetry");
   }
 
   private static HttpResponse.BodySubscriber<Supplier<Prefab.TelemetryEventsResponse>> asProto() {
@@ -68,7 +71,7 @@ public class PrefabHttpClient {
     HttpRequest request = getClientBuilderWithStandardHeaders()
       .header("Content-Type", PROTO_MEDIA_TYPE)
       .header("Accept", PROTO_MEDIA_TYPE)
-      .uri(URI.create(options.getPrefabApiUrl() + "/api/v1/telemetry"))
+      .uri(telemetryUrl)
       .POST(HttpRequest.BodyPublishers.ofByteArray(telemetryEvents.toByteArray()))
       .build();
     return httpClient.sendAsync(request, responseInfo -> asProto());
@@ -95,14 +98,6 @@ public class PrefabHttpClient {
   ) {
     return requestConfigsFromURI(
       URI.create(options.getPrefabApiUrl() + "/api/v1/configs/" + offset)
-    );
-  }
-
-  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromCDN(
-    long offset
-  ) {
-    return requestConfigsFromURI(
-      URI.create(options.getCDNUrl() + "/api/v1/configs/" + offset)
     );
   }
 
