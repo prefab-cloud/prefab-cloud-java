@@ -441,7 +441,7 @@ public class ConfigClientImpl implements ConfigClient {
   Optional<Prefab.Configs> loadConfigs() {
     try {
       HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
-        .requestConfigsFromApi(0)
+        .requestConfigs(0)
         .get(5, TimeUnit.SECONDS);
       LOG.info(
         "Got {} loading configs from API url {}",

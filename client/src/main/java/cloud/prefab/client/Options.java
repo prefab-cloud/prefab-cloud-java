@@ -7,6 +7,7 @@ import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContextSetReadable;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -71,7 +72,7 @@ public class Options {
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
     this.prefabDomain =
-      Optional.ofNullable(System.getenv("PREFAB_API_DOMAIN")).orElse("prefab.cloud");
+      Optional.ofNullable(System.getenv("PREFAB_DOMAIN")).orElse("prefab.cloud");
     configOverrideDir = System.getProperty("user.home");
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
@@ -125,13 +126,20 @@ public class Options {
 
   public String getPrefabApiUrl() {
     return Optional
-      .ofNullable(System.getenv("PREFAB_API_URL"))
-      .orElseGet(() -> "https://cdn." + prefabDomain);
+      .ofNullable(System.getenv("PREFAB_API_URL_OVERRIDE"))
+      .orElseGet(() -> "https://" + getPrefabUrlHostNames().get(0) + "." + prefabDomain);
   }
 
   public Options setPrefabApiUrl(String prefabApiUrl) {
     this.prefabApiUrl = prefabApiUrl;
     return this;
+  }
+
+  public List<String> getPrefabUrlHostNames() {
+    return Optional
+      .ofNullable(System.getenv("PREFAB_HOSTNAMES"))
+      .map(e -> Splitter.on(',').splitToList(e))
+      .orElse(List.of("cdn"));
   }
 
   public String getPrefabTelemetryDomain() {

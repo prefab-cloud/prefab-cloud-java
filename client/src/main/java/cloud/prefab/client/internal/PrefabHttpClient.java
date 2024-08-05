@@ -79,7 +79,7 @@ public class PrefabHttpClient {
     return httpClient.sendAsync(request, responseInfo -> asProto());
   }
 
-  CompletableFuture<HttpResponse<Void>> requestConfigSSE(
+  CompletableFuture<HttpResponse<Void>> createSSEConfigConnection(
     long offset,
     Flow.Subscriber<String> lineSubscriber
   ) {
@@ -99,9 +99,7 @@ public class PrefabHttpClient {
       .whenCompleteAsync(this::checkForAuthFailure);
   }
 
-  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromApi(
-    long offset
-  ) {
+  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigs(long offset) {
     return requestConfigsFromURI(
       URI.create(options.getPrefabApiUrl() + "/api/v1/configs/" + offset)
     );
