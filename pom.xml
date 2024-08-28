@@ -10,7 +10,7 @@
 
   <groupId>cloud.prefab</groupId>
   <artifactId>prefab-cloud-parent</artifactId>
-  <version>0.3.22-pre4</version>
+  <version>0.3.22-pre5</version>
   <packaging>pom</packaging>
 
   <modules>
