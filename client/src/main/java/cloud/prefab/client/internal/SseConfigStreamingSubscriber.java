@@ -53,10 +53,14 @@ public class SseConfigStreamingSubscriber {
           hasReceivedData -> restart(hasReceivedData ? 1 : errorCount + 1)
         );
         sseHandler.subscribe(flowSubscriber);
-        prefabHttpClient.createSSEConfigConnection(
-          highwaterMarkSupplier.get(),
-          sseHandler
-        );
+        prefabHttpClient
+          .createSSEConfigConnection(highwaterMarkSupplier.get(), sseHandler)
+          .handle((ignored, throwable) -> {
+            if (throwable != null) {
+              LOG.warn("Error subscribing to SSE config", throwable);
+            }
+            return null;
+          });
       } catch (Exception e) {
         if (e.getMessage().contains("GOAWAY")) {
           LOG.debug("Got GOAWAY on SSE config stream, will restart connection.");

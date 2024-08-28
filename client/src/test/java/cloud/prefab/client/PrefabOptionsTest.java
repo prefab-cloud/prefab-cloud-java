@@ -10,19 +10,19 @@ public class PrefabOptionsTest {
   @Test
   public void testTelemetryDomain() {
     Options options = new Options();
-    assertThat(options.getPrefabTelemetryDomain()).isEqualTo("telemetry.prefab.cloud");
+    assertThat(options.getPrefabTelemetryHost())
+      .isEqualTo("https://telemetry.prefab.cloud");
 
-    options = new Options().setPrefabDomain("staging-prefab.cloud");
-    assertThat(options.getPrefabTelemetryDomain())
-      .isEqualTo("telemetry.staging-prefab.cloud");
+    options = new Options().setPrefabTelemetryHost("http://staging-prefab.cloud");
+    assertThat(options.getPrefabTelemetryHost()).isEqualTo("http://staging-prefab.cloud");
   }
 
   @Test
   public void testApiDomain() {
     Options options = new Options();
-    assertThat(options.getPrefabApiUrl()).isEqualTo("https://cdn.prefab.cloud");
-    options = new Options().setPrefabDomain("staging-prefab.cloud");
-    assertThat(options.getPrefabApiUrl()).isEqualTo("https://cdn.staging-prefab.cloud");
+    assertThat(options.getApiHosts()).isEqualTo(Options.DEFAULT_API_HOSTS);
+    options = new Options().setApiHosts(List.of("staging-prefab.cloud"));
+    assertThat(options.getApiHosts()).isEqualTo(List.of("https://staging-prefab.cloud"));
   }
 
   @Test

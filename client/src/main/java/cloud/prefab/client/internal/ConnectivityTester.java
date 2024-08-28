@@ -23,7 +23,7 @@ class ConnectivityTester {
   public boolean testHttps() {
     HttpRequest request = HttpRequest
       .newBuilder()
-      .uri(URI.create(options.getPrefabApiUrl() + "/hello"))
+      .uri(URI.create(options.getApiHosts().get(0) + "/hello"))
       .build();
     try {
       HttpResponse<Void> response = httpClient.send(

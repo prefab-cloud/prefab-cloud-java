@@ -135,8 +135,6 @@ public class ConfigClientImpl implements ConfigClient {
           )
         )
         .build();
-      ConnectivityTester connectivityTester = new ConnectivityTester(httpClient, options);
-      connectivityTester.testHttps();
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
       Executors.newSingleThreadExecutor().submit(this::startConnections);
       telemetryManager =

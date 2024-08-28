@@ -9,14 +9,25 @@ import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContextSetReadable;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class Options {
+
+  static final String DEFAULT_TELEMETRY_HOST = "https://telemetry.prefab.cloud";
+  static final List<String> DEFAULT_API_HOSTS = List.of(
+    "https://belt.prefab.cloud",
+    "https://suspenders.prefab.cloud"
+  );
+  private List<String> apiHosts = DEFAULT_API_HOSTS;
+  private String telemetryHost = DEFAULT_TELEMETRY_HOST;
 
   public enum Datasources {
     ALL,
@@ -71,8 +82,6 @@ public class Options {
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
-    this.prefabDomain =
-      Optional.ofNullable(System.getenv("PREFAB_DOMAIN")).orElse("prefab.cloud");
     configOverrideDir = System.getProperty("user.home");
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
@@ -115,35 +124,30 @@ public class Options {
     return this;
   }
 
-  public String getPrefabDomain() {
-    return prefabDomain;
+  public String getPrefabTelemetryHost() {
+    return telemetryHost;
   }
 
-  public Options setPrefabDomain(String prefabDomain) {
-    this.prefabDomain = prefabDomain;
+  /**
+   *
+   * @param prefabTelemetryHost -including schema
+   * @return
+   */
+  public Options setPrefabTelemetryHost(String prefabTelemetryHost) {
+    this.telemetryHost = prefixAndValidate(prefabTelemetryHost);
     return this;
   }
 
-  public String getPrefabApiUrl() {
-    return Optional
-      .ofNullable(System.getenv("PREFAB_API_URL_OVERRIDE"))
-      .orElseGet(() -> "https://" + getPrefabUrlHostNames().get(0) + "." + prefabDomain);
+  public List<String> getApiHosts() {
+    return apiHosts;
   }
 
-  public Options setPrefabApiUrl(String prefabApiUrl) {
-    this.prefabApiUrl = prefabApiUrl;
+  public Options setApiHosts(List<String> apiHosts) {
+    this.apiHosts =
+      List.copyOf(
+        apiHosts.stream().map(this::prefixAndValidate).collect(Collectors.toList())
+      );
     return this;
-  }
-
-  public List<String> getPrefabUrlHostNames() {
-    return Optional
-      .ofNullable(System.getenv("PREFAB_HOSTNAMES"))
-      .map(e -> Splitter.on(',').splitToList(e))
-      .orElse(List.of("cdn"));
-  }
-
-  public String getPrefabTelemetryDomain() {
-    return "telemetry." + prefabDomain;
   }
 
   public List<String> getPrefabEnvs() {
@@ -338,5 +342,22 @@ public class Options {
   public Options setGlobalContext(@Nullable PrefabContextSetReadable globalContext) {
     this.globalContext = globalContext;
     return this;
+  }
+
+  private String prefixAndValidate(String uri) {
+    String prefixed = httpsPrefix(uri);
+    try {
+      new URI(prefixed);
+      return prefixed;
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException("Invalid URI: " + uri, e);
+    }
+  }
+
+  private String httpsPrefix(String uri) {
+    if (uri.contains("://")) {
+      return uri;
+    }
+    return "https://" + uri;
   }
 }

@@ -85,12 +85,15 @@ public abstract class BaseIntegrationTestCaseDescriptor {
 
     Options options = new Options()
       .setApikey(apiKey)
-      .setPrefabDomain("staging-prefab.cloud")
-      .setInitializationTimeoutSec(1000);
+      .setPrefabTelemetryHost("https://telemetry.staging-prefab.cloud")
+      .setApiHosts(List.of("https://api.staging-prefab.cloud"))
+      .setInitializationTimeoutSec(2000);
     clientOverrides
       .getInitTimeoutSeconds()
       .ifPresent(options::setInitializationTimeoutSec);
-    clientOverrides.getPrefabApiUrl().ifPresent(options::setPrefabApiUrl);
+    clientOverrides
+      .getPrefabApiUrl()
+      .ifPresent(host -> options.setApiHosts(List.of(host)));
     clientOverrides.getOnInitFailure().ifPresent(options::setOnInitializationFailure);
     clientOverrides.getContextUploadMode().ifPresent(options::setContextUploadMode);
     globalContextMaybe.ifPresent(options::setGlobalContext);
