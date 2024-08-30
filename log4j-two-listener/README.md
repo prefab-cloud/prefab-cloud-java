@@ -13,7 +13,7 @@ _This logger is for the `org.apache.logging.log4j:log4j-core` version of Log4j_
 <dependency>
     <groupId>cloud.prefab</groupId>
     <artifactId>log4j-two-listener</artifactId>
-    <version>0.3.21</version>
+    <version>0.3.22</version>
 </dependency>
 ```
 
