@@ -7,15 +7,27 @@ import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContextSetReadable;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class Options {
+
+  static final String DEFAULT_TELEMETRY_HOST = "https://telemetry.prefab.cloud";
+  static final List<String> DEFAULT_API_HOSTS = List.of(
+    "https://belt.prefab.cloud",
+    "https://suspenders.prefab.cloud"
+  );
+  private List<String> apiHosts = DEFAULT_API_HOSTS;
+  private String telemetryHost = DEFAULT_TELEMETRY_HOST;
 
   public enum Datasources {
     ALL,
@@ -35,6 +47,7 @@ public class Options {
 
   private static final String DEFAULT_ENV = "default";
 
+  private String prefabDomain;
   private String prefabApiUrl;
   private String apikey;
   private String configOverrideDir;
@@ -69,10 +82,6 @@ public class Options {
 
   public Options() {
     this.apikey = System.getenv("PREFAB_API_KEY");
-    this.prefabApiUrl =
-      Optional
-        .ofNullable(System.getenv("PREFAB_API_URL"))
-        .orElse("https://api.prefab.cloud");
     configOverrideDir = System.getProperty("user.home");
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
@@ -115,12 +124,29 @@ public class Options {
     return this;
   }
 
-  public String getPrefabApiUrl() {
-    return prefabApiUrl;
+  public String getPrefabTelemetryHost() {
+    return telemetryHost;
   }
 
-  public Options setPrefabApiUrl(String prefabApiUrl) {
-    this.prefabApiUrl = prefabApiUrl;
+  /**
+   *
+   * @param prefabTelemetryHost -including schema
+   * @return
+   */
+  public Options setPrefabTelemetryHost(String prefabTelemetryHost) {
+    this.telemetryHost = prefixAndValidate(prefabTelemetryHost);
+    return this;
+  }
+
+  public List<String> getApiHosts() {
+    return apiHosts;
+  }
+
+  public Options setApiHosts(List<String> apiHosts) {
+    this.apiHosts =
+      List.copyOf(
+        apiHosts.stream().map(this::prefixAndValidate).collect(Collectors.toList())
+      );
     return this;
   }
 
@@ -237,18 +263,6 @@ public class Options {
     return this;
   }
 
-  public String getCDNUrl() {
-    String envVar = System.getenv("PREFAB_CDN_URL");
-    if (envVar != null) {
-      return envVar;
-    } else {
-      return String.format(
-        "%s.global.ssl.fastly.net",
-        prefabApiUrl.replaceAll("/$", "").replaceAll("\\.", "-")
-      );
-    }
-  }
-
   public List<String> getAllPrefabEnvs() {
     final List<String> envs = new ArrayList<>();
     envs.add(DEFAULT_ENV);
@@ -328,5 +342,22 @@ public class Options {
   public Options setGlobalContext(@Nullable PrefabContextSetReadable globalContext) {
     this.globalContext = globalContext;
     return this;
+  }
+
+  private String prefixAndValidate(String uri) {
+    String prefixed = httpsPrefix(uri);
+    try {
+      new URI(prefixed);
+      return prefixed;
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException("Invalid URI: " + uri, e);
+    }
+  }
+
+  private String httpsPrefix(String uri) {
+    if (uri.contains("://")) {
+      return uri;
+    }
+    return "https://" + uri;
   }
 }

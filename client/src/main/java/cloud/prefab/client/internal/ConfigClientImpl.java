@@ -135,11 +135,8 @@ public class ConfigClientImpl implements ConfigClient {
           )
         )
         .build();
-      ConnectivityTester connectivityTester = new ConnectivityTester(httpClient, options);
-      connectivityTester.testHttps();
       prefabHttpClient = new PrefabHttpClient(httpClient, options);
-      startStreaming();
-      startCheckpointExecutor();
+      Executors.newSingleThreadExecutor().submit(this::startConnections);
       telemetryManager =
         new TelemetryManager(
           new LoggerStatsAggregator(Clock.systemUTC()),
@@ -152,6 +149,19 @@ public class ConfigClientImpl implements ConfigClient {
         );
       telemetryManager.start();
     }
+  }
+
+  private void startConnections() {
+    Optional<Prefab.Configs> configsMaybe = loadConfigs();
+    configsMaybe.ifPresent(configs -> {
+      long maxId = configs
+        .getConfigsList()
+        .stream()
+        .mapToLong(Prefab.Config::getId)
+        .max()
+        .orElse(0);
+      startStreaming(maxId);
+    });
   }
 
   @Override
@@ -426,52 +436,26 @@ public class ConfigClientImpl implements ConfigClient {
     };
   }
 
-  private void loadCheckpoint() {
-    boolean cdnSuccess = loadCDN();
-    if (cdnSuccess) {
-      return;
-    }
-    loadAPI();
-  }
-
-  boolean loadCDN() {
+  Optional<Prefab.Configs> loadConfigs() {
     try {
       HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
-        .requestConfigsFromCDN(0)
+        .requestConfigs(0)
         .get(5, TimeUnit.SECONDS);
-      if (PrefabHttpClient.isSuccess(response.statusCode())) {
-        loadConfigs(response.body().get(), Source.REMOTE_CDN);
-        return true;
-      }
-      LOG.info(
-        "Got {} loading configs from CDN url {}",
-        response.statusCode(),
-        response.request().uri()
-      );
-    } catch (Exception e) {
-      LOG.info("Got exception with message {} loading configs from CDN", e.getMessage());
-    }
-    return false;
-  }
-
-  boolean loadAPI() {
-    try {
-      HttpResponse<Supplier<Prefab.Configs>> response = prefabHttpClient
-        .requestConfigsFromApi(0)
-        .get(5, TimeUnit.SECONDS);
-      if (PrefabHttpClient.isSuccess(response.statusCode())) {
-        loadConfigs(response.body().get(), Source.REMOTE_API);
-        return true;
-      }
       LOG.info(
         "Got {} loading configs from API url {}",
         response.statusCode(),
         response.request().uri()
       );
+
+      if (PrefabHttpClient.isSuccess(response.statusCode())) {
+        Prefab.Configs configs = response.body().get();
+        loadConfigs(configs, Source.REMOTE_API);
+        return Optional.of(configs);
+      }
     } catch (Exception e) {
       LOG.info("Got exception with message {} loading configs from API", e.getMessage());
     }
-    return false;
+    return Optional.empty();
   }
 
   private ScheduledExecutorService startStreamingExecutor() {
@@ -487,7 +471,7 @@ public class ConfigClientImpl implements ConfigClient {
     );
   }
 
-  private void startStreaming() {
+  private void startStreaming(long highWaterMark) {
     ScheduledExecutorService scheduledExecutorService = startStreamingExecutor();
 
     LOG.info("Starting SSE config subscriber");
@@ -498,34 +482,6 @@ public class ConfigClientImpl implements ConfigClient {
       scheduledExecutorService
     );
     sseConfigStreamingSubscriber.start();
-  }
-
-  private void startCheckpointExecutor() {
-    ScheduledExecutorService executor = Executors.newScheduledThreadPool(
-      1,
-      r -> new Thread(r, "prefab-logger-checkpoint-executor")
-    );
-
-    ScheduledExecutorService scheduledExecutorService = MoreExecutors.getExitingScheduledExecutorService(
-      (ScheduledThreadPoolExecutor) executor,
-      100,
-      TimeUnit.MILLISECONDS
-    );
-
-    scheduledExecutorService.scheduleAtFixedRate(
-      () -> {
-        // allowing an exception to reach the ScheduledExecutor cancels future execution
-        // To prevent that we need to catch and log here
-        try {
-          loadCheckpoint();
-        } catch (Exception e) {
-          LOG.warn("Error getting checkpoint - will try again", e);
-        }
-      },
-      0,
-      DEFAULT_CHECKPOINT_SEC,
-      TimeUnit.SECONDS
-    );
   }
 
   private void finishInit(Source source) {

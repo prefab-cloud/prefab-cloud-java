@@ -2,6 +2,7 @@ package cloud.prefab.client.internal;
 
 import cloud.prefab.domain.Prefab;
 import cloud.prefab.sse.SSEHandler;
+import cloud.prefab.sse.events.CommentEvent;
 import cloud.prefab.sse.events.DataEvent;
 import cloud.prefab.sse.events.Event;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -52,7 +53,14 @@ public class SseConfigStreamingSubscriber {
           hasReceivedData -> restart(hasReceivedData ? 1 : errorCount + 1)
         );
         sseHandler.subscribe(flowSubscriber);
-        prefabHttpClient.requestConfigSSE(highwaterMarkSupplier.get(), sseHandler);
+        prefabHttpClient
+          .createSSEConfigConnection(highwaterMarkSupplier.get(), sseHandler)
+          .handle((ignored, throwable) -> {
+            if (throwable != null) {
+              LOG.warn("Error subscribing to SSE config", throwable);
+            }
+            return null;
+          });
       } catch (Exception e) {
         if (e.getMessage().contains("GOAWAY")) {
           LOG.debug("Got GOAWAY on SSE config stream, will restart connection.");
@@ -99,6 +107,10 @@ public class SseConfigStreamingSubscriber {
 
     @Override
     public void onNext(Event item) {
+      if (item instanceof CommentEvent) {
+        CommentEvent commentEvent = (CommentEvent) item;
+        LOG.info("Received comment event: {}", commentEvent);
+      }
       if (item instanceof DataEvent) {
         DataEvent dataEvent = (DataEvent) item;
         try {

@@ -8,21 +8,21 @@ import org.junit.jupiter.api.Test;
 public class PrefabOptionsTest {
 
   @Test
-  public void testCDNUrl() {
+  public void testTelemetryDomain() {
     Options options = new Options();
+    assertThat(options.getPrefabTelemetryHost())
+      .isEqualTo("https://telemetry.prefab.cloud");
 
-    assertThat(options.getCDNUrl())
-      .isEqualTo("https://api-prefab-cloud.global.ssl.fastly.net");
+    options = new Options().setPrefabTelemetryHost("http://staging-prefab.cloud");
+    assertThat(options.getPrefabTelemetryHost()).isEqualTo("http://staging-prefab.cloud");
+  }
 
-    options = new Options().setPrefabApiUrl("https://api.other-server.com");
-
-    assertThat(options.getCDNUrl())
-      .isEqualTo("https://api-other-server-com.global.ssl.fastly.net");
-
-    options = new Options().setPrefabApiUrl("https://api.other-server.com/");
-
-    assertThat(options.getCDNUrl())
-      .isEqualTo("https://api-other-server-com.global.ssl.fastly.net");
+  @Test
+  public void testApiDomain() {
+    Options options = new Options();
+    assertThat(options.getApiHosts()).isEqualTo(Options.DEFAULT_API_HOSTS);
+    options = new Options().setApiHosts(List.of("staging-prefab.cloud"));
+    assertThat(options.getApiHosts()).isEqualTo(List.of("https://staging-prefab.cloud"));
   }
 
   @Test
