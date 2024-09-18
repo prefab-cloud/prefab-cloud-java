@@ -26,6 +26,15 @@ public class PrefabOptionsTest {
   }
 
   @Test
+  public void testStreamDomain() {
+    Options options = new Options();
+    assertThat(options.getStreamHosts()).isEqualTo(Options.DEFAULT_STREAM_HOSTS);
+    options = new Options().setApiHosts(List.of("stream.staging-prefab.cloud"));
+    assertThat(options.getApiHosts())
+      .isEqualTo(List.of("https://stream.staging-prefab.cloud"));
+  }
+
+  @Test
   public void testPrefabEnvs() {
     Options options = new Options();
 

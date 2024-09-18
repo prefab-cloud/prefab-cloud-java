@@ -26,8 +26,11 @@ public class Options {
     "https://belt.prefab.cloud",
     "https://suspenders.prefab.cloud"
   );
+  static final List<String> DEFAULT_STREAM_HOSTS = List.of("https://stream.prefab.cloud");
+
   private List<String> apiHosts = DEFAULT_API_HOSTS;
   private String telemetryHost = DEFAULT_TELEMETRY_HOST;
+  private List<String> streamHosts = DEFAULT_STREAM_HOSTS;
 
   public enum Datasources {
     ALL,
@@ -47,8 +50,6 @@ public class Options {
 
   private static final String DEFAULT_ENV = "default";
 
-  private String prefabDomain;
-  private String prefabApiUrl;
   private String apikey;
   private String configOverrideDir;
   private List<String> prefabEnvs = new ArrayList<>();
@@ -146,6 +147,18 @@ public class Options {
     this.apiHosts =
       List.copyOf(
         apiHosts.stream().map(this::prefixAndValidate).collect(Collectors.toList())
+      );
+    return this;
+  }
+
+  public List<String> getStreamHosts() {
+    return streamHosts;
+  }
+
+  public Options setStreamHosts(List<String> streamHosts) {
+    this.streamHosts =
+      List.copyOf(
+        streamHosts.stream().map(this::prefixAndValidate).collect(Collectors.toList())
       );
     return this;
   }
