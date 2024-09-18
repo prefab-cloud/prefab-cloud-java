@@ -87,6 +87,7 @@ public abstract class BaseIntegrationTestCaseDescriptor {
       .setApikey(apiKey)
       .setPrefabTelemetryHost("https://telemetry.staging-prefab.cloud")
       .setApiHosts(List.of("https://api.staging-prefab.cloud"))
+      .setStreamHosts(List.of("https://stream.staging-prefab.cloud"))
       .setInitializationTimeoutSec(2000);
     clientOverrides
       .getInitTimeoutSeconds()
