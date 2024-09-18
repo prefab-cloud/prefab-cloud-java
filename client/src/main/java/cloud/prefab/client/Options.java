@@ -7,7 +7,6 @@ import cloud.prefab.client.internal.TelemetryListener;
 import cloud.prefab.client.internal.ThreadLocalContextStore;
 import cloud.prefab.context.ContextStore;
 import cloud.prefab.context.PrefabContextSetReadable;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -47,8 +46,6 @@ public class Options {
 
   private static final String DEFAULT_ENV = "default";
 
-  private String prefabDomain;
-  private String prefabApiUrl;
   private String apikey;
   private String configOverrideDir;
   private List<String> prefabEnvs = new ArrayList<>();
@@ -81,7 +78,7 @@ public class Options {
   private PrefabContextSetReadable globalContext;
 
   public Options() {
-    this.apikey = System.getenv("PREFAB_API_KEY");
+    setApikey(System.getenv("PREFAB_API_KEY"));
     configOverrideDir = System.getProperty("user.home");
     if ("LOCAL_ONLY".equals(System.getenv("PREFAB_DATASOURCES"))) {
       prefabDatasources = Datasources.LOCAL_ONLY;
@@ -104,7 +101,11 @@ public class Options {
    * @return Options
    */
   public Options setApikey(String apikey) {
-    this.apikey = apikey;
+    if (apikey == null) {
+      this.apikey = null;
+    } else {
+      this.apikey = apikey.trim();
+    }
     return this;
   }
 

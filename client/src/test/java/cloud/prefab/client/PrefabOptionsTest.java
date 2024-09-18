@@ -36,4 +36,11 @@ public class PrefabOptionsTest {
     assertThat(options.getAllPrefabEnvs())
       .isEqualTo(List.of("default", "development", "jeff"));
   }
+
+  @Test
+  public void apiKeyIsTrimmed() {
+    Options options = new Options();
+    options.setApikey("my-key\n");
+    assertThat(options.getApikey()).isEqualTo("my-key");
+  }
 }
