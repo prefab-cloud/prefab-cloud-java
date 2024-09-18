@@ -4,7 +4,6 @@ import cloud.prefab.client.Options;
 import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
 import dev.failsafe.Failsafe;
-import dev.failsafe.Fallback;
 import dev.failsafe.RetryPolicy;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,6 +47,7 @@ public class PrefabHttpClient {
   private final HttpClient httpClient;
   private final URI telemetryUrl;
   private final List<String> apiHosts;
+  private final List<String> streamHosts;
 
   PrefabHttpClient(HttpClient httpClient, Options options) {
     this.httpClient = httpClient;
@@ -55,6 +55,7 @@ public class PrefabHttpClient {
     this.telemetryUrl =
       URI.create(options.getPrefabTelemetryHost() + "/api/v1/telemetry");
     this.apiHosts = options.getApiHosts();
+    this.streamHosts = options.getStreamHosts();
 
     LOG.info("Will send telemetry to {}", telemetryUrl);
   }
@@ -91,24 +92,31 @@ public class PrefabHttpClient {
     long offset,
     Flow.Subscriber<String> lineSubscriber
   ) {
-    return executeWithFailover(host -> {
-      URI uri = URI.create(host + "/api/v1/sse/config");
-      LOG.info("Requesting SSE from {}", uri);
-      HttpRequest request = getClientBuilderWithStandardHeaders()
-        .header("Accept", EVENT_STREAM_MEDIA_TYPE)
-        .header(START_AT_HEADER, String.valueOf(offset))
-        .timeout(Duration.ofSeconds(5))
-        .uri(uri)
-        .build();
-      return httpClient
-        .sendAsync(request, HttpResponse.BodyHandlers.fromLineSubscriber(lineSubscriber))
-        .whenCompleteAsync(this::checkForAuthFailure);
-    });
+    return executeWithFailover(
+      host -> {
+        URI uri = URI.create(host + "/api/v1/sse/config");
+        LOG.info("Requesting SSE from {}", uri);
+        HttpRequest request = getClientBuilderWithStandardHeaders()
+          .header("Accept", EVENT_STREAM_MEDIA_TYPE)
+          .header(START_AT_HEADER, String.valueOf(offset))
+          .timeout(Duration.ofSeconds(5))
+          .uri(uri)
+          .build();
+        return httpClient
+          .sendAsync(
+            request,
+            HttpResponse.BodyHandlers.fromLineSubscriber(lineSubscriber)
+          )
+          .whenCompleteAsync(this::checkForAuthFailure);
+      },
+      streamHosts
+    );
   }
 
   CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigs(long offset) {
-    return executeWithFailover(host ->
-      requestConfigsFromURI(URI.create(host + "/api/v1/configs/" + offset))
+    return executeWithFailover(
+      host -> requestConfigsFromURI(URI.create(host + "/api/v1/configs/" + offset)),
+      apiHosts
     );
   }
 
@@ -177,7 +185,8 @@ public class PrefabHttpClient {
   }
 
   private <T> CompletableFuture<T> executeWithFailover(
-    Function<String, CompletableFuture<T>> operation
+    Function<String, CompletableFuture<T>> operation,
+    List<String> hostList
   ) {
     long maxRetriesPerHost = 2;
     AtomicInteger hostIndex = new AtomicInteger(0);
@@ -206,7 +215,7 @@ public class PrefabHttpClient {
     return Failsafe
       .with(retryPolicy)
       .getStageAsync(() -> {
-        String currentHost = apiHosts.get(hostIndex.get() % apiHosts.size());
+        String currentHost = hostList.get(hostIndex.get() % hostList.size());
         return operation.apply(currentHost);
       });
   }
