@@ -273,6 +273,7 @@ public class ConfigClientImpl implements ConfigClient {
   public Map<String, Prefab.ConfigValue> getAll(
     @Nullable PrefabContextSetReadable prefabContext
   ) {
+    waitForInitialization();
     LookupContext lookupContext = new LookupContext(resolveContext(prefabContext));
     ImmutableMap.Builder<String, Prefab.ConfigValue> bldr = ImmutableMap.builder();
     for (String key : getAllKeys()) {
@@ -285,6 +286,7 @@ public class ConfigClientImpl implements ConfigClient {
 
   @Override
   public Collection<String> getAllKeys() {
+    waitForInitialization();
     return updatingConfigResolver.getResolver().getKeys();
   }
 
