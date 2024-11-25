@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -383,31 +384,35 @@ public class ConfigRuleEvaluator {
           )
         );
       case PROP_ENDS_WITH_ONE_OF:
-        if (prop.isPresent() && prop.get().hasString()) {
-          final boolean matched = criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .stream()
-            .anyMatch(value -> prop.get().getString().endsWith(value));
-
-          return List.of(new EvaluatedCriterion(criterion, prop.get(), matched));
-        } else {
-          return List.of(new EvaluatedCriterion(criterion, false));
-        }
+      // fall through
       case PROP_DOES_NOT_END_WITH_ONE_OF:
-        if (prop.isPresent() && prop.get().hasString()) {
-          final boolean matched = criterion
-            .getValueToMatch()
-            .getStringList()
-            .getValuesList()
-            .stream()
-            .anyMatch(value -> prop.get().getString().endsWith(value));
-
-          return List.of(new EvaluatedCriterion(criterion, prop.get(), !matched));
-        } else {
-          return List.of(new EvaluatedCriterion(criterion, true));
-        }
+        return evaluateStringOperation(
+          criterion,
+          criterion.getOperator() ==
+          Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_END_WITH_ONE_OF,
+          String::endsWith,
+          prop
+        );
+      case PROP_CONTAINS_ONE_OF:
+      // fall through
+      case PROP_DOES_NOT_CONTAIN_ONE_OF:
+        return evaluateStringOperation(
+          criterion,
+          criterion.getOperator() ==
+          Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_CONTAIN_ONE_OF,
+          String::contains,
+          prop
+        );
+      case PROP_STARTS_WITH_ONE_OF:
+      // fall through
+      case PROP_DOES_NOT_START_WITH_ONE_OF:
+        return evaluateStringOperation(
+          criterion,
+          criterion.getOperator() ==
+          Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_START_WITH_ONE_OF,
+          String::startsWith,
+          prop
+        );
       case IN_INT_RANGE:
         if (
           prop.isPresent() &&
@@ -432,6 +437,35 @@ public class ConfigRuleEvaluator {
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
+  }
+
+  static boolean negate(boolean result, boolean negate) {
+    if (negate) {
+      return !result;
+    }
+    return result;
+  }
+
+  List<EvaluatedCriterion> evaluateStringOperation(
+    Prefab.Criterion criterion,
+    boolean negated,
+    BiPredicate<String, String> predicate,
+    Optional<Prefab.ConfigValue> prop
+  ) {
+    if (prop.isPresent() && prop.get().hasString()) {
+      final boolean matched = criterion
+        .getValueToMatch()
+        .getStringList()
+        .getValuesList()
+        .stream()
+        .anyMatch(value -> predicate.test(prop.get().getString(), value));
+
+      return List.of(
+        new EvaluatedCriterion(criterion, prop.get(), negate(matched, negated))
+      );
+    } else {
+      return List.of(new EvaluatedCriterion(criterion, negated));
+    }
   }
 
   /**
