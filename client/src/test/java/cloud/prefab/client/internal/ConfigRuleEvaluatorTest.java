@@ -6,16 +6,25 @@ import static org.mockito.Mockito.when;
 
 import cloud.prefab.client.ConfigClient;
 import cloud.prefab.client.config.ConfigElement;
+import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.checkerframework.checker.units.qual.N;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class ConfigRuleEvaluatorTest {
 
@@ -194,6 +203,184 @@ public class ConfigRuleEvaluatorTest {
     assertThat(gmailEval.isMatch()).isFalse();
     assertThat(gmailEval.getEvaluatedProperty().get().getString())
       .isEqualTo("alice@gmail.com");
+  }
+
+  @ParameterizedTest
+  @MethodSource("stringDoesNotContainArgs")
+  public void testStringDoesNotContain(
+    boolean isMatch,
+    @Nullable String value,
+    List<String> listContents
+  ) {
+    final String propertyName = "foo";
+
+    final Prefab.Criterion stringContainsCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(propertyName)
+      .setValueToMatch(ConfigValueUtils.from(listContents))
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_CONTAIN_ONE_OF)
+      .build();
+
+    var lookupContext = value != null
+      ? singleValueLookupContext(propertyName, sv(value))
+      : LookupContext.EMPTY;
+
+    testStringOperation(isMatch, stringContainsCriterion, lookupContext, value);
+  }
+
+  static Stream<Arguments> stringDoesNotContainArgs() {
+    List<String> emptyList = Collections.emptyList();
+    List<String> singleElementList = List.of("two");
+
+    return Stream.of(
+      Arguments.of(true, null, singleElementList),
+      Arguments.of(false, "one two three", singleElementList),
+      Arguments.of(false, "two three", singleElementList),
+      Arguments.of(false, "two", singleElementList),
+      Arguments.of(true, "Two", singleElementList),
+      Arguments.of(true, "foobar", singleElementList),
+      Arguments.of(true, "two", emptyList)
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("stringContainsArgs")
+  public void testStringContains(
+    boolean isMatch,
+    @Nullable String value,
+    List<String> listContents
+  ) {
+    final String propertyName = "foo";
+
+    final Prefab.Criterion stringContainsCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(propertyName)
+      .setValueToMatch(ConfigValueUtils.from(listContents))
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_CONTAINS_ONE_OF)
+      .build();
+
+    var lookupContext = value != null
+      ? singleValueLookupContext(propertyName, sv(value))
+      : LookupContext.EMPTY;
+
+    testStringOperation(isMatch, stringContainsCriterion, lookupContext, value);
+  }
+
+  static Stream<Arguments> stringContainsArgs() {
+    List<String> emptyList = Collections.emptyList();
+    List<String> singleElementList = List.of("two");
+
+    return Stream.of(
+      Arguments.of(false, null, singleElementList),
+      Arguments.of(true, "one two three", singleElementList),
+      Arguments.of(true, "two three", singleElementList),
+      Arguments.of(true, "two", singleElementList),
+      Arguments.of(false, "Two", singleElementList),
+      Arguments.of(false, "foobar", singleElementList),
+      Arguments.of(false, "two", emptyList)
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("stringDoesNotStartWithArgs")
+  public void testStringDoesNotStartWith(
+    boolean isMatch,
+    @Nullable String value,
+    List<String> listContents
+  ) {
+    final String propertyName = "foo";
+
+    final Prefab.Criterion stringContainsCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(propertyName)
+      .setValueToMatch(ConfigValueUtils.from(listContents))
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_START_WITH_ONE_OF)
+      .build();
+
+    var lookupContext = value != null
+      ? singleValueLookupContext(propertyName, sv(value))
+      : LookupContext.EMPTY;
+
+    testStringOperation(isMatch, stringContainsCriterion, lookupContext, value);
+  }
+
+  static Stream<Arguments> stringDoesNotStartWithArgs() {
+    List<String> emptyList = Collections.emptyList();
+    List<String> singleElementList = List.of("two");
+    List<String> twoElementList = List.of("two", "one");
+
+    return Stream.of(
+      Arguments.of(true, null, singleElementList),
+      Arguments.of(true, "one two three", singleElementList),
+      Arguments.of(false, "one two three", twoElementList),
+      Arguments.of(false, "two three", singleElementList),
+      Arguments.of(false, "two", singleElementList),
+      Arguments.of(true, "Two", singleElementList),
+      Arguments.of(true, "foobar", singleElementList),
+      Arguments.of(true, "two", emptyList)
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("stringStartsWithArgs")
+  public void testStringStartsWith(
+    boolean isMatch,
+    @Nullable String value,
+    List<String> listContents
+  ) {
+    final String propertyName = "foo";
+
+    final Prefab.Criterion stringContainsCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(propertyName)
+      .setValueToMatch(ConfigValueUtils.from(listContents))
+      .setOperator(Prefab.Criterion.CriterionOperator.PROP_STARTS_WITH_ONE_OF)
+      .build();
+
+    var lookupContext = value != null
+      ? singleValueLookupContext(propertyName, sv(value))
+      : LookupContext.EMPTY;
+
+    testStringOperation(isMatch, stringContainsCriterion, lookupContext, value);
+  }
+
+  static Stream<Arguments> stringStartsWithArgs() {
+    List<String> emptyList = Collections.emptyList();
+    List<String> singleElementList = List.of("two");
+    List<String> twoElementList = List.of("two", "one");
+
+    return Stream.of(
+      Arguments.of(false, null, singleElementList),
+      Arguments.of(false, "one two three", singleElementList),
+      Arguments.of(true, "one two three", twoElementList),
+      Arguments.of(true, "two three", singleElementList),
+      Arguments.of(true, "two", singleElementList),
+      Arguments.of(false, "Two", singleElementList),
+      Arguments.of(false, "foobar", singleElementList),
+      Arguments.of(false, "two", emptyList)
+    );
+  }
+
+  void testStringOperation(
+    boolean isMatch,
+    Prefab.Criterion criterion,
+    LookupContext lookupContext,
+    @Nullable String value
+  ) {
+    var eval = evaluator
+      .evaluateCriterionMatch(criterion, lookupContext)
+      .stream()
+      .findFirst()
+      .orElseThrow();
+    assertThat(eval.isMatch()).isEqualTo(isMatch);
+    if (isMatch) {
+      if (value != null) {
+        assertThat(eval.getEvaluatedProperty().orElseThrow().getString())
+          .isEqualTo(value);
+      } else {
+        assertThat(eval.getEvaluatedProperty()).isEmpty();
+      }
+    }
   }
 
   @Test
@@ -440,8 +627,13 @@ public class ConfigRuleEvaluatorTest {
 
   public static LookupContext singleValueLookupContext(
     String propName,
-    Prefab.ConfigValue configValue
+    @Nullable Prefab.ConfigValue configValue
   ) {
-    return new LookupContext(PrefabContext.unnamedFromMap(Map.of(propName, configValue)));
+    if (configValue != null) {
+      return new LookupContext(
+        PrefabContext.unnamedFromMap(Map.of(propName, configValue))
+      );
+    }
+    return LookupContext.EMPTY;
   }
 }
