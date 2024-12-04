@@ -7,6 +7,7 @@ import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Match;
 import cloud.prefab.client.config.logging.AbstractLoggingListener;
 import cloud.prefab.domain.Prefab;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -428,6 +430,14 @@ public class ConfigRuleEvaluator {
             )
           );
         }
+      case PROP_GREATER_THAN:
+      // fall through
+      case PROP_GREATER_THAN_OR_EQUAL:
+      // fall through
+      case PROP_LESS_THAN:
+      // fall through
+      case PROP_LESS_THAN_OR_EQUAL:
+        return evaluateNumericComparison(criterion, prop);
       default:
         LOG.debug(
           "Unexpected operator {} found in criterion {}",
@@ -437,6 +447,61 @@ public class ConfigRuleEvaluator {
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
+  }
+
+  private List<EvaluatedCriterion> evaluateNumericComparison(
+    Prefab.Criterion criterion,
+    Optional<Prefab.ConfigValue> valueFromContext
+  ) {
+    boolean comparison = false;
+
+    Optional<Number> numberToMatch = getCriterionValueToMatch(criterion)
+      .flatMap(this::getNumber);
+    Optional<Number> numberFromContext = valueFromContext.flatMap(this::getNumber);
+
+    if (numberToMatch.isPresent() && numberFromContext.isPresent()) {
+      comparison =
+        Optional
+          .ofNullable(NUMERIC_COMPARE_TO_EVAL.get(criterion.getOperator()))
+          .orElse(v -> false)
+          .test(compareTo(numberFromContext.get(), numberToMatch.get()));
+    }
+
+    return List.of(new EvaluatedCriterion(criterion, valueFromContext, comparison));
+  }
+
+  private int compareTo(Number number1, Number number2) {
+    return Double.compare(number1.doubleValue(), number2.doubleValue());
+  }
+
+  Map<Prefab.Criterion.CriterionOperator, Predicate<Integer>> NUMERIC_COMPARE_TO_EVAL = ImmutableMap.of(
+    Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN,
+    v -> v > 0,
+    Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+    v -> v >= 0,
+    Prefab.Criterion.CriterionOperator.PROP_LESS_THAN,
+    v -> v < 0,
+    Prefab.Criterion.CriterionOperator.PROP_LESS_THAN_OR_EQUAL,
+    v -> v <= 0
+  );
+
+  private Optional<Prefab.ConfigValue> getCriterionValueToMatch(
+    Prefab.Criterion criterion
+  ) {
+    if (criterion.hasValueToMatch()) {
+      return Optional.of(criterion.getValueToMatch());
+    }
+    return Optional.empty();
+  }
+
+  private Optional<Number> getNumber(Prefab.ConfigValue configValue) {
+    if (configValue.hasInt()) {
+      return Optional.of(configValue.getInt());
+    }
+    if (configValue.hasDouble()) {
+      return Optional.of(configValue.getDouble());
+    }
+    return Optional.empty();
   }
 
   static boolean negate(boolean result, boolean negate) {

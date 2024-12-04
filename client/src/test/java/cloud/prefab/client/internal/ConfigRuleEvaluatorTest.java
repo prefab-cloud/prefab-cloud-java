@@ -10,6 +10,7 @@ import cloud.prefab.client.config.ConfigValueUtils;
 import cloud.prefab.client.config.EvaluatedCriterion;
 import cloud.prefab.client.config.Provenance;
 import cloud.prefab.context.PrefabContext;
+import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
 import java.util.Collections;
@@ -25,6 +26,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.shadow.com.univocity.parsers.annotations.Nested;
 
 public class ConfigRuleEvaluatorTest {
 
@@ -580,6 +582,147 @@ public class ConfigRuleEvaluatorTest {
     assertThat(eval.isMatch()).isFalse();
   }
 
+  public static Stream<Arguments> numericComparisonArguments() {
+    return Stream.of(
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN,
+        ConfigValueUtils.from(1),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(2),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN,
+        ConfigValueUtils.from(2),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(1),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(2),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(1),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN,
+        ConfigValueUtils.from(2),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN,
+        ConfigValueUtils.from(1),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN_OR_EQUAL,
+        ConfigValueUtils.from(2),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN,
+        ConfigValueUtils.from(2),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(1),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN_OR_EQUAL,
+        ConfigValueUtils.from(2),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(1),
+        Prefab.Criterion.CriterionOperator.PROP_LESS_THAN,
+        ConfigValueUtils.from(2),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2.1),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1.1),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2.1),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1.1),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.1"),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from(1),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(2.1),
+        Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
+        ConfigValueUtils.from("1"),
+        false
+      )
+    );
+  }
+
+  @MethodSource("numericComparisonArguments")
+  @ParameterizedTest
+  void testNumericComparison(
+    Prefab.ConfigValue propertyValue,
+    Prefab.Criterion.CriterionOperator operator,
+    Prefab.ConfigValue criterionValue,
+    boolean expectedMatch
+  ) {
+    String contextName = "user";
+    String propertyName = "fooCount";
+    String fullPropertyName = contextName + "." + propertyName;
+    Prefab.Criterion criterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(fullPropertyName)
+      .setOperator(operator)
+      .setValueToMatch(criterionValue)
+      .build();
+    LookupContext lookupContext = new LookupContext(
+      new PrefabContextSet()
+        .addContext(
+          PrefabContext.newBuilder(contextName).put(propertyName, propertyValue).build()
+        )
+    );
+    assertThat(
+      evaluator
+        .evaluateCriterionMatch(criterion, lookupContext)
+        .stream()
+        .findFirst()
+        .orElseThrow()
+        .isMatch()
+    )
+      .isEqualTo(expectedMatch);
+  }
+
   private Prefab.ConfigValue sv(String s) {
     return Prefab.ConfigValue.newBuilder().setString(s).build();
   }
@@ -625,7 +768,7 @@ public class ConfigRuleEvaluatorTest {
     );
   }
 
-  public static LookupContext singleValueLookupContext(
+  private static LookupContext singleValueLookupContext(
     String propName,
     @Nullable Prefab.ConfigValue configValue
   ) {

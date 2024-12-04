@@ -98,13 +98,7 @@ public class ConfigValueUtils {
       case LOG_LEVEL:
         return Optional.of(configValue.getLogLevel().name());
       case STRING_LIST:
-        return Optional.of(
-          configValue
-            .getStringList()
-            .getValuesList()
-            .stream()
-            .collect(Collectors.joining(","))
-        );
+        return Optional.of(String.join(",", configValue.getStringList().getValuesList()));
       case BYTES:
         return Optional.of(
           BaseEncoding.base16().encode(configValue.getBytes().toByteArray())
@@ -161,5 +155,9 @@ public class ConfigValueUtils {
    */
   public static Prefab.ConfigValue fromString(String string) {
     return from(string);
+  }
+
+  public static boolean isNumber(Prefab.ConfigValue configValue) {
+    return configValue.hasDouble() || configValue.hasInt();
   }
 }
