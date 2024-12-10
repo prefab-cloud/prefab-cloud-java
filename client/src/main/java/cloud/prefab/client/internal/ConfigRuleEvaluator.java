@@ -10,6 +10,7 @@ import cloud.prefab.domain.Prefab;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -438,6 +439,10 @@ public class ConfigRuleEvaluator {
       // fall through
       case PROP_LESS_THAN_OR_EQUAL:
         return evaluateNumericComparison(criterion, prop);
+      case PROP_AFTER:
+      // fall through
+      case PROP_BEFORE:
+        return evaluateDateComparison(criterion, prop);
       default:
         LOG.debug(
           "Unexpected operator {} found in criterion {}",
@@ -447,6 +452,29 @@ public class ConfigRuleEvaluator {
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
+  }
+
+  private List<EvaluatedCriterion> evaluateDateComparison(
+    Prefab.Criterion criterion,
+    Optional<Prefab.ConfigValue> valueFromContext
+  ) {
+    boolean comparison = false;
+    Optional<Instant> dateToCompare = getCriterionValueToMatch(criterion)
+      .flatMap(ConfigValueUtils::asDate);
+
+    Optional<Instant> dateFromContext = valueFromContext.flatMap(
+      ConfigValueUtils::asDate
+    );
+
+    if (dateToCompare.isPresent() && dateFromContext.isPresent()) {
+      if (criterion.getOperator() == Prefab.Criterion.CriterionOperator.PROP_BEFORE) {
+        comparison = dateFromContext.get().isBefore(dateToCompare.get());
+      }
+      if (criterion.getOperator() == Prefab.Criterion.CriterionOperator.PROP_AFTER) {
+        comparison = dateFromContext.get().isAfter(dateToCompare.get());
+      }
+    }
+    return List.of(new EvaluatedCriterion(criterion, comparison));
   }
 
   private List<EvaluatedCriterion> evaluateNumericComparison(

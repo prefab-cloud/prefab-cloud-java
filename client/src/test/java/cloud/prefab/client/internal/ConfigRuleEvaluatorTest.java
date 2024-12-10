@@ -13,6 +13,7 @@ import cloud.prefab.context.PrefabContext;
 import cloud.prefab.context.PrefabContextSet;
 import cloud.prefab.context.PrefabContextSetReadable;
 import cloud.prefab.domain.Prefab;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -582,7 +583,7 @@ public class ConfigRuleEvaluatorTest {
     assertThat(eval.isMatch()).isFalse();
   }
 
-  public static Stream<Arguments> numericComparisonArguments() {
+  public static Stream<Arguments> comparisonArguments() {
     return Stream.of(
       Arguments.of(
         ConfigValueUtils.from(2),
@@ -685,13 +686,57 @@ public class ConfigRuleEvaluatorTest {
         Prefab.Criterion.CriterionOperator.PROP_GREATER_THAN_OR_EQUAL,
         ConfigValueUtils.from("1"),
         false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_AFTER,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-02T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_AFTER,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_AFTER,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_AFTER,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_BEFORE,
+        ConfigValueUtils.from("2024-01-02T00:00:00z"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2024-01-02T00:00:00z"),
+        Prefab.Criterion.CriterionOperator.PROP_BEFORE,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from(
+          ZonedDateTime.parse("2024-01-02T00:00:00z").toInstant().toEpochMilli()
+        ),
+        Prefab.Criterion.CriterionOperator.PROP_AFTER,
+        ConfigValueUtils.from("2024-01-01T00:00:00z"),
+        true
       )
     );
   }
 
-  @MethodSource("numericComparisonArguments")
+  @MethodSource("comparisonArguments")
   @ParameterizedTest
-  void testNumericComparison(
+  void testComparison(
     Prefab.ConfigValue propertyValue,
     Prefab.Criterion.CriterionOperator operator,
     Prefab.ConfigValue criterionValue,

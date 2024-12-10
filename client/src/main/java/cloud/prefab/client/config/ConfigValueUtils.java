@@ -6,6 +6,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.BaseEncoding;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A set of utility methods to create ConfigValues from java objects
+ * A set of utility methods to convert ConfigValues to and from java objects
  */
 public class ConfigValueUtils {
 
@@ -65,7 +67,7 @@ public class ConfigValueUtils {
   ) {
     ImmutableMap.Builder<String, Prefab.ConfigValue> builder = ImmutableMap.<String, Prefab.ConfigValue>builder();
     for (Map.Entry<String, String> stringStringEntry : stringStringMap.entrySet()) {
-      builder.put(stringStringEntry.getKey(), fromString(stringStringEntry.getValue()));
+      builder.put(stringStringEntry.getKey(), from(stringStringEntry.getValue()));
     }
     return builder.build();
   }
@@ -159,5 +161,19 @@ public class ConfigValueUtils {
 
   public static boolean isNumber(Prefab.ConfigValue configValue) {
     return configValue.hasDouble() || configValue.hasInt();
+  }
+
+  public static Optional<Instant> asDate(Prefab.ConfigValue configValue) {
+    if (configValue.hasInt()) {
+      return Optional.of(Instant.ofEpochMilli(configValue.getInt()));
+    }
+    if (configValue.hasString()) {
+      try {
+        return Optional.of(ZonedDateTime.parse(configValue.getString()).toInstant());
+      } catch (Exception e) {
+        // ignore
+      }
+    }
+    return Optional.empty();
   }
 }
