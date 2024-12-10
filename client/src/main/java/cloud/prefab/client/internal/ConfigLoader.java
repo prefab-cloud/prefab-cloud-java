@@ -195,6 +195,10 @@ public class ConfigLoader {
       valueBuilder.setBool((Boolean) obj);
     } else if (obj instanceof Integer) {
       valueBuilder.setInt((Integer) obj);
+    } else if (obj instanceof Long) {
+      valueBuilder.setInt((Long) obj);
+    } else if (obj instanceof Float) {
+      valueBuilder.setDouble((Float) obj);
     } else if (obj instanceof Double) {
       valueBuilder.setDouble((Double) obj);
     } else if (obj instanceof String) {
