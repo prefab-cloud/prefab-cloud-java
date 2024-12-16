@@ -23,6 +23,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -443,6 +445,16 @@ public class ConfigRuleEvaluator {
       // fall through
       case PROP_BEFORE:
         return evaluateDateComparison(criterion, prop);
+      case PROP_MATCHES:
+      // fall through
+      case PROP_DOES_NOT_MATCH:
+        return evaluateRegexMatch(criterion, prop);
+      case PROP_SEMVER_LESS_THAN:
+      // fall through
+      case PROP_SEMVER_EQUAL:
+      // fall through
+      case PROP_SEMVER_GREATER_THAN:
+        return evaluateSemverComparison(criterion, prop);
       default:
         LOG.debug(
           "Unexpected operator {} found in criterion {}",
@@ -452,6 +464,51 @@ public class ConfigRuleEvaluator {
     }
     // Unknown Operator
     return List.of(new EvaluatedCriterion(criterion, false));
+  }
+
+  private List<EvaluatedCriterion> evaluateSemverComparison(
+    Prefab.Criterion criterion,
+    Optional<Prefab.ConfigValue> valueFromContext
+  ) {
+    boolean comparison = false;
+
+    Optional<SemanticVersion> semVerToMatch = getCriterionValueToMatch(criterion)
+      .flatMap(this::getSemanticVersion);
+    Optional<SemanticVersion> semVerFromContext = valueFromContext.flatMap(
+      this::getSemanticVersion
+    );
+
+    if (semVerFromContext.isPresent() && semVerToMatch.isPresent()) {
+      comparison =
+        Optional
+          .ofNullable(SEMVER_COMPARE_TO_EVAL.get(criterion.getOperator()))
+          .orElse(v -> false)
+          .test(semVerFromContext.get().compareTo(semVerToMatch.get()));
+    }
+
+    return List.of(new EvaluatedCriterion(criterion, valueFromContext, comparison));
+  }
+
+  private List<EvaluatedCriterion> evaluateRegexMatch(
+    Prefab.Criterion criterion,
+    Optional<Prefab.ConfigValue> valueFromContext
+  ) {
+    boolean comparison = false;
+    Optional<Pattern> patternToMatchMaybe = getCriterionValueToMatch(criterion)
+      .flatMap(this::getCompiledPattern);
+    if (patternToMatchMaybe.isPresent() && valueFromContext.isPresent()) {
+      boolean matches = patternToMatchMaybe
+        .get()
+        .matcher(valueFromContext.get().getString())
+        .matches();
+      comparison =
+        negate(
+          matches,
+          criterion.getOperator() ==
+          Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_MATCH
+        );
+    }
+    return List.of(new EvaluatedCriterion(criterion, comparison));
   }
 
   private List<EvaluatedCriterion> evaluateDateComparison(
@@ -513,6 +570,15 @@ public class ConfigRuleEvaluator {
     v -> v <= 0
   );
 
+  Map<Prefab.Criterion.CriterionOperator, Predicate<Integer>> SEMVER_COMPARE_TO_EVAL = ImmutableMap.of(
+    Prefab.Criterion.CriterionOperator.PROP_SEMVER_GREATER_THAN,
+    v -> v > 0,
+    Prefab.Criterion.CriterionOperator.PROP_SEMVER_EQUAL,
+    v -> v == 0,
+    Prefab.Criterion.CriterionOperator.PROP_SEMVER_LESS_THAN,
+    v -> v < 0
+  );
+
   private Optional<Prefab.ConfigValue> getCriterionValueToMatch(
     Prefab.Criterion criterion
   ) {
@@ -520,6 +586,18 @@ public class ConfigRuleEvaluator {
       return Optional.of(criterion.getValueToMatch());
     }
     return Optional.empty();
+  }
+
+  private Optional<SemanticVersion> getSemanticVersion(Prefab.ConfigValue configValue) {
+    return Optional.ofNullable(SemanticVersion.parseQuietly(configValue.getString()));
+  }
+
+  private Optional<Pattern> getCompiledPattern(Prefab.ConfigValue configValue) {
+    try {
+      return Optional.of(Pattern.compile(configValue.getString()));
+    } catch (PatternSyntaxException e) {
+      return Optional.empty();
+    }
   }
 
   private Optional<Number> getNumber(Prefab.ConfigValue configValue) {

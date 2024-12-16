@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 public class SemanticVersion implements Comparable<SemanticVersion> {
 
@@ -32,6 +33,14 @@ public class SemanticVersion implements Comparable<SemanticVersion> {
     this.patch = patch;
     this.prerelease = prerelease;
     this.buildMetadata = buildMetadata;
+  }
+
+  public static @Nullable SemanticVersion parseQuietly(String version) {
+    try {
+      return parse(version);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   public static SemanticVersion parse(String version) {
