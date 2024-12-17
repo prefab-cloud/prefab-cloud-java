@@ -730,6 +730,78 @@ public class ConfigRuleEvaluatorTest {
         Prefab.Criterion.CriterionOperator.PROP_AFTER,
         ConfigValueUtils.from("2024-01-01T00:00:00z"),
         true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.1.0"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_EQUAL,
+        ConfigValueUtils.from("2.1.0"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.1.0"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_LESS_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.1.0"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_GREATER_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.0.0"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_LESS_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.2.0"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_GREATER_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.2"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_GREATER_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        false // semver must be three digits
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("2.2"),
+        Prefab.Criterion.CriterionOperator.PROP_SEMVER_GREATER_THAN,
+        ConfigValueUtils.from("2.1.0"),
+        false // semver must be three digits
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("b"),
+        Prefab.Criterion.CriterionOperator.PROP_MATCHES,
+        ConfigValueUtils.from("a+b+"),
+        false
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("aabb"),
+        Prefab.Criterion.CriterionOperator.PROP_MATCHES,
+        ConfigValueUtils.from("a+b+"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("b"),
+        Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_MATCH,
+        ConfigValueUtils.from("a+b+"),
+        true
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("ignored"),
+        Prefab.Criterion.CriterionOperator.PROP_DOES_NOT_MATCH,
+        ConfigValueUtils.from("[abc"),
+        false // invalid regex
+      ),
+      Arguments.of(
+        ConfigValueUtils.from("ignored"),
+        Prefab.Criterion.CriterionOperator.PROP_MATCHES,
+        ConfigValueUtils.from("[abc"),
+        false // invalid regex
       )
     );
   }

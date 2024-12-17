@@ -10,7 +10,7 @@
 
   <groupId>cloud.prefab</groupId>
   <artifactId>prefab-cloud-parent</artifactId>
-  <version>0.3.25-pre2</version>
+  <version>0.3.25-pre3</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -177,6 +177,14 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.3.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.1.0</version>
+          <configuration>
+            <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.sonatype.plugins</groupId>
