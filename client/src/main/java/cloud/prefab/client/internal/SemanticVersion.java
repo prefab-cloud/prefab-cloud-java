@@ -80,6 +80,67 @@ public class SemanticVersion implements Comparable<SemanticVersion> {
     return Optional.ofNullable(buildMetadata);
   }
 
+  private static boolean isNumeric(String str) {
+    try {
+      Integer.parseInt(str);
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
+  private static int comparePreReleaseIdentifiers(String id1, String id2) {
+    // If both are numeric, compare numerically
+    if (isNumeric(id1) && isNumeric(id2)) {
+      int num1 = Integer.parseInt(id1);
+      int num2 = Integer.parseInt(id2);
+      return Integer.compare(num1, num2);
+    }
+
+    // If only one is numeric, numeric ones have lower precedence
+    if (isNumeric(id1)) {
+      return -1;
+    }
+    if (isNumeric(id2)) {
+      return 1;
+    }
+
+    // Neither is numeric, compare as strings
+    return id1.compareTo(id2);
+  }
+
+  private static int comparePreRelease(@Nullable String pre1, @Nullable String pre2) {
+    // If both are null (or empty), they're equal
+    if (pre1 == null && pre2 == null) {
+      return 0;
+    }
+
+    // A version without prerelease has higher precedence
+    if (pre1 == null) {
+      return 1;
+    }
+    if (pre2 == null) {
+      return -1;
+    }
+
+    // Split into identifiers
+    String[] ids1 = pre1.split("\\.");
+    String[] ids2 = pre2.split("\\.");
+
+    // Compare each identifier until we find a difference
+    int minLength = Math.min(ids1.length, ids2.length);
+    for (int i = 0; i < minLength; i++) {
+      int result = comparePreReleaseIdentifiers(ids1[i], ids2[i]);
+      if (result != 0) {
+        return result;
+      }
+    }
+
+    // If all identifiers match up to the length of the shorter one,
+    // the longer one has higher precedence
+    return Integer.compare(ids1.length, ids2.length);
+  }
+
   @Override
   public int compareTo(SemanticVersion other) {
     int result = Integer.compare(this.major, other.major);
@@ -97,18 +158,7 @@ public class SemanticVersion implements Comparable<SemanticVersion> {
       return result;
     }
 
-    // If one has prerelease and the other doesn't, the one without prerelease is greater
-    if (this.prerelease == null && other.prerelease != null) {
-      return 1;
-    }
-    if (this.prerelease != null && other.prerelease == null) {
-      return -1;
-    }
-    if (this.prerelease != null && other.prerelease != null) {
-      return this.prerelease.compareTo(other.prerelease);
-    }
-
-    return 0; // Build metadata doesn't affect precedence
+    return comparePreRelease(this.prerelease, other.prerelease);
   }
 
   @Override
