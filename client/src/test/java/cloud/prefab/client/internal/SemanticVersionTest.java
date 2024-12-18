@@ -56,12 +56,31 @@ class SemanticVersionTest {
   @ParameterizedTest
   @CsvSource(
     {
+      // Original test cases
       "1.2.3,     1.2.3,      0",
       "2.0.0,     1.9.9,      1",
       "1.2.3-alpha, 1.2.3,    -1",
       "1.2.3,     1.2.3-beta, 1",
       "2.0.0-alpha, 2.0.0-beta, -1",
-      "1.0.0+build.1, 1.0.0+build.2, 0", // build metadata doesn't affect comparison
+      "1.0.0+build.1, 1.0.0+build.2, 0",
+      // Numeric prerelease identifier cases
+      "1.0.0-alpha.1, 1.0.0-alpha.2, -1",
+      "1.0.0-alpha.2, 1.0.0-alpha.11, -1",
+      "1.0.0-2, 1.0.0-11, -1",
+      // Numeric vs non-numeric identifier cases
+      "1.0.0-1, 1.0.0-alpha, -1",
+      "1.0.0-alpha, 1.0.0-2, 1",
+      // Different length prerelease cases
+      "1.0.0-alpha, 1.0.0-alpha.1, -1",
+      "1.0.0-alpha.1, 1.0.0-alpha.1.1, -1",
+      "1.0.0-alpha.1.1, 1.0.0-alpha.1, 1",
+      // Mixed numeric and non-numeric cases
+      "1.0.0-alpha.1.beta, 1.0.0-alpha.1.1, 1",
+      "1.0.0-alpha.1.1, 1.0.0-alpha.1.beta, -1",
+      // Edge cases with zero
+      "1.0.0-alpha.0, 1.0.0-alpha.1, -1",
+      "1.0.0-alpha.1, 1.0.0-alpha.0, 1",
+      "1.0.0-rc.1, 1.0.0-rc.1.0, -1",
     }
   )
   @DisplayName("Should correctly compare versions")
@@ -73,7 +92,14 @@ class SemanticVersionTest {
     SemanticVersion v1 = SemanticVersion.parse(version1);
     SemanticVersion v2 = SemanticVersion.parse(version2);
 
-    assertThat(v1.compareTo(v2)).isEqualTo(expectedComparison);
+    assertThat(v1.compareTo(v2))
+      .as("Comparing %s to %s", version1, version2)
+      .isEqualTo(expectedComparison);
+
+    // Test comparison symmetry
+    assertThat(v2.compareTo(v1))
+      .as("Comparing %s to %s (reverse)", version2, version1)
+      .isEqualTo(-expectedComparison);
   }
 
   @Test
@@ -117,5 +143,18 @@ class SemanticVersionTest {
 
     assertThat(v3.getPrerelease()).hasValue("alpha.0.beta.0");
     assertThat(v3.getBuildMetadata()).hasValue("build-123.456");
+  }
+
+  @Test
+  @DisplayName("Should handle parseQuietly for valid and invalid versions")
+  void shouldHandleParseQuietly() {
+    assertThat(SemanticVersion.parseQuietly("1.2.3"))
+      .isNotNull()
+      .extracting(SemanticVersion::toString)
+      .isEqualTo("1.2.3");
+
+    assertThat(SemanticVersion.parseQuietly("invalid")).isNull();
+
+    assertThat(SemanticVersion.parseQuietly(null)).isNull();
   }
 }
