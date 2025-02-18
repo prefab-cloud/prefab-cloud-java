@@ -3,24 +3,28 @@ package cloud.prefab.client.internal;
 import cloud.prefab.client.Options;
 import cloud.prefab.client.util.MavenInfo;
 import cloud.prefab.domain.Prefab;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.net.ssl.SSLSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,13 +47,96 @@ public class PrefabHttpClient {
   private static final String PROTO_MEDIA_TYPE = "application/x-protobuf";
   private static final String EVENT_STREAM_MEDIA_TYPE = "text/event-stream";
   private static final String START_AT_HEADER = "x-prefab-start-at-id";
+
   private final Options options;
   private final HttpClient httpClient;
   private final URI telemetryUrl;
   private final List<String> apiHosts;
   private final List<String> streamHosts;
 
-  PrefabHttpClient(HttpClient httpClient, Options options) {
+  // Use Guava's cache with maximum size of 2 entries.
+  // (The cache respects HTTP cache-control expiry values provided by the server.)
+  private final Cache<URI, CacheEntry> configCache = CacheBuilder
+    .newBuilder()
+    .maximumSize(2)
+    .build();
+
+  // Cache entry definition.
+  static class CacheEntry {
+
+    final byte[] data;
+    final String etag;
+    final long expiresAt; // timestamp in millis
+
+    CacheEntry(byte[] data, String etag, long expiresAt) {
+      this.data = data;
+      this.etag = etag;
+      this.expiresAt = expiresAt;
+    }
+  }
+
+  // A basic HttpResponse implementation for synthetic (cached) responses.
+  private static class CachedHttpResponse<T> implements HttpResponse<T> {
+
+    private final URI uri;
+    private final int statusCode;
+    private final T body;
+    private final HttpHeaders headers;
+
+    CachedHttpResponse(
+      URI uri,
+      int statusCode,
+      T body,
+      Map<String, List<String>> headerMap
+    ) {
+      this.uri = uri;
+      this.statusCode = statusCode;
+      this.body = body;
+      this.headers = HttpHeaders.of(headerMap, (k, v) -> true);
+    }
+
+    @Override
+    public int statusCode() {
+      return statusCode;
+    }
+
+    @Override
+    public HttpRequest request() {
+      return null;
+    }
+
+    @Override
+    public Optional<HttpResponse<T>> previousResponse() {
+      return Optional.empty();
+    }
+
+    @Override
+    public HttpHeaders headers() {
+      return headers;
+    }
+
+    @Override
+    public T body() {
+      return body;
+    }
+
+    @Override
+    public Optional<SSLSession> sslSession() {
+      return Optional.empty();
+    }
+
+    @Override
+    public URI uri() {
+      return uri;
+    }
+
+    @Override
+    public HttpClient.Version version() {
+      return HttpClient.Version.HTTP_1_1;
+    }
+  }
+
+  public PrefabHttpClient(HttpClient httpClient, Options options) {
     this.httpClient = httpClient;
     this.options = options;
     this.telemetryUrl =
@@ -76,7 +163,7 @@ public class PrefabHttpClient {
     );
   }
 
-  CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> reportTelemetryEvents(
+  public CompletableFuture<HttpResponse<Supplier<Prefab.TelemetryEventsResponse>>> reportTelemetryEvents(
     Prefab.TelemetryEvents telemetryEvents
   ) {
     HttpRequest request = getClientBuilderWithStandardHeaders()
@@ -88,7 +175,7 @@ public class PrefabHttpClient {
     return httpClient.sendAsync(request, responseInfo -> asProto());
   }
 
-  CompletableFuture<HttpResponse<Void>> createSSEConfigConnection(
+  public CompletableFuture<HttpResponse<Void>> createSSEConfigConnection(
     long offset,
     Flow.Subscriber<String> lineSubscriber
   ) {
@@ -113,9 +200,17 @@ public class PrefabHttpClient {
     );
   }
 
-  CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigs(long offset) {
+  /**
+   * Fetches configurations with caching.
+   */
+  public CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigs(
+    long offset
+  ) {
     return executeWithFailover(
-      host -> requestConfigsFromURI(URI.create(host + "/api/v1/configs/" + offset)),
+      host -> {
+        URI uri = URI.create(host + "/api/v1/configs/" + offset);
+        return requestConfigsFromURI(uri);
+      },
       apiHosts
     );
   }
@@ -123,31 +218,113 @@ public class PrefabHttpClient {
   private CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> requestConfigsFromURI(
     URI uri
   ) {
-    LOG.info("Requesting configs from {}", uri);
-    HttpRequest request = getClientBuilderWithStandardHeaders()
+    long now = System.currentTimeMillis();
+    CacheEntry cachedEntry = configCache.getIfPresent(uri);
+
+    // If a valid cache entry exists, return it.
+    if (cachedEntry != null && cachedEntry.expiresAt > now) {
+      return CompletableFuture.completedFuture(createCachedHitResponse(uri, cachedEntry));
+    }
+
+    HttpRequest.Builder requestBuilder = getClientBuilderWithStandardHeaders()
       .header("Accept", PROTO_MEDIA_TYPE)
       .timeout(Duration.ofSeconds(5))
-      .uri(uri)
-      .build();
+      .uri(uri);
 
-    HttpResponse.BodySubscriber<InputStream> upstream = HttpResponse.BodySubscribers.ofInputStream();
-    HttpResponse.BodySubscriber<Supplier<Prefab.Configs>> mapper = HttpResponse.BodySubscribers.mapping(
-      upstream,
-      this::configsSupplier
-    );
+    if (cachedEntry != null && cachedEntry.etag != null) {
+      requestBuilder.header("If-None-Match", cachedEntry.etag);
+    }
+    HttpRequest request = requestBuilder.build();
+
     return httpClient
-      .sendAsync(request, resp -> mapper)
+      .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+      .thenApply(response -> {
+        if (response.statusCode() == 304 && cachedEntry != null) {
+          // Server indicates data is unchanged.
+          return createCachedHitResponse(uri, cachedEntry);
+        } else if (response.statusCode() == 200) {
+          byte[] bodyBytes = response.body();
+          String cacheControl = response.headers().firstValue("Cache-Control").orElse("");
+          String etag = response.headers().firstValue("ETag").orElse(null);
+          long expiresAt = 0;
+          if (!cacheControl.contains("no-store")) {
+            // Parse max-age (assumed in seconds)
+            Pattern pattern = Pattern.compile("max-age=(\\d+)");
+            Matcher matcher = pattern.matcher(cacheControl);
+            if (matcher.find()) {
+              int maxAge = Integer.parseInt(matcher.group(1));
+              expiresAt = now + maxAge * 1000L;
+            }
+          }
+          // Cache the response if appropriate.
+          if (expiresAt > now) {
+            CacheEntry newEntry = new CacheEntry(bodyBytes, etag, expiresAt);
+            configCache.put(uri, newEntry);
+          }
+          Supplier<Prefab.Configs> supplier = () -> {
+            try {
+              return Prefab.Configs.parseFrom(bodyBytes);
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          };
+          // Mark this as a MISS since it's a fresh network call.
+          Map<String, List<String>> headerMap = new HashMap<>(response.headers().map());
+          headerMap.put("X-Cache", List.of("MISS"));
+          return createResponse(uri, response.statusCode(), supplier, headerMap);
+        } else {
+          // For other status codes, simply wrap the response.
+          Supplier<Prefab.Configs> supplier = () -> {
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(response.body())) {
+              return Prefab.Configs.parseFrom(bais);
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          };
+          return createResponse(
+            uri,
+            response.statusCode(),
+            supplier,
+            response.headers().map()
+          );
+        }
+      })
       .whenCompleteAsync(this::checkForAuthFailure);
   }
 
-  private Supplier<Prefab.Configs> configsSupplier(InputStream inputStream) {
-    return () -> {
+  /**
+   * Helper method to create a cached response.
+   */
+  private HttpResponse<Supplier<Prefab.Configs>> createCachedHitResponse(
+    URI uri,
+    CacheEntry entry
+  ) {
+    Supplier<Prefab.Configs> supplier = () -> {
       try {
-        return Prefab.Configs.parseFrom(inputStream);
+        return Prefab.Configs.parseFrom(entry.data);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
     };
+    Map<String, List<String>> headerMap = Map.of(
+      "ETag",
+      List.of(entry.etag),
+      "X-Cache",
+      List.of("HIT")
+    );
+    return new CachedHttpResponse<>(uri, 200, supplier, headerMap);
+  }
+
+  /**
+   * Helper method to create a general response.
+   */
+  private HttpResponse<Supplier<Prefab.Configs>> createResponse(
+    URI uri,
+    int statusCode,
+    Supplier<Prefab.Configs> supplier,
+    Map<String, List<String>> headerMap
+  ) {
+    return new CachedHttpResponse<>(uri, statusCode, supplier, headerMap);
   }
 
   private HttpRequest.Builder getClientBuilderWithStandardHeaders() {
@@ -185,7 +362,7 @@ public class PrefabHttpClient {
   }
 
   private <T> CompletableFuture<T> executeWithFailover(
-    Function<String, CompletableFuture<T>> operation,
+    java.util.function.Function<String, CompletableFuture<T>> operation,
     List<String> hostList
   ) {
     long maxRetriesPerHost = 2;
@@ -218,5 +395,17 @@ public class PrefabHttpClient {
         String currentHost = hostList.get(hostIndex.get() % hostList.size());
         return operation.apply(currentHost);
       });
+  }
+
+  // ----- Cache management methods -----
+
+  /** Clears the internal configuration cache. */
+  public void clearCache() {
+    configCache.invalidateAll();
+  }
+
+  /** For testing: returns the current number of cached entries. */
+  public long getCacheSize() {
+    return configCache.size();
   }
 }
