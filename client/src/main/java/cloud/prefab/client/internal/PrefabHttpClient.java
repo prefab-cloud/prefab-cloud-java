@@ -222,7 +222,7 @@ public class PrefabHttpClient {
     long now = System.currentTimeMillis();
     CacheEntry cachedEntry = configCache.getIfPresent(uri);
 
-    // If a valid cache entry exists, return it.
+    // If a fresh cached entry exists, return it immediately.
     if (cachedEntry != null && cachedEntry.expiresAt > now) {
       return CompletableFuture.completedFuture(createCachedHitResponse(uri, cachedEntry));
     }
@@ -231,7 +231,7 @@ public class PrefabHttpClient {
       .header("Accept", PROTO_MEDIA_TYPE)
       .timeout(Duration.ofSeconds(5))
       .uri(uri);
-
+    // If there's any cached entry (even if stale) with an ETag, add a conditional GET header.
     if (cachedEntry != null && cachedEntry.etag != null) {
       requestBuilder.header("If-None-Match", cachedEntry.etag);
     }
@@ -241,27 +241,36 @@ public class PrefabHttpClient {
       .sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
       .thenApply(response -> {
         if (response.statusCode() == 304 && cachedEntry != null) {
-          // Server indicates data is unchanged.
+          // 304: Not Modified—return a synthetic response built from the cached data.
           return createCachedHitResponse(uri, cachedEntry);
         } else if (response.statusCode() == 200) {
           byte[] bodyBytes = response.body();
           String cacheControl = response.headers().firstValue("Cache-Control").orElse("");
           String etag = response.headers().firstValue("ETag").orElse(null);
           long expiresAt = 0;
-          if (!cacheControl.contains("no-store")) {
-            // Parse max-age (assumed in seconds)
-            Pattern pattern = Pattern.compile("max-age=(\\d+)");
-            Matcher matcher = pattern.matcher(cacheControl);
-            if (matcher.find()) {
-              int maxAge = Integer.parseInt(matcher.group(1));
-              expiresAt = now + maxAge * 1000L;
+
+          // Only update the cache if "no-store" is NOT present.
+          if (!cacheControl.toLowerCase().contains("no-store")) {
+            if (cacheControl.toLowerCase().contains("no-cache")) {
+              // "no-cache": cache the response but mark it as immediately expired
+              expiresAt = now; // or now - 1L to ensure expiration.
+              if (etag != null) {
+                configCache.put(uri, new CacheEntry(bodyBytes, etag, expiresAt));
+              }
+            } else {
+              // Normal caching: look for max-age (assumed in seconds)
+              Pattern pattern = Pattern.compile("max-age=(\\d+)");
+              Matcher matcher = pattern.matcher(cacheControl);
+              if (matcher.find()) {
+                int maxAge = Integer.parseInt(matcher.group(1));
+                expiresAt = now + maxAge * 1000L;
+              }
+              if (expiresAt > now) {
+                configCache.put(uri, new CacheEntry(bodyBytes, etag, expiresAt));
+              }
             }
           }
-          // Cache the response if appropriate.
-          if (expiresAt > now) {
-            CacheEntry newEntry = new CacheEntry(bodyBytes, etag, expiresAt);
-            configCache.put(uri, newEntry);
-          }
+          // Build a synthetic response for the 200 case.
           Supplier<Prefab.Configs> supplier = () -> {
             try {
               return Prefab.Configs.parseFrom(bodyBytes);
@@ -269,7 +278,6 @@ public class PrefabHttpClient {
               throw new UncheckedIOException(e);
             }
           };
-          // Mark this as a MISS since it's a fresh network call.
           Map<String, List<String>> headerMap = new HashMap<>(response.headers().map());
           headerMap.put("X-Cache", List.of("MISS"));
           return createResponse(uri, response.statusCode(), supplier, headerMap);
@@ -294,6 +302,18 @@ public class PrefabHttpClient {
   }
 
   /**
+   * Helper method to wrap a response in a CachedHttpResponse.
+   */
+  private HttpResponse<Supplier<Prefab.Configs>> createResponse(
+    URI uri,
+    int statusCode,
+    Supplier<Prefab.Configs> supplier,
+    Map<String, List<String>> headerMap
+  ) {
+    return new CachedHttpResponse<>(uri, statusCode, supplier, headerMap);
+  }
+
+  /**
    * Helper method to create a cached response.
    */
   private HttpResponse<Supplier<Prefab.Configs>> createCachedHitResponse(
@@ -314,18 +334,6 @@ public class PrefabHttpClient {
       List.of("HIT")
     );
     return new CachedHttpResponse<>(uri, 200, supplier, headerMap);
-  }
-
-  /**
-   * Helper method to create a general response.
-   */
-  private HttpResponse<Supplier<Prefab.Configs>> createResponse(
-    URI uri,
-    int statusCode,
-    Supplier<Prefab.Configs> supplier,
-    Map<String, List<String>> headerMap
-  ) {
-    return new CachedHttpResponse<>(uri, statusCode, supplier, headerMap);
   }
 
   private HttpRequest.Builder getClientBuilderWithStandardHeaders() {

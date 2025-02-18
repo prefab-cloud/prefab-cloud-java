@@ -22,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -277,5 +276,95 @@ class PrefabHttpClientTest {
     HttpResponse<Supplier<Prefab.Configs>> result2 = resultFuture2.get();
     assertThat(result2.headers().firstValue("X-Cache")).contains("MISS");
     verify(mockHttpClient, times(1)).sendAsync(any(), any());
+  }
+
+  @Test
+  void testNoCacheResponseAlwaysRevalidates() throws Exception {
+    // Create a valid Prefab.Configs instance and its serialized form.
+    Prefab.Configs dummyConfigs = Prefab.Configs.newBuilder().build();
+    byte[] dummyBytes = dummyConfigs.toByteArray();
+
+    // Simulate a 200 response with Cache-Control: no-cache and an ETag.
+    HttpResponse<byte[]> response200 = mock(HttpResponse.class);
+    when(response200.statusCode()).thenReturn(200);
+    when(response200.body()).thenReturn(dummyBytes);
+    HttpHeaders headersNoCache = HttpHeaders.of(
+      Map.of("Cache-Control", List.of("no-cache"), "ETag", List.of("etag-no-cache")),
+      (k, v) -> true
+    );
+    when(response200.headers()).thenReturn(headersNoCache);
+
+    // First call: should update the cache but mark it as immediately expired.
+    CompletableFuture<HttpResponse<byte[]>> future200 = CompletableFuture.completedFuture(
+      response200
+    );
+    when(
+      mockHttpClient.sendAsync(
+        any(HttpRequest.class),
+        any(HttpResponse.BodyHandler.class)
+      )
+    )
+      .thenReturn(future200);
+
+    // Invoke the request (using offset 0L, yielding a URL like "http://a.example.com/api/v1/configs/0").
+    CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> firstCall = prefabHttpClient.requestConfigs(
+      0L
+    );
+    HttpResponse<Supplier<Prefab.Configs>> resp1 = firstCall.get();
+
+    // The first response should be a network call (MISS).
+    assertThat(resp1.statusCode()).isEqualTo(200);
+    assertThat(resp1.headers().firstValue("X-Cache")).contains("MISS");
+
+    // Retrieve the cached entry.
+    URI uri = URI.create("http://a.example.com/api/v1/configs/0");
+    Field cacheField = PrefabHttpClient.class.getDeclaredField("configCache");
+    cacheField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    Cache<URI, PrefabHttpClient.CacheEntry> cache = (Cache<URI, PrefabHttpClient.CacheEntry>) cacheField.get(
+      prefabHttpClient
+    );
+    PrefabHttpClient.CacheEntry cachedEntry = cache.getIfPresent(uri);
+    assertThat(cachedEntry).isNotNull();
+    // Due to "no-cache", the cached entry should be immediately expired.
+    assertThat(cachedEntry.expiresAt).isLessThanOrEqualTo(System.currentTimeMillis());
+
+    // Now simulate a 304 Not Modified response on a subsequent request.
+    HttpResponse<byte[]> response304 = mock(HttpResponse.class);
+    when(response304.statusCode()).thenReturn(304);
+    HttpHeaders headers304 = HttpHeaders.of(Map.of(), (k, v) -> true);
+    CompletableFuture<HttpResponse<byte[]>> future304 = CompletableFuture.completedFuture(
+      response304
+    );
+    reset(mockHttpClient);
+    when(
+      mockHttpClient.sendAsync(
+        any(HttpRequest.class),
+        any(HttpResponse.BodyHandler.class)
+      )
+    )
+      .thenReturn(future304);
+
+    CompletableFuture<HttpResponse<Supplier<Prefab.Configs>>> secondCall = prefabHttpClient.requestConfigs(
+      0L
+    );
+    HttpResponse<Supplier<Prefab.Configs>> resp2 = secondCall.get();
+
+    // The second call should use the cached ETag and return the cached response (HIT).
+    assertThat(resp2.statusCode()).isEqualTo(200);
+    assertThat(resp2.headers().firstValue("X-Cache")).contains("HIT");
+    // Verify that parsing the cached value yields the same dummyConfigs.
+    Prefab.Configs parsedConfigs = resp2.body().get();
+    assertThat(parsedConfigs).isEqualTo(dummyConfigs);
+
+    // Also, verify that the If-None-Match header was added.
+    // Capture the HttpRequest used in the second call.
+    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(
+      HttpRequest.class
+    );
+    verify(mockHttpClient, atLeastOnce()).sendAsync(requestCaptor.capture(), any());
+    HttpRequest sentRequest = requestCaptor.getValue();
+    assertThat(sentRequest.headers().firstValue("If-None-Match"))
+      .contains("etag-no-cache");
   }
 }
