@@ -78,7 +78,7 @@ public class PrefabHttpClient {
   // A basic HttpResponse implementation for synthetic (cached) responses.
   private static class CachedHttpResponse<T> implements HttpResponse<T> {
 
-    private final URI uri;
+    private final HttpRequest request;
     private final int statusCode;
     private final T body;
     private final HttpHeaders headers;
@@ -89,7 +89,8 @@ public class PrefabHttpClient {
       T body,
       Map<String, List<String>> headerMap
     ) {
-      this.uri = uri;
+      // Create a dummy HttpRequest with the proper URI.
+      this.request = HttpRequest.newBuilder().uri(uri).build();
       this.statusCode = statusCode;
       this.body = body;
       this.headers = HttpHeaders.of(headerMap, (k, v) -> true);
@@ -102,7 +103,7 @@ public class PrefabHttpClient {
 
     @Override
     public HttpRequest request() {
-      return null;
+      return request;
     }
 
     @Override
@@ -127,7 +128,7 @@ public class PrefabHttpClient {
 
     @Override
     public URI uri() {
-      return uri;
+      return request.uri();
     }
 
     @Override
