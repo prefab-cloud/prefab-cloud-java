@@ -279,4 +279,37 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
+
+  <profiles>
+    <profile>
+      <id>jitpack</id>
+      <activation>
+        <property>
+          <name>env.JITPACK</name>
+          <!-- JitPack might not set this, so we'll use -Pjitpack -->
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.hubspot.maven.plugins</groupId>
+            <artifactId>prettier-maven-plugin</artifactId>
+            <version>0.18</version>
+            <executions>
+              <execution>
+                <id>format</id>
+                <goals>
+                  <goal>check</goal>
+                </goals>
+                <configuration>
+                  <skip>true</skip>
+                  <!-- Skips Prettier in the JitPack profile -->
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
