@@ -1,6 +1,6 @@
 [submodule "prefab-cloud"]
 	path = client/prefab-cloud
-	url = git@github.com:prefab-cloud/prefab-cloud.git
+	url = https://github.com/prefab-cloud/prefab-cloud.git
 [submodule "integration-test-data"]
 	path = client/src/test/resources/prefab-cloud-integration-test-data
-	url = git@github.com:prefab-cloud/prefab-cloud-integration-test-data
+	url = https://github.com/prefab-cloud/prefab-cloud-integration-test-data
