@@ -455,7 +455,11 @@ public class ConfigClientImpl implements ConfigClient {
         return Optional.of(configs);
       }
     } catch (Exception e) {
-      LOG.info("Got exception with message {} loading configs from API", e.getMessage());
+      LOG.info(
+        "Got exception with message {} loading configs from API",
+        e.getMessage(),
+        e
+      );
     }
     return Optional.empty();
   }
