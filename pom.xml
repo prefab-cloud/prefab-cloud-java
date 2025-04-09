@@ -278,8 +278,8 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</connection>
-    <developerConnection>scm:git:git@github.com:prefab-cloud/prefab-cloud-java.git</developerConnection>
+    <connection>scm:git:https://github.com/prefab-cloud/prefab-cloud-java.git</connection>
+    <developerConnection>scm:git:https://github.com/prefab-cloud/prefab-cloud-java.git</developerConnection>
     <url>https://github.com/prefab-cloud/prefab-cloud-java</url>
   </scm>
   <distributionManagement>
@@ -308,13 +308,24 @@
             <groupId>com.hubspot.maven.plugins</groupId>
             <artifactId>prettier-maven-plugin</artifactId>
             <executions>
-              <!-- Completely disable executions in JitPack -->
               <execution>
                 <id>check</id>
                 <phase>none</phase>
                 <configuration>
                   <skip>true</skip>
-                  <!-- Skips Prettier in the JitPack profile -->
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>none</phase>
+                <configuration>
+                  <skip>true</skip>
                 </configuration>
               </execution>
             </executions>
