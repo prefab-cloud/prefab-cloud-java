@@ -1,4 +1,4 @@
 jdk:
-  - openjdk21
+  - openjdk11
 build:
   - mvn clean install -DskipTests -Dcheckstyle.skip=true -Pjitpack
