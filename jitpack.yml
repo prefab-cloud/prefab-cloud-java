@@ -1,0 +1,9 @@
+jdk:
+  - openjdk11
+before_install:
+  - sdk install 11.0.28-librca
+  - sdk use 11.0.28-librca
+  - sdk install maven
+  - mvn -v
+install:
+  - mvn clean install -DskipTests -Dcheckstyle.skip=true -Pjitpack -Dmaven.javadoc.skip=true
