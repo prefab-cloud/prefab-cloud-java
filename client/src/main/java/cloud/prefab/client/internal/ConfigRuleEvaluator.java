@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 public class ConfigRuleEvaluator {
 
   public static final String CURRENT_TIME_KEY = "prefab.current-time";
+  public static final String REFORGE_CURRENT_TIME_KEY = "reforge.current-time";
   private static final Logger LOG = LoggerFactory.getLogger(ConfigRuleEvaluator.class);
 
   private final ConfigStore configStore;
@@ -242,7 +243,7 @@ public class ConfigRuleEvaluator {
       }
     }
     //TODO: move this current time injection into a ContextResolver class?
-    if (CURRENT_TIME_KEY.equals(key)) {
+    if (CURRENT_TIME_KEY.equals(key) || REFORGE_CURRENT_TIME_KEY.equals(key)) {
       return Optional.of(
         Prefab.ConfigValue.newBuilder().setInt(System.currentTimeMillis()).build()
       );
