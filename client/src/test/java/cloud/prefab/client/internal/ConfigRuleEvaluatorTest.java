@@ -583,6 +583,57 @@ public class ConfigRuleEvaluatorTest {
     assertThat(eval.isMatch()).isFalse();
   }
 
+  @Test
+  public void testReforgeTimeInRange() {
+    // note this relies on ConfigRuleEvaluator on-demand adding the current time for reforge.current-time
+    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(ConfigRuleEvaluator.REFORGE_CURRENT_TIME_KEY)
+      .setValueToMatch(
+        Prefab.ConfigValue.newBuilder().setIntRange(Prefab.IntRange.newBuilder().build())
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
+      .build();
+
+    final EvaluatedCriterion positiveEval = evaluator
+      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
+      .stream()
+      .findFirst()
+      .get();
+
+    assertThat(positiveEval.isMatch()).isTrue();
+  }
+
+  @Test
+  public void testReforgeTimeAfterRange() {
+    // note this relies on ConfigRuleEvaluator on-demand adding the current time for reforge.current-time
+    long currentTime = System.currentTimeMillis();
+
+    final Prefab.Criterion intRangeCriterion = Prefab.Criterion
+      .newBuilder()
+      .setPropertyName(ConfigRuleEvaluator.REFORGE_CURRENT_TIME_KEY)
+      .setValueToMatch(
+        Prefab.ConfigValue
+          .newBuilder()
+          .setIntRange(
+            Prefab.IntRange
+              .newBuilder()
+              .setEnd(currentTime - TimeUnit.MINUTES.toMillis(2))
+              .build()
+          )
+      )
+      .setOperator(Prefab.Criterion.CriterionOperator.IN_INT_RANGE)
+      .build();
+
+    final EvaluatedCriterion eval = evaluator
+      .evaluateCriterionMatch(intRangeCriterion, LookupContext.EMPTY)
+      .stream()
+      .findFirst()
+      .get();
+
+    assertThat(eval.isMatch()).isFalse();
+  }
+
   public static Stream<Arguments> comparisonArguments() {
     return Stream.of(
       Arguments.of(
