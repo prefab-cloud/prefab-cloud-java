@@ -114,7 +114,8 @@ public class ConfigRuleEvaluator {
               conditionalValueIndex,
               lookupContext,
               rowPropertiesStack,
-              configElement
+              configElement,
+              configRow
             );
 
             if (optionalMatch.isPresent()) {
@@ -146,7 +147,8 @@ public class ConfigRuleEvaluator {
     int conditionalValueIndex,
     LookupContext lookupContext,
     Deque<Map<String, Prefab.ConfigValue>> rowProperties,
-    ConfigElement configElement
+    ConfigElement configElement,
+    Prefab.ConfigRow configRow
   ) {
     List<EvaluatedCriterion> evaluatedCriteria = new ArrayList<>();
     for (Prefab.Criterion criterion : conditionalValue.getCriteriaList()) {
@@ -168,7 +170,8 @@ public class ConfigRuleEvaluator {
         conditionalValueIndex,
         configElement,
         lookupContext,
-        evaluatedCriteria
+        evaluatedCriteria,
+        configRow
       )
     );
   }
@@ -182,8 +185,13 @@ public class ConfigRuleEvaluator {
     int conditionalValueIndex,
     ConfigElement configElement,
     LookupContext lookupContext,
-    List<EvaluatedCriterion> evaluatedCriteria
+    List<EvaluatedCriterion> evaluatedCriteria,
+    Prefab.ConfigRow configRow
   ) {
+    Optional<Long> envId = configRow.hasProjectEnvId()
+      ? Optional.of(configRow.getProjectEnvId())
+      : Optional.empty();
+
     if (selectedConditionalValue.getValue().hasWeightedValues()) {
       WeightedValueEvaluator.Result result = weightedValueEvaluator.toResult(
         selectedConditionalValue.getValue().getWeightedValues(),
@@ -196,7 +204,8 @@ public class ConfigRuleEvaluator {
         evaluatedCriteria,
         (int) rowIndex,
         conditionalValueIndex,
-        Optional.of(result.getIndex())
+        Optional.of(result.getIndex()),
+        envId
       );
     } else {
       return new Match(
@@ -205,7 +214,8 @@ public class ConfigRuleEvaluator {
         evaluatedCriteria,
         (int) rowIndex,
         conditionalValueIndex,
-        Optional.empty()
+        Optional.empty(),
+        envId
       );
     }
   }

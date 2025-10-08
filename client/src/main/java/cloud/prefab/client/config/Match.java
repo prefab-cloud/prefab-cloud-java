@@ -13,6 +13,7 @@ public class Match {
   private final int rowIndex;
   private final int conditionalValueIndex;
   private final Optional<Integer> weightedValueIndex;
+  private final Optional<Long> envId;
 
   public Match(
     Prefab.ConfigValue configValue,
@@ -20,7 +21,8 @@ public class Match {
     List<EvaluatedCriterion> evaluatedCriterion,
     int rowIndex,
     int conditionalValueIndex,
-    Optional<Integer> weightedValueIndex
+    Optional<Integer> weightedValueIndex,
+    Optional<Long> envId
   ) {
     this.configValue = configValue;
     this.configElement = configElement;
@@ -28,6 +30,7 @@ public class Match {
     this.rowIndex = rowIndex;
     this.conditionalValueIndex = conditionalValueIndex;
     this.weightedValueIndex = weightedValueIndex;
+    this.envId = envId;
   }
 
   public int getRowIndex() {
@@ -40,6 +43,10 @@ public class Match {
 
   public Optional<Integer> getWeightedValueIndex() {
     return weightedValueIndex;
+  }
+
+  public Optional<Long> getEnvId() {
+    return envId;
   }
 
   public Prefab.ConfigValue getConfigValue() {
@@ -74,6 +81,7 @@ public class Match {
       .add("rowIndex", rowIndex)
       .add("conditionalValueIndex", conditionalValueIndex)
       .add("weightedValueIndex", weightedValueIndex)
+      .add("envId", envId)
       .toString();
   }
 }

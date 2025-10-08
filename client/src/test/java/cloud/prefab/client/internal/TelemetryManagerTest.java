@@ -415,6 +415,7 @@ class TelemetryManagerTest {
         Collections.emptyList(),
         1,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       new LookupContext(
@@ -436,6 +437,7 @@ class TelemetryManagerTest {
         Collections.emptyList(),
         1,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       new LookupContext(
@@ -457,6 +459,7 @@ class TelemetryManagerTest {
         Collections.emptyList(),
         1,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       new LookupContext(
@@ -475,6 +478,7 @@ class TelemetryManagerTest {
         Collections.emptyList(),
         0,
         0,
+        Optional.empty(),
         Optional.empty()
       ),
       new LookupContext(
@@ -493,6 +497,7 @@ class TelemetryManagerTest {
         Collections.emptyList(),
         0,
         0,
+        Optional.empty(),
         Optional.empty()
       ),
       new LookupContext(

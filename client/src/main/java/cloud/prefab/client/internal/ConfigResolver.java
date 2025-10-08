@@ -89,7 +89,8 @@ public class ConfigResolver {
       match.getEvaluatedCriterion(),
       match.getRowIndex(),
       match.getConditionalValueIndex(),
-      match.getWeightedValueIndex()
+      match.getWeightedValueIndex(),
+      match.getEnvId()
     );
   }
 
