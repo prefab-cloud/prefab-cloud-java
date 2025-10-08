@@ -69,6 +69,7 @@ class MatchStatsAggregatorTest {
         Collections.emptyList(),
         0,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       101
@@ -81,6 +82,7 @@ class MatchStatsAggregatorTest {
         Collections.emptyList(),
         0,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       102
@@ -93,6 +95,7 @@ class MatchStatsAggregatorTest {
         Collections.emptyList(),
         0,
         2,
+        Optional.empty(),
         Optional.empty()
       ),
       102
@@ -108,6 +111,7 @@ class MatchStatsAggregatorTest {
         Collections.emptyList(),
         0,
         3,
+        Optional.empty(),
         Optional.empty()
       ),
       107

@@ -241,6 +241,7 @@ class ConfigResolverTest {
       Collections.emptyList(),
       0,
       0,
+      Optional.empty(),
       Optional.empty()
     );
   }
